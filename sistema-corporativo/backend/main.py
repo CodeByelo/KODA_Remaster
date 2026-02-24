@@ -134,6 +134,12 @@ app.include_router(auth_router.router)
 app.include_router(users_router.router)
 app.include_router(gerencias_router.router)
 
+print("\n📋 RUTAS REGISTRADAS EN FASTAPI:")
+for route in app.routes:
+    if hasattr(route, 'methods'):
+        print(f"  {list(route.methods)} {route.path}")
+print()
+
 @app.on_event("startup")
 async def startup():
     await init_db_pool()
