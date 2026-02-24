@@ -1982,7 +1982,7 @@ export default function Dashboard() {
 
         // URL del archivo
         const fileUrl = d.url_archivo || d.fileUrl
-          ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${d.url_archivo || d.fileUrl}`
+          ? `${process.env.NEXT_PUBLIC_API_URL || "https://sistema-corpoelect-backend.onrender.com"}${d.url_archivo || d.fileUrl}`
           : undefined;
 
         return {
@@ -2006,7 +2006,7 @@ export default function Dashboard() {
           correlativo: d.correlativo || d.idDoc || "N/A",
           fileUrl: d.fileUrl || (d.archivos && d.archivos.length > 0 ? d.archivos[0] : undefined),
           archivos: (d.archivos || []).map((url: string) =>
-            url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}${url}`
+            url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL || "https://sistema-corpoelect-backend.onrender.com"}${url}`
           ),
           prioridad: d.prioridad || "media",
           tenant_id: d.tenant_id,

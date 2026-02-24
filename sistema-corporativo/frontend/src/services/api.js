@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // CORRECCIÓN: Quitamos '/api' del final porque el backend sirve en la raíz
 const api = axios.create({
-  baseURL: 'http://localhost:8000', 
+  baseURL: 'https://sistema-corpoelect-backend.onrender.com',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -26,8 +26,8 @@ export const loginApi = async (username, password) => {
   params.append('password', password);
 
   const response = await api.post('/login', params.toString(), {
-    headers: { 
-      'Content-Type': 'application/x-www-form-urlencoded' 
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
     },
   });
   return response.data;
