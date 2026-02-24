@@ -110,7 +110,10 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
-    "http://127.0.0.1:8000"
+    "http://127.0.0.1:8000",
+    "https://sistema-corpoelect.vercel.app",
+    "https://sistema-corpoelect-eight.vercel.app",
+    "https://sistema-corpoelect-git-main-henryddaniel1910-6913s-projects.vercel.app"
 ]
 
 app.add_middleware(
