@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, Save, CheckCircle, Info } from 'lucide-react';
-import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '@/permissions/constants';
-import { useAuth } from '@/hooks/useAuth';
-import { UserRole } from '@/context/AuthContext';
+import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../permissions/constants';
+import { useAuth } from '../hooks/useAuth';
+import { UserRole } from '../context/AuthContext';
 
 export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean }) {
     const { user } = useAuth();

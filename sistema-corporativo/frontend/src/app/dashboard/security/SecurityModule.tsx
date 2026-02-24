@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
-import { getAllUsers, updateUserRole } from '@/lib/api';
-import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '@/permissions/constants';
-import { useAuth } from '@/hooks/useAuth';
-import { UserRole } from '@/context/AuthContext';
+import { getAllUsers, updateUserRole } from '../../../lib/api';
+import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../../../permissions/constants';
+import { useAuth } from '../../../hooks/useAuth';
+import { UserRole } from '../../../context/AuthContext';
 
 // Mapping icons for serialization support
 const ORG_ICONS: Record<string, React.ElementType> = {
@@ -787,8 +787,8 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                     key={role}
                                     onClick={() => setSelectedRole(role)}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedRole === role
-                                            ? 'bg-red-600 text-white shadow-lg shadow-red-900/40'
-                                            : (darkMode ? 'bg-zinc-800 text-slate-400 hover:bg-zinc-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100')
+                                        ? 'bg-red-600 text-white shadow-lg shadow-red-900/40'
+                                        : (darkMode ? 'bg-zinc-800 text-slate-400 hover:bg-zinc-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100')
                                         }`}
                                 >
                                     {role}

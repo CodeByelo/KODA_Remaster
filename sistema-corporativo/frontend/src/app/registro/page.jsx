@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Shield, Zap, Lock, User, Mail, Phone, CheckCircle, AlertCircle, ChevronRight, ArrowLeft, Briefcase } from 'lucide-react';
 // import { registrarUsuario } from '../actions';
-import { register } from '@/lib/api';
+import { register } from '../../lib/api';
 
 // ====================================================================
 // NEON CHECKBOX

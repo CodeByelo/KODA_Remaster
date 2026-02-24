@@ -33,4 +33,4 @@ export interface Document {
 }
 
 // Re-export Ticket type if needed or define common shared types here
-export type { Ticket } from '@/components/TicketSystem';
+export type { Ticket } from '../../components/TicketSystem';

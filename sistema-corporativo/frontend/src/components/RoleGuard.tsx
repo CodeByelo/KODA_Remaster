@@ -1,7 +1,7 @@
 "use client";
 
-import { useAuth } from '@/hooks/useAuth';
-import { UserRole } from '@/context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
+import { UserRole } from '../context/AuthContext';
 import { ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';

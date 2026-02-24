@@ -1,7 +1,7 @@
 "use client";
 
 import { useContext } from 'react';
-import { AuthContext, AuthContextType } from '@/context/AuthContext';
+import { AuthContext, AuthContextType } from '../context/AuthContext';
 
 /**
  * Hook to access authentication context

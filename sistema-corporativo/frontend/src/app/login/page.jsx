@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Shield, Zap, Lock, User, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-// import { login } from '@/lib/api'; // Eliminado: Usaremos useAuth
+import { useAuth } from '../../hooks/useAuth';
+// import { login } from '../../lib/api'; // Eliminado: Usaremos useAuth
 
 // ====================================================================
 // SPLASH SCREEN - CORPOEELEC INDUSTRIAL

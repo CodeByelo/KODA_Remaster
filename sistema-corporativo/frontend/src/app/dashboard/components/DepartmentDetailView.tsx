@@ -7,7 +7,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar
 } from 'recharts';
 import { Document } from '../types';
-import { Ticket } from '@/components/TicketSystem';
+import { Ticket } from '../../../components/TicketSystem';
 import { FilterBar } from './FilterBar';
 import { DetailTable } from './DetailTable';
 import {

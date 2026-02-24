@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Download, MoreVertical, UsersRound, Clock, CheckCircle, FileText } from 'lucide-react';
-import { logTicketActivity } from '@/app/dashboard/security/actions';
-import { UserRole } from '@/context/AuthContext';
+import { logTicketActivity } from '../app/dashboard/security/actions';
+import { UserRole } from '../context/AuthContext';
 
 // --- Tipos & Interfaces ---
 type TicketStatus = 'ABIERTO' | 'EN-PROCESO' | 'RESUELTO';

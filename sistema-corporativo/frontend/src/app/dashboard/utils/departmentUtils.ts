@@ -1,5 +1,5 @@
 import { Document } from '../types';
-import { Ticket } from '@/components/TicketSystem';
+import { Ticket } from '../../../components/TicketSystem';
 
 // ==========================================
 // TIPOS AUXILIARES
