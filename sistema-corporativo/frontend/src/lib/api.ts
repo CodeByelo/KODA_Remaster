@@ -194,3 +194,39 @@ export async function checkConnection(): Promise<{ message: string }> {
     });
     return handleResponse<{ message: string }>(res);
 }
+// ==========================================
+// AUTENTICACIÓN Y REGISTRO
+// ==========================================
+
+/**
+ * Registra un nuevo usuario en el sistema.
+ * @param userData Datos del usuario
+ */
+export async function register(userData: any): Promise<ApiUser> {
+    const res = await fetch(`${BASE_URL}/register`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+    });
+    return handleResponse<ApiUser>(res);
+}
+
+/**
+ * Autentica un usuario y retorna el token de acceso.
+ */
+export async function login(username: string, password: string): Promise<{ access_token: string; user: ApiUser }> {
+    const params = new URLSearchParams();
+    params.append('username', username);
+    params.append('password', password);
+
+    const res = await fetch(`${BASE_URL}/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+    });
+    return handleResponse<{ access_token: string; user: ApiUser }>(res);
+}
