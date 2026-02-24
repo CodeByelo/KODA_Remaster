@@ -33,7 +33,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ removed to prevent ignoring src/lib folders
 lib64/
 parts/
 sdist/
