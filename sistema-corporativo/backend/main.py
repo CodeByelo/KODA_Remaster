@@ -78,7 +78,6 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Middleware de Observabilidad (Trace ID y Duración)
 @app.middleware("http")
 async def add_observability_context(request: Request, call_next):
     start_time = time.time()
@@ -114,6 +113,7 @@ origins = [
     "https://sistema-corpoelect.vercel.app",
     "https://sistema-corpoelect-eight.vercel.app",
     "https://sistema-corpoelect-git-main-henryddaniel1910-6913s-projects.vercel.app"
+    "https://sistema-corpoelect-backend.onrender.com"
 ]
 
 app.add_middleware(
@@ -240,11 +240,12 @@ async def register_user(
         logger.error(f"Registration error: {e}")
         raise HTTPException(status_code=500, detail=f"Error interno durante el registro: {str(e)}")
 
-@app.post("/api/login")
-async def login(
+@app.post("/login")
+async def login_compat(
     form_data: OAuth2PasswordRequestForm = Depends(),
     conn = Depends(get_db_connection)
 ):
+    # Reutiliza la misma lógica del endpoint /api/login
     query = """
         SELECT p.id, p.username, p.password_hash, p.nombre, p.apellido, p.email, p.rol_id, r.nombre_rol, p.tenant_id,
                p.gerencia_id, g.nombre as gerencia_nombre
