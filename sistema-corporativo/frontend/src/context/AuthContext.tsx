@@ -147,7 +147,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       params.append('username', username);
       params.append('password', password);
 
-      const response = await fetch('https://sistema-corpoelect-backend.onrender.com/login', {
+      const response = await fetch('https://sistema-corpoelect-backend.onrender.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

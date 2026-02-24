@@ -195,7 +195,7 @@ async def health_check(conn = Depends(get_db_connection)):
         logger.error(f"Health check failed: {e}")
         return {"status": "error", "message": str(e), "database": "error"}
 
-@app.post("/register", response_model=schemas.UsuarioResponse)
+@app.post("/api/register", response_model=schemas.UsuarioResponse)
 async def register_user(
     user: schemas.UsuarioCreate, 
     conn = Depends(get_db_connection)
@@ -240,7 +240,7 @@ async def register_user(
         logger.error(f"Registration error: {e}")
         raise HTTPException(status_code=500, detail=f"Error interno durante el registro: {str(e)}")
 
-@app.post("/login")
+@app.post("/api/login")
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     conn = Depends(get_db_connection)
