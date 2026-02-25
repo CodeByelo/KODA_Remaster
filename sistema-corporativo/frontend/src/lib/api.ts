@@ -237,6 +237,7 @@ export async function updateUserPermissions(
 export async function getAnnouncement(): Promise<AnnouncementData> {
     const res = await fetch(`/api/announcement`, {
         headers: getAuthHeaders(),
+        cache: "no-store",
     });
     return handleResponse<AnnouncementData>(res);
 }

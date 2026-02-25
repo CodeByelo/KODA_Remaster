@@ -405,6 +405,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         <button
                                             onClick={async () => {
                                                 await saveAnnouncement(announcement);
+                                                localStorage.setItem("announcement_updated_at", String(Date.now()));
+                                                window.dispatchEvent(new Event("announcement-updated"));
                                                 alert('Anuncio global actualizado para todas las gerencias.');
                                             }}
                                             className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold"

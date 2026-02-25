@@ -2176,6 +2176,46 @@ export default function Dashboard() {
     };
   }, [mounted, userRole]); // Re-run if userRole changes
 
+  // Sincronizacion casi en tiempo real del anuncio entre sesiones/usuarios
+  useEffect(() => {
+    if (!mounted) return;
+    let cancelled = false;
+
+    const syncAnnouncement = async () => {
+      try {
+        const remoteAnnouncement = await getAnnouncement();
+        if (cancelled || !remoteAnnouncement) return;
+        setAnnouncement((prev) =>
+          JSON.stringify(prev) === JSON.stringify(remoteAnnouncement)
+            ? prev
+            : remoteAnnouncement,
+        );
+      } catch (e) {
+        console.error("Error syncing announcement", e);
+      }
+    };
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "announcement_updated_at") {
+        void syncAnnouncement();
+      }
+    };
+    const onCustomEvent = () => {
+      void syncAnnouncement();
+    };
+
+    const intervalId = window.setInterval(syncAnnouncement, 10000);
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("announcement-updated", onCustomEvent);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("announcement-updated", onCustomEvent);
+    };
+  }, [mounted]);
+
   useEffect(() => {
     if (mounted) {
       localStorage.setItem(

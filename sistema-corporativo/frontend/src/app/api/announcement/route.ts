@@ -16,6 +16,7 @@ export async function GET(request: Request) {
     const response = await fetch(`${API_BASE_URL}/announcement`, {
       method: "GET",
       headers: backendHeaders(request),
+      cache: "no-store",
     });
     const text = await response.text();
     let data: any = {};
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
     } catch {
       data = { detail: text || "Respuesta invalida del backend" };
     }
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(data, {
+      status: response.status,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+    });
   } catch (error) {
     console.error("Announcement GET proxy error:", error);
     return NextResponse.json(
@@ -41,6 +45,7 @@ export async function PUT(request: Request) {
       method: "PUT",
       headers: backendHeaders(request, true),
       body: JSON.stringify(payload),
+      cache: "no-store",
     });
     const text = await response.text();
     let data: any = {};
@@ -49,7 +54,10 @@ export async function PUT(request: Request) {
     } catch {
       data = { detail: text || "Respuesta invalida del backend" };
     }
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(data, {
+      status: response.status,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" },
+    });
   } catch (error) {
     console.error("Announcement PUT proxy error:", error);
     return NextResponse.json(
@@ -58,4 +66,3 @@ export async function PUT(request: Request) {
     );
   }
 }
-
