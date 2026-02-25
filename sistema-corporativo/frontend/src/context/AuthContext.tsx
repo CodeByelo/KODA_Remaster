@@ -131,14 +131,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
+      const apiBaseUrl =
+        process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
+      const params = new URLSearchParams();
+      params.append("username", username);
+      params.append("password", password);
 
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("password", password);
-
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(`${apiBaseUrl}/api/login`, {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
       });
 
       if (!response.ok) {
