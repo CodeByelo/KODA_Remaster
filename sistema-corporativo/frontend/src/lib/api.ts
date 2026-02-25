@@ -280,7 +280,7 @@ export async function checkConnection(): Promise<{ message: string }> {
  * @param userData Datos del usuario
  */
 export async function register(userData: any): Promise<ApiUser> {
-    const res = await fetch(`${BASE_URL}/api/register`, {
+    const res = await fetch(`/api/auth/register`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
