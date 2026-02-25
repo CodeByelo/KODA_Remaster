@@ -17,13 +17,24 @@ export async function POST(request: Request) {
         params.append('username', username as string);
         params.append('password', password as string);
 
-        const response = await fetch(`${API_BASE_URL}/api/login`, {
+        let response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: params.toString(),
         });
+
+        // Compatibilidad con backends que exponen /login pero no /api/login
+        if (response.status === 404) {
+            response = await fetch(`${API_BASE_URL}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params.toString(),
+            });
+        }
 
         const data = await response.json();
 
