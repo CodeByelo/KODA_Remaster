@@ -2182,6 +2182,9 @@ export default function Dashboard() {
     let cancelled = false;
 
     const syncAnnouncement = async () => {
+      if (localStorage.getItem("announcement_editing") === "1") {
+        return;
+      }
       try {
         const remoteAnnouncement = await getAnnouncement();
         if (cancelled || !remoteAnnouncement) return;

@@ -152,6 +152,20 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const [newDeptName, setNewDeptName] = useState('');
     const [newGroupIdx, setNewGroupIdx] = useState(0);
     const [newModuleName, setNewModuleName] = useState('');
+    const [announcementDraft, setAnnouncementDraft] = useState<any>(announcement);
+    const [isAnnouncementDirty, setIsAnnouncementDirty] = useState(false);
+
+    useEffect(() => {
+        if (!isAnnouncementDirty) {
+            setAnnouncementDraft(announcement);
+        }
+    }, [announcement, isAnnouncementDirty]);
+
+    useEffect(() => {
+        return () => {
+            localStorage.removeItem("announcement_editing");
+        };
+    }, []);
 
     const handleAddDept = () => {
         if (!newDeptName) return;
@@ -339,8 +353,12 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Etiqueta (Badge)</label>
                                                 <input
                                                     type="text"
-                                                    value={announcement.badge}
-                                                    onChange={(e) => setAnnouncement({ ...announcement, badge: e.target.value })}
+                                                    value={announcementDraft.badge}
+                                                    onChange={(e) => {
+                                                        setIsAnnouncementDirty(true);
+                                                        localStorage.setItem("announcement_editing", "1");
+                                                        setAnnouncementDraft({ ...announcementDraft, badge: e.target.value });
+                                                    }}
                                                     className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
                                                     placeholder="Ej: Comunicado del Día"
                                                 />
@@ -349,8 +367,12 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Título del Anuncio</label>
                                                 <input
                                                     type="text"
-                                                    value={announcement.title}
-                                                    onChange={(e) => setAnnouncement({ ...announcement, title: e.target.value })}
+                                                    value={announcementDraft.title}
+                                                    onChange={(e) => {
+                                                        setIsAnnouncementDirty(true);
+                                                        localStorage.setItem("announcement_editing", "1");
+                                                        setAnnouncementDraft({ ...announcementDraft, title: e.target.value });
+                                                    }}
                                                     className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
                                                 />
                                             </div>
@@ -358,8 +380,12 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Contenido / Descripción</label>
                                                 <textarea
                                                     rows={4}
-                                                    value={announcement.description}
-                                                    onChange={(e) => setAnnouncement({ ...announcement, description: e.target.value })}
+                                                    value={announcementDraft.description}
+                                                    onChange={(e) => {
+                                                        setIsAnnouncementDirty(true);
+                                                        localStorage.setItem("announcement_editing", "1");
+                                                        setAnnouncementDraft({ ...announcementDraft, description: e.target.value });
+                                                    }}
                                                     className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
                                                 />
                                             </div>
@@ -369,8 +395,12 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <div>
                                                 <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Urgencia</label>
                                                 <select
-                                                    value={announcement.urgency}
-                                                    onChange={(e) => setAnnouncement({ ...announcement, urgency: e.target.value })}
+                                                    value={announcementDraft.urgency}
+                                                    onChange={(e) => {
+                                                        setIsAnnouncementDirty(true);
+                                                        localStorage.setItem("announcement_editing", "1");
+                                                        setAnnouncementDraft({ ...announcementDraft, urgency: e.target.value });
+                                                    }}
                                                     className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
                                                 >
                                                     <option value="Alta">Alta</option>
@@ -381,8 +411,12 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <div>
                                                 <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Estado del Sistema</label>
                                                 <select
-                                                    value={announcement.status}
-                                                    onChange={(e) => setAnnouncement({ ...announcement, status: e.target.value })}
+                                                    value={announcementDraft.status}
+                                                    onChange={(e) => {
+                                                        setIsAnnouncementDirty(true);
+                                                        localStorage.setItem("announcement_editing", "1");
+                                                        setAnnouncementDraft({ ...announcementDraft, status: e.target.value });
+                                                    }}
                                                     className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
                                                 >
                                                     <option value="Activo">Activo</option>
@@ -394,9 +428,9 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <div className={`p-6 rounded-xl border-2 border-dashed ${darkMode ? 'border-zinc-800 bg-zinc-950/30' : 'border-slate-200 bg-slate-50'}`}>
                                                 <p className={`text-xs font-bold uppercase mb-4 text-center ${theme.subtext}`}>Vista Previa en Vivo</p>
                                                 <div className="space-y-2 opacity-80 scale-90 origin-top">
-                                                    <span className="inline-block px-2 py-0.5 rounded-full bg-red-600 text-white text-[8px] font-bold uppercase">{announcement.badge}</span>
-                                                    <h4 className="font-bold text-sm tracking-tight">{announcement.title}</h4>
-                                                    <p className="text-[10px] line-clamp-2 leading-relaxed">{announcement.description}</p>
+                                                    <span className="inline-block px-2 py-0.5 rounded-full bg-red-600 text-white text-[8px] font-bold uppercase">{announcementDraft.badge}</span>
+                                                    <h4 className="font-bold text-sm tracking-tight">{announcementDraft.title}</h4>
+                                                    <p className="text-[10px] line-clamp-2 leading-relaxed">{announcementDraft.description}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -404,7 +438,10 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                     <div className="mt-6 flex justify-end">
                                         <button
                                             onClick={async () => {
-                                                await saveAnnouncement(announcement);
+                                                await saveAnnouncement(announcementDraft);
+                                                setAnnouncement(announcementDraft);
+                                                setIsAnnouncementDirty(false);
+                                                localStorage.removeItem("announcement_editing");
                                                 localStorage.setItem("announcement_updated_at", String(Date.now()));
                                                 window.dispatchEvent(new Event("announcement-updated"));
                                                 alert('Anuncio global actualizado para todas las gerencias.');
