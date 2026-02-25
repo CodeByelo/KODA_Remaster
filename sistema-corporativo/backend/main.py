@@ -406,6 +406,8 @@ def _is_privileged_role(role_name: Optional[str]) -> bool:
     role = str(role_name).strip().lower()
     return role in {
         "desarrollador",
+        "dev",
+        "developer",
         "administrativo",
         "ceo",
         "admin",

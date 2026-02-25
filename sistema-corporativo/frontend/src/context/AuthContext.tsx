@@ -78,7 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const normalizeRole = (rawRole: string): UserRole => {
     const value = (rawRole || "").trim().toLowerCase();
-    if (value === "desarrollador" || value === "developer") return "Desarrollador";
+    if (value === "desarrollador" || value === "developer" || value === "dev") return "Desarrollador";
     if (value === "administrativo" || value === "administrador" || value === "admin") return "Administrativo";
     if (value === "ceo") return "CEO";
     return "Usuario";
