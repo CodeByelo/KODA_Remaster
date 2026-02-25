@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // CORRECCIÓN: Quitamos '/api' del final porque el backend sirve en la raíz
 const api = axios.create({
-  baseURL: 'https://sistema-corpoelect-backend.onrender.com',
+  baseURL: 'https://corpoelect-backend.onrender.com',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

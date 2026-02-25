@@ -1,7 +1,7 @@
 // src/lib/api.ts
 // Capa de API central para el frontend — conecta con el backend FastAPI en localhost:8000
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://sistema-corpoelect-backend.onrender.com";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
 
 // ==========================================
 // TIPOS EXPORTADOS

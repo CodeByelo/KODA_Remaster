@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, AlertCircle, MessageSquare, Plus, History, Brain, Save, Trash2, ChevronLeft } from 'lucide-react';
 
 export default function ChatWindow({ isOpen, onClose, userRole }) {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sistema-corpoelect-backend.onrender.com';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://corpoelect-backend.onrender.com';
     const getAuthHeaders = () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('sgd_token') : null;
         return {
