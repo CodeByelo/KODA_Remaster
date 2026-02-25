@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
-import { getAllUsers, updateUserRole } from '../../../lib/api';
+import {
+    getAllUsers,
+    getSecurityLogs,
+    saveAnnouncement,
+    saveOrgStructure,
+    updateUserPermissions,
+    updateUserRole,
+} from '../../../lib/api';
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../../../permissions/constants';
 import { useAuth } from '../../../hooks/useAuth';
 import { UserRole } from '../../../context/AuthContext';
@@ -77,10 +84,11 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         async function fetchData() {
             setLoading(true);
             try {
-                // Mock logs for now as backend doesn't support them yet
-                const logsData: any[] = [];
-                const usersData = await getAllUsers();
-                setLogs(logsData);
+                const [logsData, usersData] = await Promise.all([
+                    getSecurityLogs(),
+                    getAllUsers(),
+                ]);
+                setLogs(logsData as any[]);
                 setUsers(usersData);
             } catch (error) {
                 console.error("Error fetching security data:", error);
@@ -143,6 +151,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const [editingDept, setEditingDept] = useState<{ groupIdx: number, itemIdx: number } | null>(null);
     const [newDeptName, setNewDeptName] = useState('');
     const [newGroupIdx, setNewGroupIdx] = useState(0);
+    const [newModuleName, setNewModuleName] = useState('');
 
     const handleAddDept = () => {
         if (!newDeptName) return;
@@ -150,6 +159,31 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         newOrg[newGroupIdx].items.push(newDeptName);
         setOrgStructure(newOrg);
         setNewDeptName('');
+        saveOrgStructure(newOrg).catch(() => undefined);
+    };
+
+    const handleAddModule = () => {
+        if (!newModuleName.trim()) return;
+        const newOrg = [...orgStructure, { category: newModuleName.trim(), icon: 'Briefcase', items: [] }];
+        setOrgStructure(newOrg);
+        setNewModuleName('');
+        saveOrgStructure(newOrg).catch(() => undefined);
+    };
+
+    const handleEditModule = (groupIdx: number) => {
+        const newName = prompt("Nuevo nombre para el modulo:", orgStructure[groupIdx].category);
+        if (!newName?.trim()) return;
+        const newOrg = [...orgStructure];
+        newOrg[groupIdx].category = newName.trim();
+        setOrgStructure(newOrg);
+        saveOrgStructure(newOrg).catch(() => undefined);
+    };
+
+    const handleDeleteModule = (groupIdx: number) => {
+        if (!confirm("Estas seguro de eliminar este modulo y todas sus gerencias?")) return;
+        const newOrg = orgStructure.filter((_, idx) => idx !== groupIdx);
+        setOrgStructure(newOrg);
+        saveOrgStructure(newOrg).catch(() => undefined);
     };
 
     const handleDeleteDept = (groupIdx: number, itemIdx: number) => {
@@ -157,6 +191,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items.splice(itemIdx, 1);
             setOrgStructure(newOrg);
+            saveOrgStructure(newOrg).catch(() => undefined);
         }
     };
 
@@ -166,6 +201,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items[itemIdx] = newName;
             setOrgStructure(newOrg);
+            saveOrgStructure(newOrg).catch(() => undefined);
         }
     };
 
@@ -364,6 +400,17 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                    <div className="mt-6 flex justify-end">
+                                        <button
+                                            onClick={async () => {
+                                                await saveAnnouncement(announcement);
+                                                alert('Anuncio global actualizado para todas las gerencias.');
+                                            }}
+                                            className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold"
+                                        >
+                                            GUARDAR ANUNCIO
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -592,6 +639,28 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             <div className="space-y-6 animate-in fade-in duration-500 p-6">
                                 <div className={`p-6 rounded-xl border ${theme.card}`}>
                                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                        <Briefcase size={20} className="text-red-600" /> ANADIR NUEVO MODULO
+                                    </h3>
+                                    <div className="flex flex-wrap gap-4 items-end">
+                                        <div className="flex-1 min-w-[300px]">
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Nombre del Modulo</label>
+                                            <input
+                                                value={newModuleName}
+                                                onChange={(e) => setNewModuleName(e.target.value)}
+                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 ${theme.input} outline-none`}
+                                                placeholder="Ej: VII. Gestion Comercial"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleAddModule}
+                                            className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20 active:scale-95 transition-transform"
+                                        >
+                                            CREAR MODULO
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className={`p-6 rounded-xl border ${theme.card}`}>
+                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                                         <Plus size={20} className="text-red-600" /> AÑADIR NUEVA GERENCIA
                                     </h3>
                                     <div className="flex flex-wrap gap-4 items-end">
@@ -633,7 +702,21 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     const IconComp = ORG_ICONS[group.icon] || Shield;
                                                     return <IconComp size={20} className="text-red-500" />;
                                                 })()}
-                                                <h4 className="font-bold text-sm tracking-tight">{group.category}</h4>
+                                                <h4 className="font-bold text-sm tracking-tight flex-1">{group.category}</h4>
+                                                <button
+                                                    onClick={() => handleEditModule(groupIdx)}
+                                                    className={`p-1.5 rounded-md hover:bg-blue-500/20 hover:text-blue-400 transition-colors ${theme.subtext}`}
+                                                    title="Editar modulo"
+                                                >
+                                                    <Edit2 size={12} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteModule(groupIdx)}
+                                                    className={`p-1.5 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors ${theme.subtext}`}
+                                                    title="Eliminar modulo"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
                                             </div>
                                             <div className="space-y-2">
                                                 {group.items.map((item: string, itemIdx: number) => (
@@ -747,9 +830,10 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'CEO') rolId = 1;
             if (selectedRole === 'Desarrollador') rolId = 4;
 
-            await updateUserRole(user.id, rolId);
-
-            // En un entorno real, persiste en DB (Permisos Mock por ahora)
+            await Promise.all([
+                updateUserRole(user.id, rolId),
+                updateUserPermissions(String(user.id), userPerms),
+            ]);
             setSaved(true);
             setTimeout(() => {
                 setSaved(false);
@@ -839,3 +923,4 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
         </div>
     );
 }
+

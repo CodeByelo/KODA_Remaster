@@ -81,6 +81,8 @@ import {
   getGerencias,
   getTickets,
   markAsRead,
+  getAnnouncement,
+  getOrgStructure,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
 const ResponsiveContainerCompat =
@@ -1126,7 +1128,21 @@ const DocumentManager: React.FC<{
         try {
           await markAsRead(doc.id);
           // Actualización optimista local
-          setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, leido: true } : d));
+          setDocuments(prev =>
+            prev.map(d =>
+              d.id === doc.id
+                ? {
+                    ...d,
+                    leido: true,
+                    signatureStatus: ["en-proceso", "pendiente"].includes(
+                      String(d.signatureStatus || "").toLowerCase(),
+                    )
+                      ? "recibido"
+                      : d.signatureStatus,
+                  }
+                : d,
+            ),
+          );
         } catch (e) {
           console.error("Error marking as read", e);
         }
@@ -2071,30 +2087,34 @@ export default function Dashboard() {
   const [orgStructure, setOrgStructure] = useState<OrgCategory[]>([]);
 
   useEffect(() => {
-    // ✅ REGLA DE VISIBILIDAD DE ESTRUCTURA
-    // Siempre partimos de la base completa para evitar quedarnos en un estado "recortado" (sliced)
-    let data = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+    if (!mounted) return;
+    let cancelled = false;
+    (async () => {
+      let data: OrgCategory[] = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+      try {
+        const remote = await getOrgStructure();
+        if (remote?.org_structure?.length) {
+          data = remote.org_structure as OrgCategory[];
+        }
+      } catch (e) {
+        console.error("Error loading org structure from API", e);
+      }
 
-    // Si el usuario es Desarrollador, añadimos un canal exclusivo de categorías dev
-    if (userRole === "Desarrollador") {
-      data.push({
-        category: "VI. Módulo de Desarrollo y Control Raíz",
-        icon: "Shield",
-        items: [
-          "Gestión Directa",
-          "Logs de Auditoría",
-          "Control de Dominios",
-        ],
-      });
-    }
+      if (userRole === "Desarrollador" && !data.some((g) => g.category?.includes("Desarrollo"))) {
+        data.push({
+          category: "VI. Módulo de Desarrollo y Control Raíz",
+          icon: "Shield",
+          items: ["Gestión Directa", "Logs de Auditoría", "Control de Dominios"],
+        });
+      }
 
-    // Hardened Constraint REMOVED: Allow full view based on seeded DB
-    // if (hasPermission(PERMISSIONS_MASTER.ORG_VIEW_LIMITED) && !hasPermission(PERMISSIONS_MASTER.ORG_VIEW_FULL)) {
-    //   data = data.slice(0, 4);
-    // }
+      if (!cancelled) setOrgStructure(data);
+    })();
 
-    setOrgStructure(data);
-  }, [userRole, user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, userRole, user?.id]);
 
   useEffect(() => {
     if (orgStructure.length > 0) {
@@ -2117,14 +2137,18 @@ export default function Dashboard() {
 
   // Persistencia de anuncios
   useEffect(() => {
-    const saved = localStorage.getItem("dashboard_announcement");
-    if (saved) {
+    if (!mounted) return;
+    let cancelled = false;
+    (async () => {
       try {
-        setAnnouncement(JSON.parse(saved));
+        const remoteAnnouncement = await getAnnouncement();
+        if (!cancelled && remoteAnnouncement) {
+          setAnnouncement(remoteAnnouncement);
+        }
       } catch (e) {
         console.error("Error loading announcement", e);
       }
-    }
+    })();
 
     // Check for tab in URL and VALIDATE role permissions
     const params = new URLSearchParams(window.location.search);
@@ -2147,7 +2171,10 @@ export default function Dashboard() {
         window.history.replaceState({}, "", window.location.pathname);
       }
     }
-  }, [userRole]); // Re-run if userRole changes
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, userRole]); // Re-run if userRole changes
 
   useEffect(() => {
     if (mounted) {

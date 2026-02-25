@@ -33,7 +33,7 @@ export interface ApiDocument {
 }
 
 export interface ApiUser {
-    id: number;
+    id: string;
     username: string;
     email?: string;
     nombre?: string;
@@ -63,6 +63,25 @@ export interface ApiTicket {
     fecha_creacion?: string;
     solicitante_nombre?: string;
     tecnico_nombre?: string | null;
+}
+
+export interface AnnouncementData {
+    badge: string;
+    title: string;
+    description: string;
+    status: string;
+    urgency: string;
+}
+
+export interface SecurityLog {
+    id: number;
+    username: string;
+    evento: string;
+    detalles: string;
+    estado: string;
+    ip_address?: string;
+    fecha_hora: string;
+    user_id?: string;
 }
 
 // ==========================================
@@ -184,7 +203,7 @@ export async function getGerencias(): Promise<ApiGerencia[]> {
  * @param roleId ID del rol (1=CEO, 2=Administrativo, 3=Usuario, 4=Desarrollador)
  */
 export async function updateUserRole(
-    userId: number,
+    userId: string | number,
     roleId: number
 ): Promise<ApiUser> {
     const res = await fetch(`${BASE_URL}/users/${userId}/role`, {
@@ -193,6 +212,86 @@ export async function updateUserRole(
         body: JSON.stringify({ rol_id: roleId }),
     });
     return handleResponse<ApiUser>(res);
+}
+
+export async function unlockUser(userId: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/users/${userId}/unlock`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export async function updateUserPermissions(
+    userId: string,
+    permisos: string[],
+): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/users/${userId}/permissions`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ permisos }),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export async function getAnnouncement(): Promise<AnnouncementData> {
+    const res = await fetch(`${BASE_URL}/announcement`, {
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<AnnouncementData>(res);
+}
+
+export async function saveAnnouncement(data: AnnouncementData): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/announcement`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export async function getOrgStructure(): Promise<{ org_structure: any[] }> {
+    const res = await fetch(`${BASE_URL}/org-structure`, {
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ org_structure: any[] }>(res);
+}
+
+export async function saveOrgStructure(org_structure: any[]): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/org-structure`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ org_structure }),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export async function getSecurityLogs(): Promise<SecurityLog[]> {
+    const res = await fetch(`${BASE_URL}/security/logs`, {
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<SecurityLog[]>(res);
+}
+
+export async function getUserSecurityLogs(userId: string): Promise<SecurityLog[]> {
+    const res = await fetch(`${BASE_URL}/security/logs/user/${userId}`, {
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<SecurityLog[]>(res);
+}
+
+export async function createSecurityLog(payload: {
+    evento: string;
+    detalles?: string;
+    estado?: string;
+    page?: string;
+}): Promise<SecurityLog> {
+    const res = await fetch(`${BASE_URL}/security/logs`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    return handleResponse<SecurityLog>(res);
 }
 
 // ==========================================
@@ -294,16 +393,13 @@ export async function register(userData: any): Promise<ApiUser> {
  * Autentica un usuario y retorna el token de acceso.
  */
 export async function login(username: string, password: string): Promise<{ access_token: string; user: ApiUser }> {
-    const params = new URLSearchParams();
-    params.append('username', username);
-    params.append('password', password);
+    const formData = new FormData();
+    formData.append("username", username);
+    formData.append("password", password);
 
-    const res = await fetch(`${BASE_URL}/api/login`, {
+    const res = await fetch(`/api/auth/login`, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
+        body: formData,
     });
     return handleResponse<{ access_token: string; user: ApiUser }>(res);
 }

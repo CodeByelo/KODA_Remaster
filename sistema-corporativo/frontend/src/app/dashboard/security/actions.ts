@@ -1,36 +1,50 @@
-'use server';
+import {
+    createSecurityLog,
+    getAllUsers,
+    getSecurityLogs,
+    getUserSecurityLogs,
+} from "../../../lib/api";
 
-// Legacy actions stubbed to remove Neon dependencies.
-// TODO: Migrate data fetching to Python API via client components.
-
-export async function getSecurityLogs() {
-    return [];
+export async function getSecurityLogsData() {
+    return getSecurityLogs();
 }
 
 export async function getUsersList() {
-    return [];
+    return getAllUsers();
 }
 
 export async function getUserDetails(userId: string) {
-    return null;
+    const users = await getAllUsers();
+    return users.find((u: any) => String(u.id) === String(userId)) || null;
 }
 
 export async function getUserLogs(userId: string) {
-    return [];
+    return getUserSecurityLogs(userId);
 }
 
 export async function logTicketActivity(data: any) {
-    return { success: true };
+    return createSecurityLog({
+        evento: data?.evento || "TICKET",
+        detalles: data?.detalles || "",
+        estado: data?.estado || "info",
+        page: "/dashboard?tab=tickets",
+    });
 }
 
 export async function logDocumentActivity(data: any) {
-    return { success: true };
+    return createSecurityLog({
+        evento: data?.evento || "DOCUMENTO",
+        detalles: data?.detalles || "",
+        estado: data?.estado || "info",
+        page: "/dashboard?tab=documentos",
+    });
 }
 
-export async function deleteUser(userId: string) {
-    return { success: false, error: 'Migrated to Python' };
+export async function deleteUser(_userId: string) {
+    return { success: false, error: "Use panel de gestion de usuarios para desactivar/bloquear." };
 }
 
-export async function updateUserStatus(userId: string, newStatus: string) {
-    return { success: false, error: 'Migrated to Python' };
+export async function updateUserStatus(_userId: string, _newStatus: string) {
+    return { success: false, error: "Funcion en construccion." };
 }
+

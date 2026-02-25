@@ -119,6 +119,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -151,6 +152,27 @@ async def startup():
                     answer TEXT NOT NULL,
                     updated_by TEXT,
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS security_events (
+                    id BIGSERIAL PRIMARY KEY,
+                    tenant_id UUID,
+                    user_id UUID,
+                    username TEXT,
+                    evento TEXT NOT NULL,
+                    detalles TEXT,
+                    estado TEXT DEFAULT 'info',
+                    page TEXT,
+                    ip_origen TEXT,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS login_lockouts (
+                    username TEXT PRIMARY KEY,
+                    failed_count INT NOT NULL DEFAULT 0,
+                    locked_until TIMESTAMPTZ
                 )
             """)
     except Exception as exc:
@@ -270,7 +292,20 @@ async def login_compat(
     form_data: OAuth2PasswordRequestForm = Depends(),
     conn = Depends(get_db_connection)
 ):
-    # Reutiliza la misma lógica del endpoint /api/login
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS login_lockouts (
+            username TEXT PRIMARY KEY,
+            failed_count INT NOT NULL DEFAULT 0,
+            locked_until TIMESTAMPTZ
+        )
+    """)
+    lock_row = await conn.fetchrow(
+        "SELECT failed_count, locked_until FROM login_lockouts WHERE username = $1",
+        form_data.username,
+    )
+    if lock_row and lock_row["locked_until"] and lock_row["locked_until"] > datetime.utcnow():
+        raise HTTPException(status_code=423, detail="Usuario bloqueado temporalmente. Contacte a un administrador")
+
     query = """
         SELECT p.id, p.username, p.password_hash, p.nombre, p.apellido, p.email, p.rol_id, r.nombre_rol, p.tenant_id,
                p.gerencia_id, g.nombre as gerencia_nombre
@@ -281,37 +316,87 @@ async def login_compat(
     """
     user = await conn.fetchrow(query, form_data.username)
 
-    if not user or not verify_password(form_data.password, user['password_hash']):
+    if not user or not verify_password(form_data.password, user["password_hash"]):
+        failed_count = (lock_row["failed_count"] if lock_row else 0) + 1
+        is_locked = failed_count >= 3
+        locked_until = datetime.utcnow() + timedelta(days=3650) if is_locked else None
+        await conn.execute(
+            """
+            INSERT INTO login_lockouts (username, failed_count, locked_until)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (username)
+            DO UPDATE SET failed_count = EXCLUDED.failed_count, locked_until = EXCLUDED.locked_until
+            """,
+            form_data.username,
+            failed_count,
+            locked_until,
+        )
+        if is_locked:
+            await conn.execute(
+                "UPDATE profiles SET estado = FALSE WHERE username = $1",
+                form_data.username,
+            )
+        try:
+            await _ensure_security_events_table(conn)
+            await conn.execute(
+                """
+                INSERT INTO security_events (username, evento, detalles, estado, page)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                form_data.username,
+                "LOGIN_FALLIDO" if not is_locked else "USUARIO_BLOQUEADO",
+                f"Intento fallido #{failed_count}" if not is_locked else "Bloqueado tras 3 intentos fallidos",
+                "warning" if not is_locked else "danger",
+                "/login",
+            )
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+    await conn.execute("DELETE FROM login_lockouts WHERE username = $1", form_data.username)
 
     access_token = create_access_token(
         data={
-            "sub": str(user['id']), 
-            "role": user['nombre_rol'],
-            "tenant_id": str(user['tenant_id']) if user['tenant_id'] else None,
-            "gerencia_id": user['gerencia_id']
+            "sub": str(user["id"]),
+            "role": user["nombre_rol"],
+            "tenant_id": str(user["tenant_id"]) if user["tenant_id"] else None,
+            "gerencia_id": user["gerencia_id"],
         }
     )
 
     await conn.execute(
-        "UPDATE profiles SET ultima_conexion = $1 WHERE id = $2", 
-        datetime.now(), user['id']
+        "UPDATE profiles SET ultima_conexion = $1 WHERE id = $2",
+        datetime.now(),
+        user["id"],
     )
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'LOGIN_OK', 'Inicio de sesion exitoso', 'success', '/login')
+            """,
+            user["tenant_id"],
+            user["id"],
+            user["username"],
+        )
+    except Exception:
+        pass
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
-            "id": str(user['id']),
-            "username": user['username'],
-            "nombre": user['nombre'],
-            "apellido": user['apellido'],
-            "email": user['email'],
-            "role": user['nombre_rol'],
-            "tenant_id": user['tenant_id'],
-            "gerencia_id": user['gerencia_id'],
-            "gerencia_depto": user['gerencia_nombre']
-        }
+            "id": str(user["id"]),
+            "username": user["username"],
+            "nombre": user["nombre"],
+            "apellido": user["apellido"],
+            "email": user["email"],
+            "role": user["nombre_rol"],
+            "tenant_id": user["tenant_id"],
+            "gerencia_id": user["gerencia_id"],
+            "gerencia_depto": user["gerencia_nombre"],
+        },
     }
 
 
@@ -357,6 +442,29 @@ async def _ensure_knowledge_table(conn) -> None:
     """)
 
 
+async def _ensure_security_events_table(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS security_events (
+            id BIGSERIAL PRIMARY KEY,
+            tenant_id UUID,
+            user_id UUID,
+            username TEXT,
+            evento TEXT NOT NULL,
+            detalles TEXT,
+            estado TEXT DEFAULT 'info',
+            page TEXT,
+            ip_origen TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+async def _resolve_org_id(conn, tenant_id: Optional[str]) -> Optional[str]:
+    if tenant_id:
+        return str(tenant_id)
+    return await conn.fetchval("SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1")
+
+
 class TicketCreate(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
@@ -380,6 +488,25 @@ class KnowledgeCreate(BaseModel):
     question: str
     answer: str
     updatedBy: Optional[str] = "unknown"
+
+
+class AnnouncementPayload(BaseModel):
+    badge: str
+    title: str
+    description: str
+    status: str
+    urgency: str
+
+
+class OrgStructurePayload(BaseModel):
+    org_structure: List[Dict[str, Any]]
+
+
+class SecurityLogPayload(BaseModel):
+    evento: str
+    detalles: Optional[str] = ""
+    estado: Optional[str] = "info"
+    page: Optional[str] = ""
 
 # ===================================================================
 # HEALTH CHECKS ENTERPRISE
@@ -655,7 +782,17 @@ async def mark_as_read(
         if not tenant_id:
             raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
         await conn.execute(
-            "UPDATE documentos SET leido = TRUE WHERE id = $1 AND ($2::uuid IS NULL OR tenant_id = $2::uuid)",
+            """
+            UPDATE documentos
+            SET
+                leido = TRUE,
+                estado = CASE
+                    WHEN estado IN ('en-proceso', 'pendiente') THEN 'recibido'
+                    ELSE estado
+                END,
+                fecha_ultima_actividad = NOW()
+            WHERE id = $1 AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
+            """,
             id,
             tenant_id,
         )
@@ -704,13 +841,229 @@ async def list_usuarios(
         SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
                p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
                p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
-               p.estado, p.ultima_conexion, p.tenant_id
+               p.estado, p.ultima_conexion, p.tenant_id, p.permisos
         FROM profiles p
         LEFT JOIN roles r ON p.rol_id = r.id
         LEFT JOIN gerencias g ON p.gerencia_id = g.id
-        WHERE p.estado = TRUE
         ORDER BY p.nombre, p.apellido
     """)
+    return [dict(r) for r in rows]
+
+
+@app.patch("/users/{user_id}/permissions")
+async def update_user_permissions(
+    user_id: uuid.UUID,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    permisos = payload.get("permisos") or []
+    if not isinstance(permisos, list):
+        raise HTTPException(status_code=400, detail="permisos debe ser una lista")
+
+    await conn.execute(
+        "UPDATE profiles SET permisos = $2::text[] WHERE id = $1",
+        user_id,
+        permisos,
+    )
+    return {"status": "success", "user_id": str(user_id), "permisos": permisos}
+
+
+@app.patch("/users/{user_id}/unlock")
+async def unlock_user(
+    user_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1", user_id)
+    if not username:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    await conn.execute("UPDATE profiles SET estado = TRUE WHERE id = $1", user_id)
+    await conn.execute("DELETE FROM login_lockouts WHERE username = $1", username)
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'USUARIO_DESBLOQUEADO', $4, 'success', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Se desbloqueo usuario {username}",
+        )
+    except Exception:
+        pass
+
+    return {"status": "success", "user_id": str(user_id), "username": username}
+
+
+@app.get("/announcement", dependencies=[Depends(get_tenant_context)])
+async def get_announcement(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
+    announcement = (cfg or {}).get("dashboard_announcement") if isinstance(cfg, dict) else None
+    if not announcement:
+        announcement = {
+            "badge": "Comunicado del Dia",
+            "title": "Actualizacion de Protocolos 2026",
+            "description": "Mensaje institucional vigente para todas las gerencias.",
+            "status": "Activo",
+            "urgency": "Alta",
+        }
+    return announcement
+
+
+@app.put("/announcement", dependencies=[Depends(get_tenant_context)])
+async def save_announcement(
+    payload: AnnouncementPayload,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="No autorizado para editar anuncios")
+
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    await conn.execute(
+        """
+        UPDATE organizations
+        SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{dashboard_announcement}', $2::jsonb, true),
+            updated_at = NOW()
+        WHERE id = $1::uuid
+        """,
+        org_id,
+        json.dumps(payload.model_dump()),
+    )
+    return {"status": "success", "announcement": payload.model_dump()}
+
+
+@app.get("/org-structure", dependencies=[Depends(get_tenant_context)])
+async def get_org_structure(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
+    org_structure = (cfg or {}).get("org_structure") if isinstance(cfg, dict) else None
+    if not org_structure:
+        rows = await conn.fetch("SELECT nombre FROM gerencias ORDER BY nombre")
+        org_structure = [{
+            "category": "Gerencias",
+            "icon": "Briefcase",
+            "items": [r["nombre"] for r in rows],
+        }]
+    return {"org_structure": org_structure}
+
+
+@app.put("/org-structure", dependencies=[Depends(get_tenant_context)])
+async def save_org_structure(
+    payload: OrgStructurePayload,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="No autorizado para editar estructura")
+
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    await conn.execute(
+        """
+        UPDATE organizations
+        SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{org_structure}', $2::jsonb, true),
+            updated_at = NOW()
+        WHERE id = $1::uuid
+        """,
+        org_id,
+        json.dumps(payload.org_structure),
+    )
+    return {"status": "success", "org_structure": payload.org_structure}
+
+
+@app.post("/security/logs", dependencies=[Depends(get_tenant_context)])
+async def create_security_log(
+    payload: SecurityLogPayload,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    await _ensure_security_events_table(conn)
+    user_id = current_user.get("sub")
+    tenant_id = current_user.get("tenant_id")
+    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id) if user_id else "anon"
+    ip = request.client.host if request.client else None
+
+    row = await conn.fetchrow(
+        """
+        INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen)
+        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8)
+        RETURNING id, tenant_id, user_id, username, evento, detalles, estado, page, ip_origen, created_at
+        """,
+        tenant_id, user_id, username, payload.evento, payload.detalles, payload.estado, payload.page, ip
+    )
+    return dict(row)
+
+
+@app.get("/security/logs", dependencies=[Depends(get_tenant_context)])
+async def list_security_logs(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    await _ensure_security_events_table(conn)
+    tenant_id = current_user.get("tenant_id")
+    rows = await conn.fetch(
+        """
+        SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id
+        FROM security_events
+        WHERE ($1::uuid IS NULL OR tenant_id = $1::uuid)
+        ORDER BY created_at DESC
+        LIMIT 2000
+        """,
+        tenant_id,
+    )
+    return [dict(r) for r in rows]
+
+
+@app.get("/security/logs/user/{user_id}", dependencies=[Depends(get_tenant_context)])
+async def list_security_logs_by_user(
+    user_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    await _ensure_security_events_table(conn)
+    tenant_id = current_user.get("tenant_id")
+    rows = await conn.fetch(
+        """
+        SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id
+        FROM security_events
+        WHERE user_id = $1::uuid AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
+        ORDER BY created_at DESC
+        LIMIT 2000
+        """,
+        user_id,
+        tenant_id,
+    )
     return [dict(r) for r in rows]
 
 
@@ -962,3 +1315,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+
