@@ -43,6 +43,16 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
     onDepartmentChange
 }) => {
     const ResponsiveContainerCompat = ResponsiveContainer as unknown as React.ComponentType<any>;
+    const PieChartCompat = PieChart as unknown as React.ComponentType<any>;
+    const PieCompat = Pie as unknown as React.ComponentType<any>;
+    const CellCompat = Cell as unknown as React.ComponentType<any>;
+    const TooltipCompat = Tooltip as unknown as React.ComponentType<any>;
+    const LegendCompat = Legend as unknown as React.ComponentType<any>;
+    const AreaChartCompat = AreaChart as unknown as React.ComponentType<any>;
+    const AreaCompat = Area as unknown as React.ComponentType<any>;
+    const XAxisCompat = XAxis as unknown as React.ComponentType<any>;
+    const YAxisCompat = YAxis as unknown as React.ComponentType<any>;
+    const CartesianGridCompat = CartesianGrid as unknown as React.ComponentType<any>;
     // Estados de Filtros
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedMonth, setSelectedMonth] = useState<{ start: Date; end: Date } | null>(null);
@@ -166,8 +176,8 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                             </div>
                         ) : (
                             <ResponsiveContainerCompat width="100%" height="100%">
-                                <PieChart>
-                                    <Pie
+                                <PieChartCompat>
+                                    <PieCompat
                                         data={processedData.importanceData}
                                         cx="50%"
                                         cy="50%"
@@ -177,18 +187,18 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                         dataKey="value"
                                     >
                                         {processedData.importanceData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                            <CellCompat key={`cell-${index}`} fill={entry.color} />
                                         ))}
-                                    </Pie>
-                                    <Tooltip
+                                    </PieCompat>
+                                    <TooltipCompat
                                         contentStyle={{
                                             backgroundColor: darkMode ? '#0f172a' : '#fff',
                                             borderColor: darkMode ? '#1e293b' : '#e2e8f0',
                                             color: darkMode ? '#f1f5f9' : '#1e293b'
                                         }}
                                     />
-                                    <Legend verticalAlign="bottom" height={36} />
-                                </PieChart>
+                                    <LegendCompat verticalAlign="bottom" height={36} />
+                                </PieChartCompat>
                             </ResponsiveContainerCompat>
                         )}
                     </div>
@@ -209,7 +219,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                             </div>
                         ) : (
                             <ResponsiveContainerCompat width="100%" height="100%">
-                                <AreaChart data={processedData.temporalData}>
+                                <AreaChartCompat data={processedData.temporalData}>
                                     <defs>
                                         <linearGradient id="colorDocs" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
@@ -220,25 +230,25 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                             <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
-                                    <XAxis
+                                    <CartesianGridCompat strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                                    <XAxisCompat
                                         dataKey="date"
                                         stroke={darkMode ? '#94a3b8' : '#64748b'}
                                         fontSize={10}
-                                        tickFormatter={(val) => val.split('/')[0]} // Mostrar solo día
+                                        tickFormatter={(val: string) => val.split('/')[0]} // Mostrar solo día
                                     />
-                                    <YAxis stroke={darkMode ? '#94a3b8' : '#64748b'} fontSize={10} />
-                                    <Tooltip
+                                    <YAxisCompat stroke={darkMode ? '#94a3b8' : '#64748b'} fontSize={10} />
+                                    <TooltipCompat
                                         contentStyle={{
                                             backgroundColor: darkMode ? '#0f172a' : '#fff',
                                             borderColor: darkMode ? '#1e293b' : '#e2e8f0',
                                             color: darkMode ? '#f1f5f9' : '#1e293b'
                                         }}
                                     />
-                                    <Legend />
-                                    <Area type="monotone" dataKey="documentos" name="Documentos" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDocs)" />
-                                    <Area type="monotone" dataKey="tickets" name="Tickets" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTickets)" />
-                                </AreaChart>
+                                    <LegendCompat />
+                                    <AreaCompat type="monotone" dataKey="documentos" name="Documentos" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDocs)" />
+                                    <AreaCompat type="monotone" dataKey="tickets" name="Tickets" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTickets)" />
+                                </AreaChartCompat>
                             </ResponsiveContainerCompat>
                         )}
                     </div>

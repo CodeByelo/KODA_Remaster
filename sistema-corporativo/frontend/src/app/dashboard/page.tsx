@@ -85,6 +85,11 @@ import {
 import { ApiDocument, ApiUser } from "../../lib/api";
 const ResponsiveContainerCompat =
   ResponsiveContainer as unknown as React.ComponentType<any>;
+const PieChartCompat = PieChart as unknown as React.ComponentType<any>;
+const PieCompat = Pie as unknown as React.ComponentType<any>;
+const CellCompat = Cell as unknown as React.ComponentType<any>;
+const TooltipCompat = Tooltip as unknown as React.ComponentType<any>;
+const LegendCompat = Legend as unknown as React.ComponentType<any>;
 
 // ==========================================
 // TIPOS Y INTERFACES
@@ -1805,8 +1810,8 @@ const ChartsModule: React.FC<{
             </h3>
             <div className="h-64">
               <ResponsiveContainerCompat width="100%" height="100%">
-                <PieChart>
-                  <Pie
+                <PieChartCompat>
+                  <PieCompat
                     data={docStatusData}
                     cx="50%"
                     cy="50%"
@@ -1816,18 +1821,18 @@ const ChartsModule: React.FC<{
                     dataKey="value"
                   >
                     {docStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <CellCompat key={`cell-${index}`} fill={entry.color} />
                     ))}
-                  </Pie>
-                  <Tooltip
+                  </PieCompat>
+                  <TooltipCompat
                     contentStyle={{
                       backgroundColor: darkMode ? "#0f172a" : "#fff",
                       borderColor: darkMode ? "#1e293b" : "#e2e8f0",
                       color: darkMode ? "#f1f5f9" : "#1e293b",
                     }}
                   />
-                  <Legend />
-                </PieChart>
+                  <LegendCompat />
+                </PieChartCompat>
               </ResponsiveContainerCompat>
             </div>
           </div>
@@ -1843,8 +1848,8 @@ const ChartsModule: React.FC<{
             </h3>
             <div className="h-64">
               <ResponsiveContainerCompat width="100%" height="100%">
-                <PieChart>
-                  <Pie
+                <PieChartCompat>
+                  <PieCompat
                     data={ticketPriorityData}
                     cx="50%"
                     cy="50%"
@@ -1853,18 +1858,18 @@ const ChartsModule: React.FC<{
                     dataKey="value"
                   >
                     {ticketPriorityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <CellCompat key={`cell-${index}`} fill={entry.color} />
                     ))}
-                  </Pie>
-                  <Tooltip
+                  </PieCompat>
+                  <TooltipCompat
                     contentStyle={{
                       backgroundColor: darkMode ? "#0f172a" : "#fff",
                       borderColor: darkMode ? "#1e293b" : "#e2e8f0",
                       color: darkMode ? "#f1f5f9" : "#1e293b",
                     }}
                   />
-                  <Legend verticalAlign="bottom" height={36} />
-                </PieChart>
+                  <LegendCompat verticalAlign="bottom" height={36} />
+                </PieChartCompat>
               </ResponsiveContainerCompat>
             </div>
           </div>
