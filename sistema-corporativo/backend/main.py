@@ -415,6 +415,16 @@ def _is_privileged_role(role_name: Optional[str]) -> bool:
     }
 
 
+async def _is_privileged_user(conn, current_user: dict) -> bool:
+    if _is_privileged_role(current_user.get("role")):
+        return True
+    user_id = current_user.get("sub")
+    if not user_id:
+        return False
+    rol_id = await conn.fetchval("SELECT rol_id FROM profiles WHERE id = $1::uuid", user_id)
+    return rol_id in {1, 2, 4}
+
+
 def _normalize_text(value: Optional[str]) -> str:
     if not value:
         return ""
@@ -836,7 +846,7 @@ async def list_usuarios(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    if not _is_privileged_role(current_user.get("role")):
+    if not await _is_privileged_user(conn, current_user):
         raise HTTPException(status_code=403, detail="No autorizado para listar usuarios")
 
     rows = await conn.fetch("""
@@ -859,7 +869,7 @@ async def update_user_permissions(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    if not _is_privileged_role(current_user.get("role")):
+    if not await _is_privileged_user(conn, current_user):
         raise HTTPException(status_code=403, detail="No autorizado")
 
     permisos = payload.get("permisos") or []
@@ -880,7 +890,7 @@ async def unlock_user(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    if not _is_privileged_role(current_user.get("role")):
+    if not await _is_privileged_user(conn, current_user):
         raise HTTPException(status_code=403, detail="No autorizado")
 
     username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1", user_id)
@@ -908,7 +918,7 @@ async def unlock_user(
     return {"status": "success", "user_id": str(user_id), "username": username}
 
 
-@app.get("/announcement", dependencies=[Depends(get_tenant_context)])
+@app.get("/announcement")
 async def get_announcement(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
@@ -930,13 +940,13 @@ async def get_announcement(
     return announcement
 
 
-@app.put("/announcement", dependencies=[Depends(get_tenant_context)])
+@app.put("/announcement")
 async def save_announcement(
     payload: AnnouncementPayload,
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
 ):
-    if not _is_privileged_role(current_user.get("role")):
+    if not await _is_privileged_user(conn, current_user):
         raise HTTPException(status_code=403, detail="No autorizado para editar anuncios")
 
     org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
@@ -956,7 +966,7 @@ async def save_announcement(
     return {"status": "success", "announcement": payload.model_dump()}
 
 
-@app.get("/org-structure", dependencies=[Depends(get_tenant_context)])
+@app.get("/org-structure")
 async def get_org_structure(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
@@ -977,13 +987,13 @@ async def get_org_structure(
     return {"org_structure": org_structure}
 
 
-@app.put("/org-structure", dependencies=[Depends(get_tenant_context)])
+@app.put("/org-structure")
 async def save_org_structure(
     payload: OrgStructurePayload,
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
 ):
-    if not _is_privileged_role(current_user.get("role")):
+    if not await _is_privileged_user(conn, current_user):
         raise HTTPException(status_code=403, detail="No autorizado para editar estructura")
 
     org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
@@ -1003,7 +1013,7 @@ async def save_org_structure(
     return {"status": "success", "org_structure": payload.org_structure}
 
 
-@app.post("/security/logs", dependencies=[Depends(get_tenant_context)])
+@app.post("/security/logs")
 async def create_security_log(
     payload: SecurityLogPayload,
     request: Request,
@@ -1027,7 +1037,7 @@ async def create_security_log(
     return dict(row)
 
 
-@app.get("/security/logs", dependencies=[Depends(get_tenant_context)])
+@app.get("/security/logs")
 async def list_security_logs(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
@@ -1047,7 +1057,7 @@ async def list_security_logs(
     return [dict(r) for r in rows]
 
 
-@app.get("/security/logs/user/{user_id}", dependencies=[Depends(get_tenant_context)])
+@app.get("/security/logs/user/{user_id}")
 async def list_security_logs_by_user(
     user_id: uuid.UUID,
     current_user: dict = Depends(get_current_user),
