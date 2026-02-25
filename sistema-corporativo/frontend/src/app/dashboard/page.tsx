@@ -83,6 +83,8 @@ import {
   markAsRead,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
+const ResponsiveContainerCompat =
+  ResponsiveContainer as unknown as React.ComponentType<any>;
 
 // ==========================================
 // TIPOS Y INTERFACES
@@ -1802,7 +1804,7 @@ const ChartsModule: React.FC<{
               ESTADO DE DOCUMENTOS
             </h3>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainerCompat width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={docStatusData}
@@ -1826,7 +1828,7 @@ const ChartsModule: React.FC<{
                   />
                   <Legend />
                 </PieChart>
-              </ResponsiveContainer>
+              </ResponsiveContainerCompat>
             </div>
           </div>
 
@@ -1840,7 +1842,7 @@ const ChartsModule: React.FC<{
               PRIORIDAD DE TICKETS
             </h3>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainerCompat width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={ticketPriorityData}
@@ -1863,7 +1865,7 @@ const ChartsModule: React.FC<{
                   />
                   <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
-              </ResponsiveContainer>
+              </ResponsiveContainerCompat>
             </div>
           </div>
         </div>

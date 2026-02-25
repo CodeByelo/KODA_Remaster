@@ -42,6 +42,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
     onBack,
     onDepartmentChange
 }) => {
+    const ResponsiveContainerCompat = ResponsiveContainer as unknown as React.ComponentType<any>;
     // Estados de Filtros
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedMonth, setSelectedMonth] = useState<{ start: Date; end: Date } | null>(null);
@@ -164,7 +165,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                 <div className={`w-32 h-32 rounded-full border-4 border-t-transparent ${darkMode ? 'border-slate-700' : 'border-slate-200'}`} />
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainerCompat width="100%" height="100%">
                                 <PieChart>
                                     <Pie
                                         data={processedData.importanceData}
@@ -188,7 +189,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                     />
                                     <Legend verticalAlign="bottom" height={36} />
                                 </PieChart>
-                            </ResponsiveContainer>
+                            </ResponsiveContainerCompat>
                         )}
                     </div>
                 </div>
@@ -207,7 +208,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                 ))}
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainerCompat width="100%" height="100%">
                                 <AreaChart data={processedData.temporalData}>
                                     <defs>
                                         <linearGradient id="colorDocs" x1="0" y1="0" x2="0" y2="1">
@@ -238,7 +239,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                     <Area type="monotone" dataKey="documentos" name="Documentos" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDocs)" />
                                     <Area type="monotone" dataKey="tickets" name="Tickets" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTickets)" />
                                 </AreaChart>
-                            </ResponsiveContainer>
+                            </ResponsiveContainerCompat>
                         )}
                     </div>
                 </div>
