@@ -173,7 +173,7 @@ export async function markAsRead(documentId: number): Promise<ApiDocument> {
  * Obtiene la lista de todos los usuarios del sistema.
  */
 export async function getAllUsers(): Promise<ApiUser[]> {
-    const res = await fetch(`${BASE_URL}/usuarios`, {
+    const res = await fetch(`/api/users`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<ApiUser[]>(res);
@@ -235,14 +235,14 @@ export async function updateUserPermissions(
 }
 
 export async function getAnnouncement(): Promise<AnnouncementData> {
-    const res = await fetch(`${BASE_URL}/announcement`, {
+    const res = await fetch(`/api/announcement`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<AnnouncementData>(res);
 }
 
 export async function saveAnnouncement(data: AnnouncementData): Promise<{ status: string }> {
-    const res = await fetch(`${BASE_URL}/announcement`, {
+    const res = await fetch(`/api/announcement`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(data),
@@ -267,14 +267,14 @@ export async function saveOrgStructure(org_structure: any[]): Promise<{ status: 
 }
 
 export async function getSecurityLogs(): Promise<SecurityLog[]> {
-    const res = await fetch(`${BASE_URL}/security/logs`, {
+    const res = await fetch(`/api/security/logs`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<SecurityLog[]>(res);
 }
 
 export async function getUserSecurityLogs(userId: string): Promise<SecurityLog[]> {
-    const res = await fetch(`${BASE_URL}/security/logs/user/${userId}`, {
+    const res = await fetch(`/api/security/logs/user/${userId}`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<SecurityLog[]>(res);
@@ -286,7 +286,7 @@ export async function createSecurityLog(payload: {
     estado?: string;
     page?: string;
 }): Promise<SecurityLog> {
-    const res = await fetch(`${BASE_URL}/security/logs`, {
+    const res = await fetch(`/api/security/logs`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),
