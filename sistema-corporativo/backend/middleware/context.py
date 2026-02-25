@@ -27,9 +27,6 @@ async def extract_user_from_token(request: Request):
     """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        # Soporte para bypass de desarrollo si es necesario
-        if auth_header == "Bearer dev-bypass-token-2026":
-            return "00000000-0000-0000-0000-000000000000", "00000000-0000-0000-0000-000000000001"
         return None, None
     
     token = auth_header.split(" ")[1]

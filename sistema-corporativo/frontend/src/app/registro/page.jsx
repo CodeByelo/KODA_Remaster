@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Shield, Zap, Lock, User, Mail, Phone, CheckCircle, AlertCircle, ChevronRight, ArrowLeft, Briefcase } from 'lucide-react';
 // import { registrarUsuario } from '../actions';
 import { register } from '../../lib/api';
+import { useAuth } from '../../hooks/useAuth';
 
 // ====================================================================
 // NEON CHECKBOX
@@ -65,15 +66,16 @@ const SplashScreen = ({ onComplete }) => {
 
       setProgress(percent);
 
-      // Actualizar estados
-      const newStatus = [...status];
-      for (let i = 0; i < 3; i++) {
-        const statusStart = 0.1 + (i * 0.2);
-        if (progressValue > statusStart) {
-          newStatus[i] = true;
+      setStatus(prev => {
+        const next = [...prev];
+        for (let i = 0; i < 3; i++) {
+          const statusStart = 0.1 + (i * 0.2);
+          if (progressValue > statusStart) {
+            next[i] = true;
+          }
         }
-      }
-      setStatus(newStatus);
+        return next;
+      });
 
       // Completar
       if (progressValue >= 1) {
@@ -112,7 +114,7 @@ const SplashScreen = ({ onComplete }) => {
       cancelAnimationFrame(animationFrameId);
       clearTimeout(timeoutId);
     };
-  }, [status, onComplete]);
+  }, [onComplete]);
 
   return (
     <div className="splash-screen">
@@ -441,18 +443,23 @@ const RegistroForm = () => {
   const formRef = useRef(null);
 
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const isPrivilegedRegistrar =
+    isAuthenticated &&
+    (user?.role === 'Desarrollador' || user?.role === 'Administrativo');
+  const redirectPathAfterRegister = isPrivilegedRegistrar ? '/dashboard' : '/login';
 
   useEffect(() => {
     if (registroSuccess) {
       const timer = setTimeout(() => {
-        router.push('/dashboard');
+        router.push(redirectPathAfterRegister);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [registroSuccess, router]);
+  }, [registroSuccess, router, redirectPathAfterRegister]);
 
-  const { type: passwordType, icon: passwordIcon, toggle: togglePassword } = usePasswordToggle();
-  const { type: confirmPasswordType, icon: confirmPasswordIcon, toggle: toggleConfirmPassword } = usePasswordToggle();
+  const { type: passwordType } = usePasswordToggle();
+  const { type: confirmPasswordType } = usePasswordToggle();
 
   useEffect(() => {
     const elements = formRef.current?.children;
@@ -553,7 +560,9 @@ const RegistroForm = () => {
               <CheckCircle size={48} className="text-green-400" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">¡Registro Exitoso!</h2>
-            <p className="text-gray-400 mb-6">Redirigiendo al Login...</p>
+            <p className="text-gray-400 mb-6">
+              {isPrivilegedRegistrar ? 'Redirigiendo al Dashboard...' : 'Redirigiendo al Login...'}
+            </p>
             <div className="flex justify-center gap-2">
               <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" />
               <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
@@ -752,10 +761,10 @@ const RegistroForm = () => {
             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
               <ArrowLeft size={14} className="text-red-400" />
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push(isPrivilegedRegistrar ? '/dashboard' : '/login')}
                 className="text-sm text-red-400 hover:text-red-300 transition-colors"
               >
-                Volver al Dashboard
+                {isPrivilegedRegistrar ? 'Volver al Dashboard' : 'Volver al Login'}
               </button>
             </div>
           </div>

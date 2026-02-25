@@ -1,9 +1,8 @@
 import os
 import sys
 import logging
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -14,12 +13,11 @@ print(f"📁 Existe: {env_path.exists()}\n")
 
 load_dotenv(dotenv_path=env_path)
 
-from fastapi import FastAPI, Depends, HTTPException, status, Security, Request
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from jose import jwt
-from passlib.context import CryptContext
 import traceback
 
 # Asegurar que el directorio backend esté en el PYTHONPATH
@@ -32,7 +30,9 @@ from database.async_db import get_db_connection, init_db_pool, pool
 from middleware.tenant import get_tenant_context, trace_id_var
 from services.rate_limiter import rate_limiter_middleware
 from src import schemas
-from routers import auth_router, users_router, gerencias_router
+from routers import auth_router, users_router
+from auth.supabase_auth import get_current_user
+from pydantic import BaseModel
 
 import json
 
@@ -112,7 +112,7 @@ origins = [
     "http://127.0.0.1:8000",
     "https://sistema-corpoelect.vercel.app",
     "https://sistema-corpoelect-eight.vercel.app",
-    "https://sistema-corpoelect-git-main-henryddaniel1910-6913s-projects.vercel.app"
+    "https://sistema-corpoelect-git-main-henryddaniel1910-6913s-projects.vercel.app",
     "https://sistema-corpoelect-backend.onrender.com"
 ]
 
@@ -132,7 +132,6 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # INCLUSIÓN DE ROUTERS
 app.include_router(auth_router.router)
 app.include_router(users_router.router)
-app.include_router(gerencias_router.router)
 
 print("\n📋 RUTAS REGISTRADAS EN FASTAPI:")
 for route in app.routes:
@@ -143,6 +142,19 @@ print()
 @app.on_event("startup")
 async def startup():
     await init_db_pool()
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS bot_knowledge (
+                    id BIGSERIAL PRIMARY KEY,
+                    question TEXT NOT NULL UNIQUE,
+                    answer TEXT NOT NULL,
+                    updated_by TEXT,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+    except Exception as exc:
+        logger.warning(f"No se pudo garantizar bot_knowledge en startup: {exc}")
     logger.info("Database Connection Pool Initialized")
 
 # ===================================================================
@@ -169,7 +181,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     }
     
     # En desarrollo, enviamos el trace al frontend para diagnóstico rápido
-    if os.getenv("DEBUG", "true").lower() == "true":
+    if os.getenv("DEBUG", "false").lower() == "true":
         response_content["trace"] = error_trace
 
     response = JSONResponse(
@@ -227,16 +239,22 @@ async def register_user(
 
         hashed_pw = get_password_hash(user.password)
 
+        tenant_id = await conn.fetchval(
+            "SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1"
+        )
+        if not tenant_id:
+            raise HTTPException(status_code=500, detail="No existe organization base para asignar tenant_id")
+
         query = """
-            INSERT INTO profiles (username, nombre, apellido, email, password_hash, rol_id, gerencia_id, estado)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO profiles (username, nombre, apellido, email, password_hash, rol_id, gerencia_id, estado, tenant_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id, username, nombre, apellido, email, rol_id, gerencia_id, estado, tenant_id
         """
         default_rol = 3
         row = await conn.fetchrow(
             query, 
             user.username, user.nombre, user.apellido, user.email, 
-            hashed_pw, user.rol_id or default_rol, g_id, True
+            hashed_pw, user.rol_id or default_rol, g_id, True, tenant_id
         )
         
         return dict(row)
@@ -247,6 +265,7 @@ async def register_user(
         raise HTTPException(status_code=500, detail=f"Error interno durante el registro: {str(e)}")
 
 @app.post("/login")
+@app.post("/api/login")
 async def login_compat(
     form_data: OAuth2PasswordRequestForm = Depends(),
     conn = Depends(get_db_connection)
@@ -285,12 +304,82 @@ async def login_compat(
         "user": {
             "id": str(user['id']),
             "username": user['username'],
+            "nombre": user['nombre'],
+            "apellido": user['apellido'],
+            "email": user['email'],
             "role": user['nombre_rol'],
             "tenant_id": user['tenant_id'],
             "gerencia_id": user['gerencia_id'],
             "gerencia_depto": user['gerencia_nombre']
         }
     }
+
+
+def _is_privileged_role(role_name: Optional[str]) -> bool:
+    if not role_name:
+        return False
+    role = str(role_name).strip().lower()
+    return role in {
+        "desarrollador",
+        "administrativo",
+        "ceo",
+        "admin",
+        "administrador",
+    }
+
+
+def _normalize_text(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    text = str(value).lower().strip()
+    return " ".join(text.split())
+
+
+async def _is_tech_user(conn, user_id: str) -> bool:
+    dept = await conn.fetchval("""
+        SELECT COALESCE(g.nombre, '')
+        FROM profiles p
+        LEFT JOIN gerencias g ON p.gerencia_id = g.id
+        WHERE p.id = $1::uuid
+    """, user_id)
+    return "tecnolog" in _normalize_text(dept)
+
+
+async def _ensure_knowledge_table(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS bot_knowledge (
+            id BIGSERIAL PRIMARY KEY,
+            question TEXT NOT NULL UNIQUE,
+            answer TEXT NOT NULL,
+            updated_by TEXT,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+class TicketCreate(BaseModel):
+    titulo: str
+    descripcion: Optional[str] = None
+    prioridad: Optional[str] = "media"
+    observaciones: Optional[str] = None
+
+
+class TicketUpdate(BaseModel):
+    titulo: Optional[str] = None
+    descripcion: Optional[str] = None
+    prioridad: Optional[str] = None
+    observaciones: Optional[str] = None
+
+
+class TicketStatusUpdate(BaseModel):
+    estado: str
+    observaciones: Optional[str] = None
+
+
+class KnowledgeCreate(BaseModel):
+    question: str
+    answer: str
+    updatedBy: Optional[str] = "unknown"
 
 # ===================================================================
 # HEALTH CHECKS ENTERPRISE
@@ -322,10 +411,10 @@ async def readiness(conn = Depends(get_db_connection)):
 @app.post("/api/auth/switch-organization")
 async def switch_organization(
     org_id: schemas.SwitchOrgRequest,
-    request: Request,
+    current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    user_id = request.state.user_id if hasattr(request.state, 'user_id') else None
+    user_id = current_user.get("sub")
     
     if not user_id:
         raise HTTPException(status_code=401, detail="Token inválido")
@@ -363,8 +452,15 @@ async def switch_organization(
     }
 
 @app.get("/documentos", dependencies=[Depends(get_tenant_context)])
-async def list_documentos(conn = Depends(get_db_connection)):
+async def list_documentos(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
     try:
+        tenant_id = current_user.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
+
         # 1. Ejecutar máquina de estados automática
         await conn.execute("""
             UPDATE documentos 
@@ -409,9 +505,10 @@ async def list_documentos(conn = Depends(get_db_connection)):
             LEFT JOIN profiles p_rem ON d.remitente_id = p_rem.id
             LEFT JOIN profiles p_rec ON d.receptor_id = p_rec.id
             LEFT JOIN gerencias g ON d.receptor_gerencia_id = g.id
+            WHERE ($1::uuid IS NULL OR d.tenant_id = $1::uuid)
             ORDER BY d.fecha_creacion DESC
         """
-        rows = await conn.fetch(query)
+        rows = await conn.fetch(query, tenant_id)
         # Convertir record a dict y manejar el campo archivos
         result = []
         for r in rows:
@@ -474,7 +571,10 @@ async def create_documento(
         
         if not tenant_id:
             tenant_id_raw = await conn.fetchval("SELECT tenant_id FROM profiles WHERE id = $1", user_id)
-            tenant_id = uuid.UUID(str(tenant_id_raw)) if tenant_id_raw else uuid.UUID("00000000-0000-0000-0000-000000000001")
+            tenant_id = uuid.UUID(str(tenant_id_raw)) if tenant_id_raw else None
+
+        if not tenant_id:
+            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
         
         # ========== 3. GENERAR CORRELATIVO ==========
         try:
@@ -545,37 +645,61 @@ async def create_documento(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.patch("/documentos/{id}/leido")
-async def mark_as_read(id: int, conn = Depends(get_db_connection)):
+async def mark_as_read(
+    id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
     try:
-        await conn.execute("UPDATE documentos SET leido = TRUE WHERE id = $1", id)
+        tenant_id = current_user.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
+        await conn.execute(
+            "UPDATE documentos SET leido = TRUE WHERE id = $1 AND ($2::uuid IS NULL OR tenant_id = $2::uuid)",
+            id,
+            tenant_id,
+        )
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/documentos/{id}/estado")
 async def update_doc_status(
-    id: int,
+    id: uuid.UUID,
     status_data: dict,
+    current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
     try:
+        tenant_id = current_user.get("tenant_id")
+        if not tenant_id:
+            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
         nuevo_estado = status_data.get("estado")
         await conn.execute("""
             UPDATE documentos 
             SET estado = $1, fecha_ultima_actividad = NOW() 
-            WHERE id = $2
-        """, nuevo_estado, id)
+            WHERE id = $2 AND ($3::uuid IS NULL OR tenant_id = $3::uuid)
+        """, nuevo_estado, id, tenant_id)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/gerencias")
-async def list_gerencias(conn = Depends(get_db_connection)):
+async def list_gerencias(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
     rows = await conn.fetch("SELECT id, nombre, siglas FROM gerencias ORDER BY nombre")
     return [dict(r) for r in rows]
 
 @app.get("/usuarios")
-async def list_usuarios(conn = Depends(get_db_connection)):
+async def list_usuarios(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="No autorizado para listar usuarios")
+
     rows = await conn.fetch("""
         SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
                p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
@@ -588,6 +712,251 @@ async def list_usuarios(conn = Depends(get_db_connection)):
         ORDER BY p.nombre, p.apellido
     """)
     return [dict(r) for r in rows]
+
+
+@app.get("/tickets", dependencies=[Depends(get_tenant_context)])
+async def list_tickets(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    tenant_id = current_user.get("tenant_id")
+    user_id = current_user.get("sub")
+    role = current_user.get("role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    is_privileged = _is_privileged_role(role)
+    is_tech = await _is_tech_user(conn, user_id)
+
+    query = """
+        SELECT
+            t.id,
+            t.titulo,
+            t.descripcion,
+            t.area,
+            t.prioridad,
+            t.estado,
+            t.solicitante_id,
+            t.tecnico_id,
+            t.observaciones,
+            t.fecha_creacion,
+            COALESCE(ps.nombre || ' ' || ps.apellido, ps.username, 'Desconocido') AS solicitante_nombre,
+            COALESCE(pt.nombre || ' ' || pt.apellido, pt.username) AS tecnico_nombre
+        FROM tickets t
+        LEFT JOIN profiles ps ON t.solicitante_id = ps.id
+        LEFT JOIN profiles pt ON t.tecnico_id = pt.id
+        WHERE ($1::uuid IS NULL OR ps.tenant_id = $1::uuid OR pt.tenant_id = $1::uuid)
+    """
+    params: List[Any] = [tenant_id]
+    if not is_privileged and not is_tech:
+        query += " AND t.solicitante_id = $2::uuid"
+        params.append(user_id)
+
+    query += " ORDER BY t.fecha_creacion DESC"
+    rows = await conn.fetch(query, *params)
+    return [dict(r) for r in rows]
+
+
+@app.post("/tickets", dependencies=[Depends(get_tenant_context)])
+async def create_ticket(
+    payload: TicketCreate,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    row = await conn.fetchrow("""
+        INSERT INTO tickets (titulo, descripcion, area, prioridad, estado, solicitante_id, observaciones)
+        VALUES ($1, $2, $3, $4, 'abierto', $5::uuid, $6)
+        RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
+    """,
+        payload.titulo.strip(),
+        payload.descripcion,
+        "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
+        (payload.prioridad or "media").lower(),
+        user_id,
+        payload.observaciones,
+    )
+    return dict(row)
+
+
+@app.put("/tickets/{ticket_id}", dependencies=[Depends(get_tenant_context)])
+async def update_ticket(
+    ticket_id: int,
+    payload: TicketUpdate,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    user_id = current_user.get("sub")
+    role = current_user.get("role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    owner_id = await conn.fetchval("SELECT solicitante_id FROM tickets WHERE id = $1", ticket_id)
+    if not owner_id:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+    if str(owner_id) != str(user_id) and not _is_privileged_role(role):
+        raise HTTPException(status_code=403, detail="No autorizado para editar este ticket")
+
+    updated = await conn.fetchrow("""
+        UPDATE tickets
+        SET
+            titulo = COALESCE($2, titulo),
+            descripcion = COALESCE($3, descripcion),
+            prioridad = COALESCE($4, prioridad),
+            observaciones = COALESCE($5, observaciones)
+        WHERE id = $1
+        RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
+    """, ticket_id, payload.titulo, payload.descripcion, payload.prioridad, payload.observaciones)
+    return dict(updated)
+
+
+@app.patch("/tickets/{ticket_id}/estado", dependencies=[Depends(get_tenant_context)])
+async def update_ticket_status(
+    ticket_id: int,
+    payload: TicketStatusUpdate,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    user_id = current_user.get("sub")
+    role = current_user.get("role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    current = await conn.fetchrow("SELECT id, estado, solicitante_id FROM tickets WHERE id = $1", ticket_id)
+    if not current:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    next_status = _normalize_text(payload.estado).replace(" ", "-")
+    if next_status not in {"abierto", "en-proceso", "resuelto"}:
+        raise HTTPException(status_code=400, detail="Estado invalido")
+
+    is_tech = await _is_tech_user(conn, user_id)
+    is_owner = str(current["solicitante_id"]) == str(user_id)
+    if not _is_privileged_role(role) and not is_owner and not is_tech:
+        raise HTTPException(status_code=403, detail="No autorizado para cambiar este ticket")
+    if next_status in {"en-proceso", "resuelto"} and not is_tech:
+        raise HTTPException(status_code=403, detail="Solo Tecnologia puede tomar o resolver tickets")
+
+    tecnico_id = user_id if next_status in {"en-proceso", "resuelto"} else None
+    updated = await conn.fetchrow("""
+        UPDATE tickets
+        SET
+            estado = $2,
+            tecnico_id = CASE WHEN $3::uuid IS NULL THEN tecnico_id ELSE $3::uuid END,
+            observaciones = COALESCE($4, observaciones)
+        WHERE id = $1
+        RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
+    """, ticket_id, next_status, tecnico_id, payload.observaciones)
+    return dict(updated)
+
+
+@app.delete("/tickets/{ticket_id}", dependencies=[Depends(get_tenant_context)])
+async def delete_ticket(
+    ticket_id: int,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    user_id = current_user.get("sub")
+    role = current_user.get("role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    owner_id = await conn.fetchval("SELECT solicitante_id FROM tickets WHERE id = $1", ticket_id)
+    if not owner_id:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+    if str(owner_id) != str(user_id) and not _is_privileged_role(role):
+        raise HTTPException(status_code=403, detail="No autorizado para eliminar este ticket")
+
+    await conn.execute("DELETE FROM tickets WHERE id = $1", ticket_id)
+    return {"status": "success"}
+
+
+@app.get("/api/chat/knowledge", dependencies=[Depends(get_tenant_context)])
+async def list_knowledge(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    await _ensure_knowledge_table(conn)
+    rows = await conn.fetch("""
+        SELECT id, question, answer, updated_by, updated_at
+        FROM bot_knowledge
+        ORDER BY updated_at DESC
+    """)
+    return {"knowledge": [dict(r) for r in rows]}
+
+
+@app.post("/api/chat/knowledge", dependencies=[Depends(get_tenant_context)])
+async def upsert_knowledge(
+    payload: KnowledgeCreate,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    await _ensure_knowledge_table(conn)
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="Solo Desarrollador o Administrativo pueden entrenar")
+
+    question = _normalize_text(payload.question)
+    answer = (payload.answer or "").strip()
+    if not question or not answer:
+        raise HTTPException(status_code=400, detail="question y answer son requeridos")
+
+    await conn.execute("""
+        INSERT INTO bot_knowledge (question, answer, updated_by, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (question)
+        DO UPDATE SET answer = EXCLUDED.answer, updated_by = EXCLUDED.updated_by, updated_at = NOW()
+    """, question, answer, payload.updatedBy or current_user.get("role") or "unknown")
+    rows = await conn.fetch("SELECT id, question, answer, updated_by, updated_at FROM bot_knowledge ORDER BY updated_at DESC")
+    return {"knowledge": [dict(r) for r in rows]}
+
+
+@app.delete("/api/chat/knowledge/{knowledge_id}", dependencies=[Depends(get_tenant_context)])
+async def delete_knowledge(
+    knowledge_id: int,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    await _ensure_knowledge_table(conn)
+    if not _is_privileged_role(current_user.get("role")):
+        raise HTTPException(status_code=403, detail="No autorizado")
+    await conn.execute("DELETE FROM bot_knowledge WHERE id = $1", knowledge_id)
+    rows = await conn.fetch("SELECT id, question, answer, updated_by, updated_at FROM bot_knowledge ORDER BY updated_at DESC")
+    return {"knowledge": [dict(r) for r in rows]}
+
+
+@app.post("/api/chat")
+async def chat_endpoint(
+    payload: dict,
+    conn = Depends(get_db_connection)
+):
+    message = (payload.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message requerido")
+
+    normalized = _normalize_text(message)
+    try:
+        await _ensure_knowledge_table(conn)
+        knowledge_rows = await conn.fetch(
+            "SELECT question, answer FROM bot_knowledge ORDER BY updated_at DESC LIMIT 500"
+        )
+        for item in knowledge_rows:
+            learned_q = _normalize_text(item["question"])
+            if normalized == learned_q or normalized in learned_q or learned_q in normalized:
+                return {"response": item["answer"]}
+    except Exception:
+        knowledge_rows = []
+
+    if "hola" in normalized:
+        return {"response": "Hola, estoy en linea para ayudarte con el sistema."}
+    if "ticket" in normalized:
+        return {"response": "Los tickets se enrutan a Tecnologia y un tecnico puede tomarlo desde el tablero."}
+    if "documento" in normalized:
+        return {"response": "Puedes enviar documentos desde Mensajeria Interna y hacer seguimiento por estado."}
+
+    return {"response": "Recibido. Si no encuentro una respuesta entrenada, puedo ayudarte con una guia general del sistema."}
 
 if __name__ == "__main__":
     import uvicorn

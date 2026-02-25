@@ -5,6 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, AlertCircle, MessageSquare, Plus, History, Brain, Save, Trash2, ChevronLeft } from 'lucide-react';
 
 export default function ChatWindow({ isOpen, onClose, userRole }) {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sistema-corpoelect-backend.onrender.com';
+    const getAuthHeaders = () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('sgd_token') : null;
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        };
+    };
     // Estados principales
     const [conversations, setConversations] = useState([]);
     const [currentConvId, setCurrentConvId] = useState(null);
@@ -18,8 +26,34 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
     const [trainQuestion, setTrainQuestion] = useState('');
     const [trainAnswer, setTrainAnswer] = useState('');
     const [customKnowledge, setCustomKnowledge] = useState([]);
+    const canTrain = userRole === 'Desarrollador' || userRole === 'Administrativo';
 
     const messagesEndRef = useRef(null);
+
+    const normalizeText = (text) =>
+        (text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\w\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+    const syncKnowledgeFromServer = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/chat/knowledge`, {
+                cache: 'no-store',
+                headers: getAuthHeaders(),
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            const serverKnowledge = Array.isArray(data?.knowledge) ? data.knowledge : [];
+            setCustomKnowledge(serverKnowledge);
+            localStorage.setItem('bot_knowledge', JSON.stringify(serverKnowledge));
+        } catch {
+            // Keep local cache if server is unavailable.
+        }
+    };
 
     // Cargar datos al inicio
     useEffect(() => {
@@ -38,8 +72,17 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
             } else {
                 startNewChat();
             }
+
+            syncKnowledgeFromServer();
         }
     }, []);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        syncKnowledgeFromServer();
+        const interval = setInterval(syncKnowledgeFromServer, 15000);
+        return () => clearInterval(interval);
+    }, [isOpen]);
 
     // Guardar conversaciones cuando cambian
     useEffect(() => {
@@ -79,10 +122,13 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
             preview: "Nueva conversación"
         };
 
-        setConversations(prev => [newConv, ...prev]);
+        setConversations(prev => {
+            const updated = [newConv, ...prev];
+            localStorage.setItem('bot_conversations', JSON.stringify(updated));
+            return updated;
+        });
         setCurrentConvId(newId);
         setMessages(initialMsgs);
-        localStorage.setItem('bot_conversations', JSON.stringify([newConv, ...conversations]));
         setView('chat');
     };
 
@@ -110,22 +156,45 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
         }
     };
 
-    const saveTraining = () => {
-        if (userRole !== 'admin') {
-            alert("Acceso Denegado: Solo el administrador puede entrenar al asistente.");
+    const saveTraining = async () => {
+        if (!canTrain) {
+            alert("Acceso denegado: solo Desarrollador o Administrativo pueden entrenar al asistente.");
             return;
         }
         if (!trainQuestion.trim() || !trainAnswer.trim()) return;
 
         const newEntry = {
             id: Date.now(),
-            question: trainQuestion.trim().toLowerCase(),
+            question: normalizeText(trainQuestion),
             answer: trainAnswer.trim()
         };
 
-        const updatedKnowledge = [...customKnowledge, newEntry];
-        setCustomKnowledge(updatedKnowledge);
-        localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
+        try {
+            const response = await fetch(`${API_URL}/api/chat/knowledge`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    question: newEntry.question,
+                    answer: newEntry.answer,
+                    updatedBy: userRole,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const updatedKnowledge = Array.isArray(data?.knowledge) ? data.knowledge : [...customKnowledge, newEntry];
+                setCustomKnowledge(updatedKnowledge);
+                localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
+            } else {
+                const updatedKnowledge = [...customKnowledge, newEntry];
+                setCustomKnowledge(updatedKnowledge);
+                localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
+            }
+        } catch {
+            const updatedKnowledge = [...customKnowledge, newEntry];
+            setCustomKnowledge(updatedKnowledge);
+            localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
+        }
 
         setTrainQuestion('');
         setTrainAnswer('');
@@ -141,16 +210,31 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
         setMessages(prev => [...prev, confirmMsg]);
     };
 
-    const deleteKnowledge = (id) => {
+    const deleteKnowledge = async (id) => {
         const updated = customKnowledge.filter(k => k.id !== id);
         setCustomKnowledge(updated);
         localStorage.setItem('bot_knowledge', JSON.stringify(updated));
+        try {
+            await fetch(`${API_URL}/api/chat/knowledge/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+            await syncKnowledgeFromServer();
+        } catch {
+            // Keep local update when API delete fails.
+        }
     };
 
     const findLocalResponse = (query) => {
-        const normalizedQuery = query.toLowerCase();
-        // Busqueda exacta o parcial simple
-        const match = customKnowledge.find(k => normalizedQuery.includes(k.question) || k.question.includes(normalizedQuery));
+        const normalizedQuery = normalizeText(query);
+        const match = customKnowledge.find((k) => {
+            const learnedQuestion = normalizeText(k.question);
+            return (
+                normalizedQuery === learnedQuestion ||
+                normalizedQuery.includes(learnedQuestion) ||
+                learnedQuestion.includes(normalizedQuery)
+            );
+        });
         return match ? match.answer : null;
     };
 
@@ -188,15 +272,13 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
 
         // 2. Si no hay local, llamar API (o respuesta default si falla)
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
-
             // Timeout para evitar que se quede pegado si no hay backend
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 
             const response = await fetch(`${API_URL}/api/chat`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ message: input }),
                 signal: controller.signal
             });
@@ -265,7 +347,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                         </div>
 
                         <div className="flex items-center gap-1">
-                            {userRole === 'admin' && (
+                            {canTrain && (
                                 <button
                                     onClick={() => setView('train')}
                                     className={`p-2 rounded-full hover:bg-white/10 text-white ${view === 'train' ? 'bg-white/20' : ''}`}

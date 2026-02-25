@@ -50,6 +50,21 @@ export interface ApiGerencia {
     descripcion?: string;
 }
 
+export interface ApiTicket {
+    id: number;
+    titulo: string;
+    descripcion?: string;
+    area?: string;
+    prioridad?: string;
+    estado?: string;
+    solicitante_id?: string;
+    tecnico_id?: string | null;
+    observaciones?: string;
+    fecha_creacion?: string;
+    solicitante_nombre?: string;
+    tecnico_nombre?: string | null;
+}
+
 // ==========================================
 // HELPERS
 // ==========================================
@@ -181,6 +196,68 @@ export async function updateUserRole(
 }
 
 // ==========================================
+// TICKETS
+// ==========================================
+
+export async function getTickets(): Promise<ApiTicket[]> {
+    const res = await fetch(`${BASE_URL}/tickets`, {
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<ApiTicket[]>(res);
+}
+
+export async function createTicket(payload: {
+    titulo: string;
+    descripcion?: string;
+    prioridad?: string;
+    observaciones?: string;
+}): Promise<ApiTicket> {
+    const res = await fetch(`${BASE_URL}/tickets`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiTicket>(res);
+}
+
+export async function updateTicket(
+    ticketId: number,
+    payload: {
+        titulo?: string;
+        descripcion?: string;
+        prioridad?: string;
+        observaciones?: string;
+    },
+): Promise<ApiTicket> {
+    const res = await fetch(`${BASE_URL}/tickets/${ticketId}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiTicket>(res);
+}
+
+export async function updateTicketStatus(
+    ticketId: number,
+    payload: { estado: string; observaciones?: string },
+): Promise<ApiTicket> {
+    const res = await fetch(`${BASE_URL}/tickets/${ticketId}/estado`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiTicket>(res);
+}
+
+export async function deleteTicket(ticketId: number): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/tickets/${ticketId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+// ==========================================
 // DIAGNÓSTICO / CONEXIÓN
 // ==========================================
 
@@ -221,7 +298,7 @@ export async function login(username: string, password: string): Promise<{ acces
     params.append('username', username);
     params.append('password', password);
 
-    const res = await fetch(`${BASE_URL}/login`, {
+    const res = await fetch(`${BASE_URL}/api/login`, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",

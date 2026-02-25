@@ -30,15 +30,16 @@ const SplashScreen = ({ onComplete }) => {
 
       setProgress(percent);
 
-      // Actualizar estados
-      const newStatus = [...status];
-      for (let i = 0; i < 3; i++) {
-        const statusStart = 0.1 + (i * 0.2);
-        if (progressValue > statusStart) {
-          newStatus[i] = true;
+      setStatus(prev => {
+        const next = [...prev];
+        for (let i = 0; i < 3; i++) {
+          const statusStart = 0.1 + (i * 0.2);
+          if (progressValue > statusStart) {
+            next[i] = true;
+          }
         }
-      }
-      setStatus(newStatus);
+        return next;
+      });
 
       // Completar
       if (progressValue >= 1) {
@@ -77,7 +78,7 @@ const SplashScreen = ({ onComplete }) => {
       cancelAnimationFrame(animationFrameId);
       clearTimeout(timeoutId);
     };
-  }, [status, onComplete]);
+  }, [onComplete]);
 
   return (
     <div className="splash-screen">
@@ -341,13 +342,11 @@ const LoginCorpoelecForm = () => {
   const router = useRouter();
 
   // ✅ USAR HOOK DE AUTH
-  const { login: authLogin, devLogin, isAuthenticated } = useAuth();
+  const { login: authLogin, isAuthenticated } = useAuth();
 
   // ✅ Redirección automática si ya está autenticado
   useEffect(() => {
-    // Solo redirigir si existe la cookie que el middleware necesita
-    const hasSessionCookie = document.cookie.includes('session=');
-    if (isAuthenticated && hasSessionCookie && !loginSuccess) {
+    if (isAuthenticated && !loginSuccess) {
       router.push('/dashboard');
     }
   }, [isAuthenticated, loginSuccess, router]);
@@ -362,7 +361,7 @@ const LoginCorpoelecForm = () => {
     }
   }, [loginSuccess, router]);
 
-  const { type: passwordType, icon: passwordIcon, toggle: togglePassword } = usePasswordToggle();
+  const { type: passwordType, toggle: togglePassword } = usePasswordToggle();
 
   useEffect(() => {
     const elements = formRef.current?.children;
@@ -406,11 +405,10 @@ const LoginCorpoelecForm = () => {
     setIsLoading(true);
     setLoginError(null);
 
-    // ✅ LIMPIEZA PREVIA DE SESIÓN (Evita roles "fantasma")
+    // Limpieza previa de sesion
     localStorage.removeItem('sgd_token');
     localStorage.removeItem('sgd_user');
-    localStorage.removeItem('admin_scope_2026');
-    document.cookie = "session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
 
     try {
       console.log("Intentando login corporativo para:", formData.username);
@@ -428,17 +426,6 @@ const LoginCorpoelecForm = () => {
     } catch (error) {
       console.error('Error en flujo de autenticación:', error);
       setLoginError('Error inesperado de conexión');
-      setIsLoading(false);
-    }
-  };
-
-  const handleDevLogin = async () => {
-    setIsLoading(true);
-    const success = await devLogin();
-    if (success) {
-      setLoginSuccess(true);
-    } else {
-      setLoginError('Error en modo developer');
       setIsLoading(false);
     }
   };
@@ -517,14 +504,6 @@ const LoginCorpoelecForm = () => {
               Sistema de Gestión Empresarial
             </p>
 
-            {/* BOTÓN OVERLAY PARA DEV (Visible solo en hover o discreto) */}
-            <button
-              type="button"
-              onClick={handleDevLogin}
-              className="mt-2 text-[10px] text-gray-600 hover:text-red-400 transition-colors uppercase tracking-widest opacity-50 hover:opacity-100"
-            >
-              [DEV_ACCESS_V1]
-            </button>
           </div>
 
           <div className="px-8 pb-8 pt-4">

@@ -13,27 +13,27 @@ export async function POST(request: Request) {
             return NextResponse.json({ detail: 'Credenciales incompletas' }, { status: 400 });
         }
 
-        // Proxy to Python Backend
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        const params = new URLSearchParams();
+        params.append('username', username as string);
+        params.append('password', password as string);
+
+        const response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify({
-                username: username as string,
-                password: password as string,
-            }),
+            body: params.toString(),
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            // Set session cookie
             const cookieStore = await cookies();
-            cookieStore.set('session', JSON.stringify(data.user), {
+            cookieStore.set('session', data.access_token, {
+                httpOnly: true,
                 path: '/',
                 maxAge: 28800, // 8 hours
-                sameSite: 'strict',
+                sameSite: 'lax',
                 secure: process.env.NODE_ENV === 'production',
             });
 

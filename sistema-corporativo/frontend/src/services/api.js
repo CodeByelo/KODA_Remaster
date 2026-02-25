@@ -25,7 +25,7 @@ export const loginApi = async (username, password) => {
   params.append('username', username);
   params.append('password', password);
 
-  const response = await api.post('/login', params.toString(), {
+  const response = await api.post('/api/login', params.toString(), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     },

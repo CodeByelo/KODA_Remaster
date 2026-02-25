@@ -52,7 +52,6 @@ import ChatWindow from "../../components/ChatWindow";
 import TicketSystem, { Ticket } from "../../components/TicketSystem";
 import MasterPermissionPanel from "../../components/MasterPermissionPanel";
 import { logDocumentActivity } from "./security/actions";
-import { useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 import { UserRole, User } from "../../context/AuthContext";
 import {
@@ -80,6 +79,7 @@ import {
   updateDocumentStatus as apiUpdateStatus,
   getAllUsers,
   getGerencias,
+  getTickets,
   markAsRead,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
@@ -235,12 +235,6 @@ const MANAGEMENT_DETAILS: Record<string, string[]> = {
     "Ajuste de variables de entorno críticas.",
     "Gestión de certificados SSL y seguridad perimetral.",
   ],
-  "Bypass de Sistema": [
-    "Activación de protocolos de emergencia.",
-    "Salto de validación MFA para soporte técnico.",
-    "Recuperación forzada de cuentas administrativas.",
-    "Desactivación temporal de firewalls de aplicación.",
-  ],
   "Logs de Auditoría": [
     "Consulta de trazas de base de datos a bajo nivel.",
     "Historial completo de intentos de intrusión.",
@@ -303,30 +297,6 @@ const PRIORITY_MATRIX: PriorityItem[] = [];
 // Tickets data moved to TicketSystem component
 
 const INITIAL_DOCUMENTS: Document[] = [];
-
-const INITIAL_TICKETS: Ticket[] = [
-  {
-    id: 1,
-    title: "Mantenimiento Preventivo Servidores",
-    description:
-      "Revisión mensual de racks y sistemas de enfriamiento en el centro de datos.",
-    status: "EN-PROCESO",
-    priority: "ALTA",
-    area: "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
-    createdAt: "01/02/2026",
-    owner: "Admin. General",
-  },
-  {
-    id: 2,
-    title: "Soporte Técnico Usuario RRHH",
-    description: "Falla en el software de nómina, no permite procesar pagos.",
-    status: "ABIERTO",
-    priority: "MEDIA",
-    area: "Gerencia Nacional de Gestion Humana",
-    createdAt: "02/02/2026",
-    owner: "Usuario Estándar",
-  },
-];
 
 // NUEVOS DATOS PARA MÓDULO DE SEGURIDAD
 const ACCOUNT_REQUESTS = [
@@ -428,6 +398,12 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 }) => (
   <div
     onClick={onClick}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick?.();
+      }
+    }}
     role="button"
     tabIndex={0}
     aria-label={label}
@@ -962,6 +938,10 @@ const DocumentManager: React.FC<{
     const [messageContent, setMessageContent] = useState("");
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+    const canAccessSecurityModule =
+      hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
+      userRole === "Administrativo" ||
+      userRole === "Desarrollador";
 
     // Extract unique departments for filter
     const departments = useMemo(() => {
@@ -1439,7 +1419,7 @@ const DocumentManager: React.FC<{
               <option value="omitido">Omitidos</option>
             </select>
           </div>
-          {hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) && (
+          {canAccessSecurityModule && (
             <div className="w-48">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                 Gerencia
@@ -1914,8 +1894,6 @@ const ChartsModule: React.FC<{
 // ==========================================
 export default function Dashboard() {
   // ✅ HOOKS (Must be at top)
-  const useRouterHook = useRouter();
-  const router = useRouterHook; // Consistent with my usage below
   useIdleTimer(900000); // Auto-logout after 15 mins
 
   const [darkMode, setDarkMode] = useState(true);
@@ -1935,7 +1913,10 @@ export default function Dashboard() {
   const isDev = userRole === "Desarrollador";
 
   // Granular Access Controls base on hasPermission (Permisos del Sistema Alfa 2026)
-  const canAccessSecurity = hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY);
+  const canAccessSecurity =
+    hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
+    userRole === "Administrativo" ||
+    userRole === "Desarrollador";
   const canAccessStats = hasPermission(PERMISSIONS_MASTER.VIEW_STATS);
   const canAccessTickets = hasPermission(PERMISSIONS_MASTER.VIEW_TICKETS);
   const canAccessPriorities = hasPermission(PERMISSIONS_MASTER.VIEW_PRIORITIES);
@@ -2037,13 +2018,44 @@ export default function Dashboard() {
     setUsers(data);
   }, []);
 
+  const fetchTickets = useCallback(async () => {
+    try {
+      const rows = await getTickets();
+      const mapped: Ticket[] = rows.map((t: any) => ({
+        id: t.id,
+        title: t.titulo || "Sin título",
+        description: t.descripcion || "",
+        area:
+          t.area ||
+          "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
+        priority: (String(t.prioridad || "media").toUpperCase() as Ticket["priority"]),
+        status:
+          String(t.estado || "abierto").toLowerCase() === "resuelto"
+            ? "RESUELTO"
+            : String(t.estado || "abierto").toLowerCase() === "en-proceso"
+              ? "EN-PROCESO"
+              : "ABIERTO",
+        createdAt: t.fecha_creacion
+          ? new Date(t.fecha_creacion).toLocaleDateString("es-ES")
+          : new Date().toLocaleDateString("es-ES"),
+        owner: t.solicitante_nombre || "Desconocido",
+        observations: t.observaciones || "",
+        takenBy: t.tecnico_nombre || undefined,
+      }));
+      setTickets(mapped);
+    } catch (e) {
+      console.error("Error fetching tickets", e);
+    }
+  }, []);
+
   useEffect(() => {
     if (mounted) {
       fetchDocuments();
       fetchUsers();
       fetchGerencias();
+      fetchTickets();
     }
-  }, [mounted, fetchDocuments, fetchUsers, fetchGerencias]);
+  }, [mounted, fetchDocuments, fetchUsers, fetchGerencias, fetchTickets]);
 
   // Lifted state for tickets
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -2063,7 +2075,6 @@ export default function Dashboard() {
         icon: "Shield",
         items: [
           "Gestión Directa",
-          "Bypass de Sistema",
           "Logs de Auditoría",
           "Control de Dominios",
         ],
@@ -2157,26 +2168,6 @@ export default function Dashboard() {
       localStorage.setItem("dashboard_documents", JSON.stringify(documents));
     }
   }, [documents, mounted]);
-
-  // Tickets Persistence
-  useEffect(() => {
-    const saved = localStorage.getItem("tickets_react_kamban");
-    if (saved) {
-      try {
-        setTickets(JSON.parse(saved));
-      } catch (e) {
-        console.error("Error loading tickets", e);
-      }
-    } else {
-      setTickets(INITIAL_TICKETS);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (mounted && tickets.length > 0) {
-      localStorage.setItem("tickets_react_kamban", JSON.stringify(tickets));
-    }
-  }, [tickets, mounted]);
 
   const theme = useMemo(
     () => ({
@@ -2336,8 +2327,8 @@ export default function Dashboard() {
             userDept={user?.gerencia_depto || ""}
             currentUser={user?.nombre + " " + user?.apellido}
             tickets={tickets}
-            setTickets={setTickets}
             hasPermission={hasPermission}
+            refreshTickets={fetchTickets}
           />
         ) : (
           <div className="text-center p-20 font-bold text-red-500">
@@ -2553,7 +2544,7 @@ export default function Dashboard() {
               </a>
 
               <button
-                onClick={() => router.push("/")}
+                onClick={logout}
                 className={`p-4 rounded-xl border flex items-center gap-4 transition-all group text-left ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-slate-700 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-500/5"}`}
               >
                 <div
@@ -2805,7 +2796,8 @@ export default function Dashboard() {
                 </div>
 
                 {/* ROLE SWITCHER dropdown - visible for admins and persona-switchers */}
-                {hasPermission(PERMISSIONS_MASTER.SYS_SWITCH_ROLE) && (
+                {hasPermission(PERMISSIONS_MASTER.SYS_SWITCH_ROLE) &&
+                  userRole === "Desarrollador" && (
                   <div
                     className="flex items-center gap-1 border-l pl-3 border-slate-700 ml-1"
                     onClick={(e) => e.stopPropagation()}

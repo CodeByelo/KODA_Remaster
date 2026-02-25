@@ -88,9 +88,7 @@ export function RoleGuard({
                     <p className="text-gray-500 text-sm mb-6">Tu rol actual: <span className="text-gray-300">{user.role}</span></p>
                     <button
                         onClick={() => {
-                            // If they are stuck in a role mismatch, we force a logout 
-                            // to let them re-authenticate with the new roles.
-                            window.location.href = '/login';
+                            router.push('/login');
                         }}
                         className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                     >

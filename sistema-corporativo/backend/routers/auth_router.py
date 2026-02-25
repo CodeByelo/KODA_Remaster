@@ -33,6 +33,8 @@ async def get_user_profile(
 
         return dict(profile)
             
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error fetching profile: {e}")
         raise HTTPException(status_code=500, detail="Error al obtener perfil")

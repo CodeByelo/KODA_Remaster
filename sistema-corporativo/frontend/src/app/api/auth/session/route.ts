@@ -7,15 +7,12 @@ export async function GET() {
         const sessionCookie = cookieStore.get('session');
 
         if (!sessionCookie) {
-            return NextResponse.json({ user: null });
+            return NextResponse.json({ authenticated: false });
         }
 
-        // Parse session data
-        const user = JSON.parse(decodeURIComponent(sessionCookie.value));
-
-        return NextResponse.json({ user });
+        return NextResponse.json({ authenticated: true });
     } catch (error) {
         console.error('Session check error:', error);
-        return NextResponse.json({ user: null });
+        return NextResponse.json({ authenticated: false });
     }
 }

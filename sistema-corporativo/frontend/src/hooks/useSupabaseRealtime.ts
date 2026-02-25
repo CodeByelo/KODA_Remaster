@@ -24,16 +24,27 @@ export const useSupabaseRealtime = (table: string, filter?: string) => {
         {
           event: '*',
           schema: 'public',
-          table: table,
+          table,
           filter: filter || `tenant_id=eq.${currentOrg.id}`,
         },
         (payload: any) => {
-          console.log('Change received!', payload);
+          setData((prev) => {
+            if (payload.eventType === 'INSERT') {
+              return [payload.new, ...prev];
+            }
+            if (payload.eventType === 'UPDATE') {
+              return prev.map((row) => (row.id === payload.new.id ? payload.new : row));
+            }
+            if (payload.eventType === 'DELETE') {
+              return prev.filter((row) => row.id !== payload.old.id);
+            }
+            return prev;
+          });
         }
       )
-      .subscribe((status: string) => {
-        if (status === 'SUBSCRIBED') setStatus('synced');
-        if (status === 'CHANNEL_ERROR') setStatus('error');
+      .subscribe((nextStatus: string) => {
+        if (nextStatus === 'SUBSCRIBED') setStatus('synced');
+        if (nextStatus === 'CHANNEL_ERROR') setStatus('error');
       });
 
     return () => {

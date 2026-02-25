@@ -29,7 +29,6 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<boolean>;
-  devLogin: () => Promise<boolean>;
   logout: () => void;
   setUser: (user: User | null) => void;
   switchRole: (newRole: UserRole) => Promise<boolean>;
@@ -49,7 +48,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
-  // Helper para obtener permisos según el rol
   const getEffectivePermissions = (
     role: UserRole,
     basePermissions?: string[],
@@ -78,164 +76,100 @@ export function AuthProvider({ children }: AuthProviderProps) {
       : DEFAULT_SCOPES[role] || [];
   };
 
+  const normalizeRole = (rawRole: string): UserRole => {
+    const value = (rawRole || "").trim().toLowerCase();
+    if (value === "desarrollador" || value === "developer") return "Desarrollador";
+    if (value === "administrativo" || value === "administrador" || value === "admin") return "Administrativo";
+    if (value === "ceo") return "CEO";
+    return "Usuario";
+  };
+
+  const buildUserFromBackend = (backendUser: any): User => {
+    const role = normalizeRole(String(backendUser.role || "Usuario"));
+    return {
+      id: String(backendUser.id),
+      username: backendUser.username,
+      nombre: backendUser.nombre,
+      apellido: backendUser.apellido || "",
+      email_corp: backendUser.email || `${backendUser.username}@corpoelec.com`,
+      gerencia_depto: backendUser.gerencia_depto || "General",
+      gerencia_id: backendUser.gerencia_id,
+      role,
+      permissions: getEffectivePermissions(role),
+    };
+  };
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Verificar sesión al montar el componente
   useEffect(() => {
     if (!isClient) return;
 
-    const checkSession = async () => {
-      // 1. Check Dev Bypass
-      const devToken = localStorage.getItem("sgd_token");
-      if (devToken === "dev-bypass-token-2026") {
-        const devUser: User = {
-          id: "dev-001",
-          username: "dev_admin",
-          nombre: "Desarrollador",
-          apellido: "System",
-          email_corp: "dev@corpoelec.ind",
-          gerencia_depto: "Tecnología",
-          role: "Desarrollador",
-          permissions: Object.values(PERMISSIONS_MASTER),
-        };
-        setUser(devUser);
-        setIsLoading(false);
-        return;
+    const token = localStorage.getItem("sgd_token");
+    const storedUser = localStorage.getItem("sgd_user");
+
+    if (token && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser) as User;
+        const role = normalizeRole(String(parsedUser.role || "Usuario"));
+        setUser({
+          ...parsedUser,
+          role,
+          permissions: getEffectivePermissions(role, parsedUser.permissions),
+        });
+      } catch (e) {
+        console.error("Error parsing stored user", e);
+        localStorage.removeItem("sgd_user");
+        localStorage.removeItem("sgd_token");
       }
+    }
 
-      // 2. Check Normal Session
-      const token = localStorage.getItem("sgd_token");
-      const storedUser = localStorage.getItem("sgd_user");
-
-      if (token && storedUser) {
-        // ✅ RE-SINCRO COOKIE: Si el middleware la borró pero tenemos el token, la restauramos
-        if (!document.cookie.includes('session=')) {
-          document.cookie = `session=${token}; path=/; max-age=86400; SameSite=Lax`;
-        }
-
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          const userWithPerms = {
-            ...parsedUser,
-            permissions: getEffectivePermissions(
-              parsedUser.role as UserRole,
-              parsedUser.role as UserRole === user?.role ? user?.permissions : undefined
-            ),
-          };
-          setUser(userWithPerms);
-        } catch (e) {
-          console.error("Error parsing stored user", e);
-          localStorage.removeItem("sgd_user");
-          localStorage.removeItem("sgd_token");
-        }
-      }
-
-      setIsLoading(false);
-    };
-
-    checkSession();
+    setIsLoading(false);
   }, [isClient]);
 
-  // ✅ FUNCIÓN LOGIN CORREGIDA (Sin errores de tipo)
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
 
-      const params = new URLSearchParams();
-      params.append('username', username);
-      params.append('password', password);
+      const formData = new FormData();
+      formData.append("username", username);
+      formData.append("password", password);
 
-      const response = await fetch('https://sistema-corpoelect-backend.onrender.com/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        body: formData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Credenciales incorrectas');
+        return false;
       }
 
       const data = await response.json();
-      const backendUser = data.user;
-
-      // Guardar token
+      const newUser = buildUserFromBackend(data.user);
       localStorage.setItem("sgd_token", data.access_token);
-
-      // ✅ Sincronizar con Middleware (Cookie de sesión)
-      // Usamos una configuración robusta para evitar que se pierda en la redirección
-      document.cookie = `session=${data.access_token}; path=/; max-age=86400; SameSite=Lax`;
-
-      // Construir objeto User
-      const newUser: User = {
-        id: backendUser.id,
-        username: backendUser.username,
-        nombre: backendUser.nombre,
-        apellido: backendUser.apellido || '',
-        email_corp: backendUser.email || `${backendUser.username}@corpoelec.com`,
-        gerencia_depto: backendUser.gerencia_depto || 'General',
-        gerencia_id: backendUser.gerencia_id,
-        role: backendUser.role as UserRole,
-        permissions: getEffectivePermissions(backendUser.role as UserRole),
-      };
-
-      // Guardar usuario en localStorage
       localStorage.setItem("sgd_user", JSON.stringify(newUser));
       setUser(newUser);
-
-      return true; // ← ÉXITO
-
-    } catch (error: any) {
-      console.error('Login error:', error);
-      alert(error.message || 'Error de conexión con el servidor');
-      return false; // ← ERROR
+      return true;
+    } catch (error) {
+      console.error("Login error:", error);
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ✅ FUNCIÓN DEV LOGIN CORREGIDA
-  const devLogin = async (): Promise<boolean> => {
-    try {
-      const devUser: User = {
-        id: "dev-001",
-        username: "dev_admin",
-        nombre: "Desarrollador",
-        apellido: "System",
-        email_corp: "dev@corpoelec.ind",
-        gerencia_depto: "Tecnología",
-        role: "Desarrollador",
-        permissions: Object.values(PERMISSIONS_MASTER),
-      };
-
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      localStorage.setItem("sgd_token", "dev-bypass-token-2026");
-      document.cookie = "session=dev-bypass-token-2026; path=/; max-age=86400; SameSite=Lax";
-
-      setUser(devUser);
-      return true; // ← ÉXITO
-
-    } catch (error) {
-      console.error("Dev login failed", error);
-      return false; // ← ERROR
-    }
-  };
-
   const logout = () => {
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     setUser(null);
     localStorage.removeItem("sgd_token");
     localStorage.removeItem("sgd_user");
-    document.cookie = "session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     window.location.href = "/login";
   };
 
   const switchRole = async (newRole: UserRole): Promise<boolean> => {
     if (!user) return false;
+    if (user.role !== "Desarrollador") return false;
 
     let newNombre = user.nombre;
     let newApellido = user.apellido;
@@ -248,7 +182,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       newApellido = "General";
     } else if (newRole === "Usuario") {
       newNombre = "Operador";
-      newApellido = "Estándar";
+      newApellido = "Estandar";
     } else if (newRole === "Desarrollador") {
       newNombre = "Desarrollador";
       newApellido = "Principal";
@@ -279,7 +213,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAuthenticated: !!user,
     login,
-    devLogin,
     logout,
     setUser,
     switchRole,
@@ -287,4 +220,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuthContext(): AuthContextType {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuthContext must be used within an AuthProvider");
+  }
+  return context;
 }

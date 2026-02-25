@@ -46,7 +46,6 @@ export const PERMISSIONS_MASTER = {
     // 4. Funciones de Sistema
     SYS_SWITCH_ROLE: 'SYS_SWITCH_ROLE',
     SYS_DEV_TOOLS: 'SYS_DEV_TOOLS',
-    SYS_BYPASS_SECURITY: 'SYS_BYPASS_SECURITY',
 };
 
 export const PERMISSION_LABELS: Record<string, string> = {
@@ -90,7 +89,6 @@ export const PERMISSION_LABELS: Record<string, string> = {
     // Sistema
     SYS_SWITCH_ROLE: 'Alternar Persona (Switch Role)',
     SYS_DEV_TOOLS: 'Herramientas de Desarrollador',
-    SYS_BYPASS_SECURITY: 'Acceso de Emergencia (Bypass)',
 };
 
 export type Permission = keyof typeof PERMISSIONS_MASTER;

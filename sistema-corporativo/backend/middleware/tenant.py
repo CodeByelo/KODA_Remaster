@@ -1,4 +1,4 @@
-from fastapi import Request
+from fastapi import Request, HTTPException
 from middleware.context import tenant_id_var, user_id_var, trace_id_var, extract_user_from_token
 import uuid
 import logging
@@ -11,6 +11,9 @@ async def get_tenant_context(request: Request):
     estén disponibles en el hilo actual de ejecución.
     """
     user_id, tenant_id = await extract_user_from_token(request)
+
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invÃ¡lido o ausente")
     
     # Establecer variables de contexto (Thread-local para FastAPI)
     u_token = user_id_var.set(user_id)
