@@ -15,6 +15,7 @@ export interface Ticket {
     title: string;
     description: string;
     area: TicketArea;
+    creatorDept?: string;
     priority: TicketPriority;
     status: TicketStatus;
     createdAt: string;
@@ -61,6 +62,8 @@ export default function TicketSystem({
 
     const normalizeText = (value: string) => (value || '').toLowerCase().trim();
     const isTechUser = normalizeText(userDept).includes('tecnolog');
+    const isAdminUser = normalizeText(userRole || '').includes('admin');
+    const canOperateTicketFlow = isTechUser || isAdminUser;
 
     const [filterArea, setFilterArea] = useState<string>('all');
     const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -145,9 +148,11 @@ export default function TicketSystem({
             const canViewAll = hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_ALL);
             const canViewDept = hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_DEPT);
 
-            if (!canViewAll) {
+            if (!canViewAll && !canOperateTicketFlow) {
                 if (canViewDept) {
-                    if (normalizeText(t.area) !== normalizeText(userDept)) return false;
+                    const isDeptOwner = normalizeText(t.creatorDept || '') === normalizeText(userDept);
+                    const isOwner = !!t.ownerId && String(t.ownerId) === String(currentUserId);
+                    if (!isDeptOwner && !isOwner) return false;
                 } else {
                     if (!t.ownerId || String(t.ownerId) !== String(currentUserId)) return false;
                 }
@@ -156,23 +161,23 @@ export default function TicketSystem({
             const matchesSearch =
                 normalizeText(t.title).includes(normalizeText(searchTerm)) ||
                 normalizeText(t.description).includes(normalizeText(searchTerm));
-            const matchesArea = filterArea === 'all' || normalizeText(t.area) === normalizeText(filterArea);
+            const matchesArea = filterArea === 'all' || normalizeText(t.creatorDept || '') === normalizeText(filterArea);
             const matchesPriority = filterPriority === 'all' || normalizeText(t.priority) === normalizeText(filterPriority);
             return matchesSearch && matchesArea && matchesPriority;
         });
-    }, [tickets, searchTerm, filterArea, filterPriority, currentUserId, userDept, hasPermission]);
+    }, [tickets, searchTerm, filterArea, filterPriority, currentUserId, userDept, hasPermission, canOperateTicketFlow]);
 
     const updateStatus = async (id: number, status: TicketStatus) => {
         const ticket = tickets.find(t => t.id === id);
         if (!ticket) return;
 
-        if (status === 'EN-PROCESO' && !isTechUser) {
-            alert('Solo personal de la Gerencia de Tecnologia puede tomar tickets.');
+        if (status === 'EN-PROCESO' && !canOperateTicketFlow) {
+            alert('Solo personal de Tecnologia o Administracion puede tomar tickets.');
             return;
         }
 
-        if (status === 'RESUELTO' && !isTechUser) {
-            alert('Solo personal de la Gerencia de Tecnologia puede resolver tickets.');
+        if (status === 'RESUELTO' && !canOperateTicketFlow) {
+            alert('Solo personal de Tecnologia o Administracion puede resolver tickets.');
             return;
         }
 
@@ -192,7 +197,7 @@ export default function TicketSystem({
 
     const handleDrop = async (e: React.DragEvent, status: TicketStatus) => {
         e.preventDefault();
-        if (!hasPermission(PERMISSIONS_MASTER.TICKETS_MOVE_KANBAN)) return;
+        if (!hasPermission(PERMISSIONS_MASTER.TICKETS_MOVE_KANBAN) && !canOperateTicketFlow) return;
         const idString = e.dataTransfer.getData("ticketId");
         if (!idString) return;
         await updateStatus(parseInt(idString, 10), status);
@@ -265,8 +270,8 @@ export default function TicketSystem({
                         onChange={(e) => setFilterArea(e.target.value)}
                         className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
                     >
-                        <option value="all">Todas las Areas</option>
-                        {[TECH_DEPT, ...allAreas.filter((a: string) => normalizeText(a) !== normalizeText(TECH_DEPT))].map(area => (
+                        <option value="all">Todas las Gerencias</option>
+                        {[...allAreas].map(area => (
                             <option key={area} value={area}>{area}</option>
                         ))}
                     </select>
@@ -310,7 +315,7 @@ export default function TicketSystem({
                             {filteredTickets.filter(t => t.status === status).map((ticket) => (
                                 <div
                                     key={ticket.id}
-                                    draggable={hasPermission(PERMISSIONS_MASTER.TICKETS_MOVE_KANBAN)}
+                                    draggable={hasPermission(PERMISSIONS_MASTER.TICKETS_MOVE_KANBAN) || canOperateTicketFlow}
                                     onDragStart={(e) => handleDragStart(e, ticket.id)}
                                     className={`group relative p-4 rounded-lg border transition-all cursor-grab active:cursor-grabbing hover:shadow-lg ${darkMode ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/80' : 'bg-white border-slate-200 hover:border-red-200'}`}
                                 >
@@ -396,7 +401,7 @@ export default function TicketSystem({
 
                                     {ticket.status !== 'RESUELTO' && (
                                         <div className="mt-4 pt-3 border-t border-slate-800/30 flex gap-2">
-                                            {ticket.status === 'ABIERTO' && hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT) && isTechUser && (
+                                            {ticket.status === 'ABIERTO' && (hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT) || canOperateTicketFlow) && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); updateStatus(ticket.id, 'EN-PROCESO'); }}
                                                     className="flex-1 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-wider"
@@ -404,7 +409,7 @@ export default function TicketSystem({
                                                     ATENDER
                                                 </button>
                                             )}
-                                            {ticket.status === 'EN-PROCESO' && hasPermission(PERMISSIONS_MASTER.TICKETS_RESOLVE) && isTechUser && (
+                                            {ticket.status === 'EN-PROCESO' && (hasPermission(PERMISSIONS_MASTER.TICKETS_RESOLVE) || canOperateTicketFlow) && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); updateStatus(ticket.id, 'RESUELTO'); }}
                                                     className="flex-1 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold uppercase tracking-wider"

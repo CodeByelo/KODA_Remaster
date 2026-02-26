@@ -1323,9 +1323,11 @@ async def list_tickets(
             t.observaciones,
             t.fecha_creacion,
             COALESCE(ps.nombre || ' ' || ps.apellido, ps.username, 'Desconocido') AS solicitante_nombre,
+            COALESCE(gs.nombre, 'Sin Asignar') AS solicitante_gerencia,
             COALESCE(pt.nombre || ' ' || pt.apellido, pt.username) AS tecnico_nombre
         FROM tickets t
         LEFT JOIN profiles ps ON t.solicitante_id = ps.id
+        LEFT JOIN gerencias gs ON ps.gerencia_id = gs.id
         LEFT JOIN profiles pt ON t.tecnico_id = pt.id
         WHERE (
             $1::uuid IS NULL
@@ -1476,8 +1478,8 @@ async def update_ticket_status(
     is_owner = str(current["solicitante_id"]) == str(user_id)
     if not _is_privileged_role(role) and not is_owner and not is_tech:
         raise HTTPException(status_code=403, detail="No autorizado para cambiar este ticket")
-    if next_status in {"en-proceso", "resuelto"} and not is_tech:
-        raise HTTPException(status_code=403, detail="Solo Tecnologia puede tomar o resolver tickets")
+    if next_status in {"en-proceso", "resuelto"} and not (is_tech or _is_privileged_role(role)):
+        raise HTTPException(status_code=403, detail="Solo Tecnologia o Administracion pueden tomar o resolver tickets")
 
     if payload.observaciones and not is_tech:
         raise HTTPException(status_code=403, detail="Solo Tecnologia puede registrar observaciones")

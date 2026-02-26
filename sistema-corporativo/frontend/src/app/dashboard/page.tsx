@@ -2083,6 +2083,7 @@ export default function Dashboard() {
         area:
           t.area ||
           "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
+        creatorDept: t.solicitante_gerencia || "Sin Asignar",
         priority: (String(t.prioridad || "media").toUpperCase() as Ticket["priority"]),
         status:
           String(t.estado || "abierto").toLowerCase() === "resuelto"
