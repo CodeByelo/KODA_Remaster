@@ -302,6 +302,7 @@ export async function createSecurityLog(payload: {
 export async function getTickets(): Promise<ApiTicket[]> {
     const res = await fetch(`${BASE_URL}/tickets`, {
         headers: getAuthHeaders(),
+        cache: "no-store",
     });
     return handleResponse<ApiTicket[]>(res);
 }

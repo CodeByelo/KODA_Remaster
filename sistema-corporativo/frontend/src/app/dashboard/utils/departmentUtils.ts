@@ -75,11 +75,19 @@ export function filterByDepartment(
     tickets: Ticket[],
     department: string
 ): { documents: Document[]; tickets: Ticket[] } {
+    const norm = (v: string) =>
+        (v || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    const target = norm(department);
+
     const filteredDocs = documents.filter(
-        doc => doc.department === department || doc.targetDepartment === department
+        doc => norm(doc.department || '') === target || norm(doc.targetDepartment || '') === target
     );
 
-    const filteredTickets = tickets.filter(ticket => ticket.area === department);
+    const filteredTickets = tickets.filter(ticket => norm(ticket.area || '') === target);
 
     return { documents: filteredDocs, tickets: filteredTickets };
 }

@@ -18,6 +18,7 @@ export interface Ticket {
     priority: TicketPriority;
     status: TicketStatus;
     createdAt: string;
+    ownerId?: string;
     resolvedAt?: string;
     owner: string;
     observations?: string;
@@ -31,6 +32,7 @@ export default function TicketSystem({
     darkMode,
     orgStructure = [],
     currentUser = 'Admin. General',
+    currentUserId = '',
     userRole = 'Usuario',
     userDept = '',
     tickets = [],
@@ -40,6 +42,7 @@ export default function TicketSystem({
     darkMode: boolean;
     orgStructure?: any[];
     currentUser?: string;
+    currentUserId?: string;
     userRole?: UserRole;
     userDept?: string;
     tickets?: Ticket[];
@@ -146,18 +149,18 @@ export default function TicketSystem({
                 if (canViewDept) {
                     if (normalizeText(t.area) !== normalizeText(userDept)) return false;
                 } else {
-                    if (t.owner !== currentUser) return false;
+                    if (!t.ownerId || String(t.ownerId) !== String(currentUserId)) return false;
                 }
             }
 
             const matchesSearch =
-                t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                t.description.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesArea = filterArea === 'all' || t.area === filterArea;
-            const matchesPriority = filterPriority === 'all' || t.priority === filterPriority;
+                normalizeText(t.title).includes(normalizeText(searchTerm)) ||
+                normalizeText(t.description).includes(normalizeText(searchTerm));
+            const matchesArea = filterArea === 'all' || normalizeText(t.area) === normalizeText(filterArea);
+            const matchesPriority = filterPriority === 'all' || normalizeText(t.priority) === normalizeText(filterPriority);
             return matchesSearch && matchesArea && matchesPriority;
         });
-    }, [tickets, searchTerm, filterArea, filterPriority, currentUser, userDept, hasPermission]);
+    }, [tickets, searchTerm, filterArea, filterPriority, currentUserId, userDept, hasPermission]);
 
     const updateStatus = async (id: number, status: TicketStatus) => {
         const ticket = tickets.find(t => t.id === id);
@@ -209,7 +212,7 @@ export default function TicketSystem({
             await refreshFromServer();
         } else {
             const activeTickets = tickets.filter(t =>
-                t.owner === currentUser && (t.status === 'ABIERTO' || t.status === 'EN-PROCESO')
+                String(t.ownerId || '') === String(currentUserId) && (t.status === 'ABIERTO' || t.status === 'EN-PROCESO')
             ).length;
 
             if (userRole === 'Usuario' && activeTickets >= 3) {
@@ -257,30 +260,26 @@ export default function TicketSystem({
                             className="bg-transparent border-none outline-none text-sm w-48 transition-all focus:w-64"
                         />
                     </div>
-                    {hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_ALL) && (
-                        <>
-                            <select
-                                value={filterArea}
-                                onChange={(e) => setFilterArea(e.target.value)}
-                                className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
-                            >
-                                <option value="all">Todas las Areas</option>
-                                {[TECH_DEPT, ...allAreas.filter((a: string) => a !== TECH_DEPT)].map(area => (
-                                    <option key={area} value={area}>{area}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={filterPriority}
-                                onChange={(e) => setFilterPriority(e.target.value)}
-                                className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
-                            >
-                                <option value="all">Prioridades</option>
-                                <option value="ALTA">Alta</option>
-                                <option value="MEDIA">Media</option>
-                                <option value="BAJA">Baja</option>
-                            </select>
-                        </>
-                    )}
+                    <select
+                        value={filterArea}
+                        onChange={(e) => setFilterArea(e.target.value)}
+                        className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
+                    >
+                        <option value="all">Todas las Areas</option>
+                        {[TECH_DEPT, ...allAreas.filter((a: string) => normalizeText(a) !== normalizeText(TECH_DEPT))].map(area => (
+                            <option key={area} value={area}>{area}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={filterPriority}
+                        onChange={(e) => setFilterPriority(e.target.value)}
+                        className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
+                    >
+                        <option value="all">Prioridades</option>
+                        <option value="ALTA">Alta</option>
+                        <option value="MEDIA">Media</option>
+                        <option value="BAJA">Baja</option>
+                    </select>
                 </div>
                 {hasPermission(PERMISSIONS_MASTER.TICKETS_CREATE) && (
                     <button
@@ -493,8 +492,14 @@ export default function TicketSystem({
                                     rows={2}
                                     value={newObservations}
                                     onChange={(e) => setNewObservations(e.target.value)}
+                                    disabled={!isTechUser}
                                     className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
                                 />
+                                {!isTechUser && (
+                                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">
+                                        Solo la Gerencia TIC puede registrar observaciones
+                                    </p>
+                                )}
                             </div>
                             <div className="flex gap-3 pt-6">
                                 <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 rounded-lg font-bold text-xs tracking-widest border ${darkMode ? 'border-slate-800 text-slate-400 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>

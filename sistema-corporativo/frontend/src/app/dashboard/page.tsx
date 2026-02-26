@@ -2093,6 +2093,7 @@ export default function Dashboard() {
         createdAt: t.fecha_creacion
           ? new Date(t.fecha_creacion).toLocaleDateString("es-ES")
           : new Date().toLocaleDateString("es-ES"),
+        ownerId: t.solicitante_id ? String(t.solicitante_id) : undefined,
         owner: t.solicitante_nombre || "Desconocido",
         observations: t.observaciones || "",
         takenBy: t.tecnico_nombre || undefined,
@@ -2135,6 +2136,30 @@ export default function Dashboard() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [mounted, fetchDocuments]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const syncTickets = () => {
+      fetchTickets();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncTickets();
+      }
+    };
+
+    const intervalId = window.setInterval(syncTickets, 8000);
+    window.addEventListener("focus", syncTickets);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", syncTickets);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [mounted, fetchTickets]);
 
   // Lifted state for tickets
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -2418,6 +2443,7 @@ export default function Dashboard() {
             userRole={userRole}
             userDept={user?.gerencia_depto || ""}
             currentUser={user?.nombre + " " + user?.apellido}
+            currentUserId={user?.id || ""}
             tickets={tickets}
             hasPermission={hasPermission}
             refreshTickets={fetchTickets}

@@ -1327,7 +1327,20 @@ async def list_tickets(
         FROM tickets t
         LEFT JOIN profiles ps ON t.solicitante_id = ps.id
         LEFT JOIN profiles pt ON t.tecnico_id = pt.id
-        WHERE ($1::uuid IS NULL OR ps.tenant_id = $1::uuid OR pt.tenant_id = $1::uuid)
+        WHERE (
+            $1::uuid IS NULL
+            OR ps.tenant_id = $1::uuid
+            OR pt.tenant_id = $1::uuid
+            OR (
+                ps.id IS NULL AND pt.id IS NULL
+                AND EXISTS (
+                    SELECT 1
+                    FROM profiles pz
+                    WHERE pz.id = t.solicitante_id
+                      AND pz.tenant_id = $1::uuid
+                )
+            )
+        )
     """
     params: List[Any] = [tenant_id]
     if not is_privileged and not is_tech:
@@ -1348,6 +1361,9 @@ async def create_ticket(
     user_id = current_user.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido")
+    tenant_id = current_user.get("tenant_id")
+    is_tech = await _is_tech_user(conn, user_id)
+    observations = payload.observaciones if is_tech else None
 
     row = await conn.fetchrow("""
         INSERT INTO tickets (titulo, descripcion, area, prioridad, estado, solicitante_id, observaciones)
@@ -1359,8 +1375,25 @@ async def create_ticket(
         "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
         (payload.prioridad or "media").lower(),
         user_id,
-        payload.observaciones,
+        observations,
     )
+
+    try:
+        await _ensure_security_events_table(conn)
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'TICKET_CREADO', $4, 'success', '/dashboard?tab=tickets')
+            """,
+            tenant_id,
+            user_id,
+            username or "anon",
+            f"Ticket #{row['id']} creado | titulo='{row['titulo']}' | area='{row['area']}' | prioridad='{row['prioridad']}'",
+        )
+    except Exception:
+        pass
+
     return dict(row)
 
 
@@ -1382,16 +1415,40 @@ async def update_ticket(
     if str(owner_id) != str(user_id) and not _is_privileged_role(role):
         raise HTTPException(status_code=403, detail="No autorizado para editar este ticket")
 
+    is_tech = await _is_tech_user(conn, user_id)
+    obs_value = payload.observaciones if is_tech else None
+    tenant_id = current_user.get("tenant_id")
+
     updated = await conn.fetchrow("""
         UPDATE tickets
         SET
             titulo = COALESCE($2, titulo),
             descripcion = COALESCE($3, descripcion),
             prioridad = COALESCE($4, prioridad),
-            observaciones = COALESCE($5, observaciones)
+            observaciones = CASE
+                WHEN $6::boolean = TRUE THEN COALESCE($5, observaciones)
+                ELSE observaciones
+            END
         WHERE id = $1
         RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
-    """, ticket_id, payload.titulo, payload.descripcion, payload.prioridad, payload.observaciones)
+    """, ticket_id, payload.titulo, payload.descripcion, payload.prioridad, obs_value, is_tech)
+
+    try:
+        await _ensure_security_events_table(conn)
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'TICKET_EDITADO', $4, 'info', '/dashboard?tab=tickets')
+            """,
+            tenant_id,
+            user_id,
+            username or "anon",
+            f"Ticket #{updated['id']} editado | titulo='{updated['titulo']}' | prioridad='{updated['prioridad']}'",
+        )
+    except Exception:
+        pass
+
     return dict(updated)
 
 
@@ -1422,7 +1479,11 @@ async def update_ticket_status(
     if next_status in {"en-proceso", "resuelto"} and not is_tech:
         raise HTTPException(status_code=403, detail="Solo Tecnologia puede tomar o resolver tickets")
 
+    if payload.observaciones and not is_tech:
+        raise HTTPException(status_code=403, detail="Solo Tecnologia puede registrar observaciones")
+
     tecnico_id = user_id if next_status in {"en-proceso", "resuelto"} else None
+    tenant_id = current_user.get("tenant_id")
     updated = await conn.fetchrow("""
         UPDATE tickets
         SET
@@ -1432,6 +1493,23 @@ async def update_ticket_status(
         WHERE id = $1
         RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
     """, ticket_id, next_status, tecnico_id, payload.observaciones)
+
+    try:
+        await _ensure_security_events_table(conn)
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'TICKET_ESTADO_ACTUALIZADO', $4, 'info', '/dashboard?tab=tickets')
+            """,
+            tenant_id,
+            user_id,
+            username or "anon",
+            f"Ticket #{updated['id']} cambio a estado='{updated['estado']}' | tecnico='{updated['tecnico_id']}'",
+        )
+    except Exception:
+        pass
+
     return dict(updated)
 
 
@@ -1452,7 +1530,23 @@ async def delete_ticket(
     if str(owner_id) != str(user_id) and not _is_privileged_role(role):
         raise HTTPException(status_code=403, detail="No autorizado para eliminar este ticket")
 
+    tenant_id = current_user.get("tenant_id")
     await conn.execute("DELETE FROM tickets WHERE id = $1", ticket_id)
+    try:
+        await _ensure_security_events_table(conn)
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'TICKET_ELIMINADO', $4, 'warning', '/dashboard?tab=tickets')
+            """,
+            tenant_id,
+            user_id,
+            username or "anon",
+            f"Ticket #{ticket_id} eliminado",
+        )
+    except Exception:
+        pass
     return {"status": "success"}
 
 
