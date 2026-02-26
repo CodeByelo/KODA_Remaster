@@ -986,8 +986,8 @@ const DocumentManager: React.FC<{
           }
         }
 
-        // Coincidencia por receptor_gerencia_id (Robustecido)
-        if (canViewDept && doc.receptor_gerencia_id) {
+        // Coincidencia por receptor_gerencia_id (siempre permitido para su propia gerencia)
+        if (doc.receptor_gerencia_id) {
           const myGerId = user?.gerencia_id?.toString();
           const targetGerId = doc.receptor_gerencia_id.toString();
 

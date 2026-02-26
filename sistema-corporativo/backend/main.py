@@ -626,8 +626,15 @@ async def list_documentos(
 ):
     try:
         tenant_id = current_user.get("tenant_id")
-        if not tenant_id:
-            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
+        user_id_raw = current_user.get("sub")
+        if not user_id_raw:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
+        user_id = uuid.UUID(str(user_id_raw))
+        user_gerencia_id = await conn.fetchval(
+            "SELECT gerencia_id FROM profiles WHERE id = $1::uuid",
+            user_id,
+        )
+        is_privileged = await _is_privileged_user(conn, current_user)
 
         # 1. Ejecutar máquina de estados automática
         await conn.execute("""
@@ -673,10 +680,21 @@ async def list_documentos(
             LEFT JOIN profiles p_rem ON d.remitente_id = p_rem.id
             LEFT JOIN profiles p_rec ON d.receptor_id = p_rec.id
             LEFT JOIN gerencias g ON d.receptor_gerencia_id = g.id
-            WHERE ($1::uuid IS NULL OR d.tenant_id = $1::uuid)
+            WHERE
+                (
+                    $4::boolean = TRUE
+                    OR d.remitente_id = $2::uuid
+                    OR d.receptor_id = $2::uuid
+                    OR ($3::int IS NOT NULL AND d.receptor_gerencia_id = $3::int)
+                )
+                AND (
+                    $1::uuid IS NULL
+                    OR d.tenant_id = $1::uuid
+                    OR d.tenant_id IS NULL
+                )
             ORDER BY d.fecha_creacion DESC
         """
-        rows = await conn.fetch(query, tenant_id)
+        rows = await conn.fetch(query, tenant_id, user_id, user_gerencia_id, is_privileged)
         # Convertir record a dict y manejar el campo archivos
         result = []
         for r in rows:
@@ -740,9 +758,32 @@ async def create_documento(
         if not tenant_id:
             tenant_id_raw = await conn.fetchval("SELECT tenant_id FROM profiles WHERE id = $1", user_id)
             tenant_id = uuid.UUID(str(tenant_id_raw)) if tenant_id_raw else None
-
+        if not tenant_id and receptor_id:
+            receiver_tenant = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                receptor_id,
+            )
+            tenant_id = uuid.UUID(str(receiver_tenant)) if receiver_tenant else None
+        if not tenant_id and receptor_gerencia_id:
+            dept_tenant = await conn.fetchval(
+                """
+                SELECT tenant_id
+                FROM profiles
+                WHERE gerencia_id = $1
+                  AND tenant_id IS NOT NULL
+                ORDER BY created_at ASC
+                LIMIT 1
+                """,
+                receptor_gerencia_id,
+            )
+            tenant_id = uuid.UUID(str(dept_tenant)) if dept_tenant else None
         if not tenant_id:
-            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
+            fallback_org = await conn.fetchval(
+                "SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1"
+            )
+            tenant_id = uuid.UUID(str(fallback_org)) if fallback_org else None
+        if not tenant_id:
+            raise HTTPException(status_code=403, detail="No se pudo resolver tenant para el documento")
         
         # ========== 3. GENERAR CORRELATIVO ==========
         try:
@@ -891,9 +932,9 @@ async def list_usuarios(
             FROM profiles p
             LEFT JOIN roles r ON p.rol_id = r.id
             LEFT JOIN gerencias g ON p.gerencia_id = g.id
-            WHERE ($1::uuid IS NULL OR p.tenant_id = $1::uuid)
+            WHERE p.id IS NOT NULL
             ORDER BY p.nombre, p.apellido
-        """, tenant_id)
+        """)
     else:
         rows = await conn.fetch("""
             SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
@@ -903,10 +944,9 @@ async def list_usuarios(
             FROM profiles p
             LEFT JOIN roles r ON p.rol_id = r.id
             LEFT JOIN gerencias g ON p.gerencia_id = g.id
-            WHERE ($1::uuid IS NULL OR p.tenant_id = $1::uuid)
-              AND p.estado = TRUE
+            WHERE p.estado = TRUE
             ORDER BY p.nombre, p.apellido
-        """, tenant_id)
+        """)
     return [dict(r) for r in rows]
 
 
