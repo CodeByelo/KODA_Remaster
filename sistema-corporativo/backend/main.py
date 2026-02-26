@@ -488,6 +488,75 @@ async def _ensure_security_events_table(conn) -> None:
     """)
 
 
+async def _ensure_ticket_events_table(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS ticket_events (
+            id BIGSERIAL PRIMARY KEY,
+            ticket_id INTEGER NOT NULL,
+            tenant_id UUID,
+            actor_user_id UUID,
+            actor_username TEXT,
+            action TEXT NOT NULL,
+            old_status TEXT,
+            new_status TEXT,
+            observaciones TEXT,
+            details TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+async def _ensure_tickets_schema(conn) -> None:
+    await conn.execute("""
+        ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS solicitante_nombre_cache TEXT,
+        ADD COLUMN IF NOT EXISTS solicitante_gerencia_cache TEXT
+    """)
+    await conn.execute("""
+        UPDATE tickets t
+        SET
+            solicitante_nombre_cache = COALESCE(t.solicitante_nombre_cache, p.nombre || ' ' || p.apellido, p.username),
+            solicitante_gerencia_cache = COALESCE(t.solicitante_gerencia_cache, g.nombre)
+        FROM profiles p
+        LEFT JOIN gerencias g ON p.gerencia_id = g.id
+        WHERE p.id = t.solicitante_id
+          AND (t.solicitante_nombre_cache IS NULL OR t.solicitante_gerencia_cache IS NULL)
+    """)
+
+
+async def _log_ticket_event(
+    conn,
+    ticket_id: int,
+    tenant_id: Optional[str],
+    actor_user_id: Optional[str],
+    actor_username: Optional[str],
+    action: str,
+    old_status: Optional[str] = None,
+    new_status: Optional[str] = None,
+    observaciones: Optional[str] = None,
+    details: Optional[str] = None,
+) -> None:
+    await _ensure_ticket_events_table(conn)
+    await conn.execute(
+        """
+        INSERT INTO ticket_events (
+            ticket_id, tenant_id, actor_user_id, actor_username, action,
+            old_status, new_status, observaciones, details
+        )
+        VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9)
+        """,
+        ticket_id,
+        tenant_id,
+        actor_user_id,
+        actor_username,
+        action,
+        old_status,
+        new_status,
+        observaciones,
+        details,
+    )
+
+
 async def _ensure_announcement_table(conn) -> None:
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS dashboard_announcement (
@@ -1301,13 +1370,18 @@ async def list_tickets(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
+    await _ensure_tickets_schema(conn)
     tenant_id = current_user.get("tenant_id")
     user_id = current_user.get("sub")
     role = current_user.get("role")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido")
 
-    is_privileged = _is_privileged_role(role)
+    role_norm = _normalize_text(role)
+    is_dev = role_norm in {"desarrollador", "dev", "developer"}
+    is_admin = role_norm in {"administrativo", "admin", "administrador"}
+    is_ceo = role_norm == "ceo"
+    is_privileged = is_dev or is_admin or is_ceo
     is_tech = await _is_tech_user(conn, user_id)
 
     query = """
@@ -1322,8 +1396,8 @@ async def list_tickets(
             t.tecnico_id,
             t.observaciones,
             t.fecha_creacion,
-            COALESCE(ps.nombre || ' ' || ps.apellido, ps.username, 'Desconocido') AS solicitante_nombre,
-            COALESCE(gs.nombre, 'Sin Asignar') AS solicitante_gerencia,
+            COALESCE(t.solicitante_nombre_cache, ps.nombre || ' ' || ps.apellido, ps.username, 'Desconocido') AS solicitante_nombre,
+            COALESCE(t.solicitante_gerencia_cache, gs.nombre, 'Sin Asignar') AS solicitante_gerencia,
             COALESCE(pt.nombre || ' ' || pt.apellido, pt.username) AS tecnico_nombre
         FROM tickets t
         LEFT JOIN profiles ps ON t.solicitante_id = ps.id
@@ -1354,12 +1428,67 @@ async def list_tickets(
     return [dict(r) for r in rows]
 
 
+@app.get("/tickets/history", dependencies=[Depends(get_tenant_context)])
+async def search_ticket_history(
+    q: str = "",
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    tenant_id = current_user.get("tenant_id")
+    await _ensure_ticket_events_table(conn)
+    rows = await conn.fetch(
+        """
+        SELECT
+            e.id, e.ticket_id, e.actor_username, e.action, e.old_status, e.new_status,
+            e.observaciones, e.details, e.created_at,
+            t.titulo, t.estado
+        FROM ticket_events e
+        JOIN tickets t ON t.id = e.ticket_id
+        WHERE ($1::uuid IS NULL OR e.tenant_id = $1::uuid)
+          AND (
+                $2::text = ''
+                OR t.titulo ILIKE '%' || $2 || '%'
+                OR CAST(e.ticket_id AS TEXT) ILIKE '%' || $2 || '%'
+              )
+        ORDER BY e.created_at DESC
+        LIMIT 500
+        """,
+        tenant_id,
+        q.strip(),
+    )
+    return [dict(r) for r in rows]
+
+
+@app.get("/tickets/{ticket_id}/history", dependencies=[Depends(get_tenant_context)])
+async def list_ticket_history(
+    ticket_id: int,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    tenant_id = current_user.get("tenant_id")
+    await _ensure_ticket_events_table(conn)
+    rows = await conn.fetch(
+        """
+        SELECT id, ticket_id, actor_username, action, old_status, new_status,
+               observaciones, details, created_at
+        FROM ticket_events
+        WHERE ticket_id = $1
+          AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
+        ORDER BY created_at ASC
+        """,
+        ticket_id,
+        tenant_id,
+    )
+    return [dict(r) for r in rows]
+
+
 @app.post("/tickets", dependencies=[Depends(get_tenant_context)])
 async def create_ticket(
     payload: TicketCreate,
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
+    await _ensure_tickets_schema(conn)
     user_id = current_user.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido")
@@ -1367,9 +1496,26 @@ async def create_ticket(
     is_tech = await _is_tech_user(conn, user_id)
     observations = payload.observaciones if is_tech else None
 
+    creator_name = await conn.fetchval(
+        "SELECT COALESCE(nombre || ' ' || apellido, username, 'Desconocido') FROM profiles WHERE id = $1::uuid",
+        user_id,
+    )
+    creator_dept = await conn.fetchval(
+        """
+        SELECT COALESCE(g.nombre, 'Sin Asignar')
+        FROM profiles p
+        LEFT JOIN gerencias g ON p.gerencia_id = g.id
+        WHERE p.id = $1::uuid
+        """,
+        user_id,
+    )
+
     row = await conn.fetchrow("""
-        INSERT INTO tickets (titulo, descripcion, area, prioridad, estado, solicitante_id, observaciones)
-        VALUES ($1, $2, $3, $4, 'abierto', $5::uuid, $6)
+        INSERT INTO tickets (
+            titulo, descripcion, area, prioridad, estado, solicitante_id, observaciones,
+            solicitante_nombre_cache, solicitante_gerencia_cache
+        )
+        VALUES ($1, $2, $3, $4, 'abierto', $5::uuid, $6, $7, $8)
         RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
     """,
         payload.titulo.strip(),
@@ -1378,6 +1524,8 @@ async def create_ticket(
         (payload.prioridad or "media").lower(),
         user_id,
         observations,
+        creator_name,
+        creator_dept,
     )
 
     try:
@@ -1395,6 +1543,22 @@ async def create_ticket(
         )
     except Exception:
         pass
+    try:
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await _log_ticket_event(
+            conn,
+            int(row["id"]),
+            tenant_id,
+            user_id,
+            username or "anon",
+            "CREATED",
+            old_status=None,
+            new_status="abierto",
+            observaciones=observations,
+            details=f"Ticket creado: {row['titulo']}",
+        )
+    except Exception:
+        pass
 
     return dict(row)
 
@@ -1406,20 +1570,30 @@ async def update_ticket(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
+    await _ensure_tickets_schema(conn)
     user_id = current_user.get("sub")
     role = current_user.get("role")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido")
+    role_norm = _normalize_text(role)
+    is_dev = role_norm in {"desarrollador", "dev", "developer"}
+    is_admin = role_norm in {"administrativo", "admin", "administrador"}
+    is_ceo = role_norm == "ceo"
 
-    owner_id = await conn.fetchval("SELECT solicitante_id FROM tickets WHERE id = $1", ticket_id)
+    current_row = await conn.fetchrow("SELECT solicitante_id, titulo, prioridad FROM tickets WHERE id = $1", ticket_id)
+    owner_id = current_row["solicitante_id"] if current_row else None
     if not owner_id:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
-    if str(owner_id) != str(user_id) and not _is_privileged_role(role):
+    if is_ceo:
+        raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
+    if str(owner_id) != str(user_id) and not (is_admin or is_dev):
         raise HTTPException(status_code=403, detail="No autorizado para editar este ticket")
 
     is_tech = await _is_tech_user(conn, user_id)
-    obs_value = payload.observaciones if is_tech else None
+    can_manage_ticket = is_dev or is_admin or is_tech
+    obs_value = payload.observaciones if can_manage_ticket else None
     tenant_id = current_user.get("tenant_id")
+    next_priority = payload.prioridad if can_manage_ticket else None
 
     updated = await conn.fetchrow("""
         UPDATE tickets
@@ -1433,7 +1607,7 @@ async def update_ticket(
             END
         WHERE id = $1
         RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
-    """, ticket_id, payload.titulo, payload.descripcion, payload.prioridad, obs_value, is_tech)
+    """, ticket_id, payload.titulo, payload.descripcion, next_priority, obs_value, can_manage_ticket)
 
     try:
         await _ensure_security_events_table(conn)
@@ -1450,6 +1624,22 @@ async def update_ticket(
         )
     except Exception:
         pass
+    try:
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await _log_ticket_event(
+            conn,
+            int(updated["id"]),
+            tenant_id,
+            user_id,
+            username or "anon",
+            "UPDATED",
+            old_status=None,
+            new_status=updated["estado"],
+            observaciones=obs_value,
+            details=f"Ticket editado: '{current_row['titulo']}' -> '{updated['titulo']}' | prioridad '{current_row['prioridad']}' -> '{updated['prioridad']}'",
+        )
+    except Exception:
+        pass
 
     return dict(updated)
 
@@ -1461,10 +1651,16 @@ async def update_ticket_status(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
+    await _ensure_tickets_schema(conn)
     user_id = current_user.get("sub")
     role = current_user.get("role")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido")
+
+    role_norm = _normalize_text(role)
+    is_dev = role_norm in {"desarrollador", "dev", "developer"}
+    is_admin = role_norm in {"administrativo", "admin", "administrador"}
+    is_ceo = role_norm == "ceo"
 
     current = await conn.fetchrow("SELECT id, estado, solicitante_id FROM tickets WHERE id = $1", ticket_id)
     if not current:
@@ -1475,14 +1671,13 @@ async def update_ticket_status(
         raise HTTPException(status_code=400, detail="Estado invalido")
 
     is_tech = await _is_tech_user(conn, user_id)
-    is_owner = str(current["solicitante_id"]) == str(user_id)
-    if not _is_privileged_role(role) and not is_owner and not is_tech:
+    can_manage_ticket = is_dev or is_admin or is_tech
+    if is_ceo:
+        raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
+    if not can_manage_ticket:
         raise HTTPException(status_code=403, detail="No autorizado para cambiar este ticket")
-    if next_status in {"en-proceso", "resuelto"} and not (is_tech or _is_privileged_role(role)):
-        raise HTTPException(status_code=403, detail="Solo Tecnologia o Administracion pueden tomar o resolver tickets")
-
-    if payload.observaciones and not is_tech:
-        raise HTTPException(status_code=403, detail="Solo Tecnologia puede registrar observaciones")
+    if payload.observaciones and not can_manage_ticket:
+        raise HTTPException(status_code=403, detail="No autorizado para registrar observaciones")
 
     tecnico_id = user_id if next_status in {"en-proceso", "resuelto"} else None
     tenant_id = current_user.get("tenant_id")
@@ -1511,6 +1706,22 @@ async def update_ticket_status(
         )
     except Exception:
         pass
+    try:
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await _log_ticket_event(
+            conn,
+            int(updated["id"]),
+            tenant_id,
+            user_id,
+            username or "anon",
+            "STATUS_CHANGED",
+            old_status=current["estado"],
+            new_status=updated["estado"],
+            observaciones=payload.observaciones,
+            details=f"Cambio de estado de '{current['estado']}' a '{updated['estado']}'",
+        )
+    except Exception:
+        pass
 
     return dict(updated)
 
@@ -1521,15 +1732,22 @@ async def delete_ticket(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
+    await _ensure_tickets_schema(conn)
     user_id = current_user.get("sub")
     role = current_user.get("role")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token invalido")
+    role_norm = _normalize_text(role)
+    is_dev = role_norm in {"desarrollador", "dev", "developer"}
+    is_admin = role_norm in {"administrativo", "admin", "administrador"}
+    is_ceo = role_norm == "ceo"
 
     owner_id = await conn.fetchval("SELECT solicitante_id FROM tickets WHERE id = $1", ticket_id)
     if not owner_id:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
-    if str(owner_id) != str(user_id) and not _is_privileged_role(role):
+    if is_ceo:
+        raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
+    if str(owner_id) != str(user_id) and not (is_admin or is_dev):
         raise HTTPException(status_code=403, detail="No autorizado para eliminar este ticket")
 
     tenant_id = current_user.get("tenant_id")

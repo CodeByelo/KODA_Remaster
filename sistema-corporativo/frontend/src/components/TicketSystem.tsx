@@ -72,7 +72,11 @@ export default function TicketSystem({
     const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
     const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
 
-    const allAreas = useMemo(() => orgStructure.flatMap((group: any) => group.items), [orgStructure]);
+    const allAreas = useMemo(() => {
+        const fromStructure = orgStructure.flatMap((group: any) => group.items || []);
+        const fromTickets = tickets.map(t => t.creatorDept).filter(Boolean) as string[];
+        return Array.from(new Set([...fromStructure, ...fromTickets]));
+    }, [orgStructure, tickets]);
 
     const [newTitle, setNewTitle] = useState('');
     const [newDesc, setNewDesc] = useState('');
@@ -207,6 +211,14 @@ export default function TicketSystem({
         e.preventDefault();
 
         if (editingTicket) {
+            const canEditThisTicket =
+                canOperateTicketFlow ||
+                (editingTicket.ownerId && String(editingTicket.ownerId) === String(currentUserId)) ||
+                hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT);
+            if (!canEditThisTicket) {
+                alert("No tienes permisos para editar este ticket.");
+                return;
+            }
             await apiUpdateTicket(editingTicket.id, {
                 titulo: newTitle,
                 descripcion: newDesc,
@@ -332,7 +344,7 @@ export default function TicketSystem({
                                             </button>
                                             {menuOpenId === ticket.id && (
                                                 <div className={`absolute right-0 top-full mt-1 w-32 rounded-lg shadow-xl z-20 border py-1 ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
-                                                    {hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT) && (
+                                                    {(hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT) || canOperateTicketFlow || (ticket.ownerId && String(ticket.ownerId) === String(currentUserId))) && (
                                                         <button
                                                             onClick={(e) => startEdit(e, ticket)}
                                                             className={`w-full px-3 py-2 text-xs font-semibold text-left ${darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-50 text-slate-700'}`}
@@ -497,12 +509,12 @@ export default function TicketSystem({
                                     rows={2}
                                     value={newObservations}
                                     onChange={(e) => setNewObservations(e.target.value)}
-                                    disabled={!isTechUser}
+                                    disabled={!canOperateTicketFlow}
                                     className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
                                 />
-                                {!isTechUser && (
+                                {!canOperateTicketFlow && (
                                     <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">
-                                        Solo la Gerencia TIC puede registrar observaciones
+                                        Solo Tecnologia, Administracion o Desarrollo pueden registrar observaciones
                                     </p>
                                 )}
                             </div>
