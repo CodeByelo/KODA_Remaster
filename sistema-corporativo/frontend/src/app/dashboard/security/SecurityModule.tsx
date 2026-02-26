@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
 import {
     getAllUsers,
+    getAnnouncement,
     getSecurityLogs,
     saveAnnouncement,
     saveOrgStructure,
@@ -438,13 +439,20 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                     <div className="mt-6 flex justify-end">
                                         <button
                                             onClick={async () => {
-                                                await saveAnnouncement(announcementDraft);
-                                                setAnnouncement(announcementDraft);
-                                                setIsAnnouncementDirty(false);
-                                                localStorage.removeItem("announcement_editing");
-                                                localStorage.setItem("announcement_updated_at", String(Date.now()));
-                                                window.dispatchEvent(new Event("announcement-updated"));
-                                                alert('Anuncio global actualizado para todas las gerencias.');
+                                                try {
+                                                    await saveAnnouncement(announcementDraft);
+                                                    const latest = await getAnnouncement();
+                                                    setAnnouncement(latest);
+                                                    setAnnouncementDraft(latest);
+                                                    setIsAnnouncementDirty(false);
+                                                    localStorage.removeItem("announcement_editing");
+                                                    localStorage.setItem("announcement_updated_at", String(Date.now()));
+                                                    window.dispatchEvent(new Event("announcement-updated"));
+                                                    alert('Anuncio guardado correctamente para todas las cuentas.');
+                                                } catch (e) {
+                                                    console.error("Error saving announcement", e);
+                                                    alert('No se pudo guardar el anuncio. Intenta de nuevo.');
+                                                }
                                             }}
                                             className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold"
                                         >

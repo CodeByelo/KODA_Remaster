@@ -471,9 +471,8 @@ async def _ensure_security_events_table(conn) -> None:
     """)
 
 
-async def _resolve_org_id(conn, tenant_id: Optional[str]) -> Optional[str]:
-    if tenant_id:
-        return str(tenant_id)
+async def _resolve_org_id(conn, tenant_id: Optional[str] = None) -> Optional[str]:
+    # Global mode: single announcement/org structure shared by all users
     return await conn.fetchval("SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1")
 
 
