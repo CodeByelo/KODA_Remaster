@@ -834,7 +834,7 @@ async def create_documento(
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING id
         """, 
-            titulo, titulo, auto_correlativo, tipo_documento, 'en-proceso', prioridad,
+            titulo, titulo, auto_correlativo, tipo_documento, 'pendiente', prioridad,
             user_id, receptor_id, receptor_gerencia_id, primary_file_url,
             contenido, False, fecha_creacion, fecha_caducidad, fecha_creacion, tenant_id, user_id
         )
@@ -866,7 +866,7 @@ async def create_documento(
                 tenant_id,
                 user_id,
                 username or "anon",
-                f"Documento enviado: {auto_correlativo} | titulo='{titulo}' | estado_inicial='en-proceso' | {destino}",
+                f"Documento enviado: {auto_correlativo} | titulo='{titulo}' | estado_inicial='pendiente' | {destino}",
             )
         except Exception:
             pass

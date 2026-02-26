@@ -1197,6 +1197,13 @@ const DocumentManager: React.FC<{
           return {
             color: darkMode ? "bg-blue-500/10 text-blue-400" : "bg-blue-50 text-blue-700",
             icon: Clock,
+            label: "En Proceso",
+          };
+        case "recibido":
+        case "visto":
+          return {
+            color: darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-700",
+            icon: Eye,
             label: "Recibido",
           };
         default:
