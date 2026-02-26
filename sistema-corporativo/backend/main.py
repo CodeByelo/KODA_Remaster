@@ -1741,13 +1741,12 @@ async def delete_ticket(
     is_dev = role_norm in {"desarrollador", "dev", "developer"}
     is_admin = role_norm in {"administrativo", "admin", "administrador"}
     is_ceo = role_norm == "ceo"
+    is_tech = await _is_tech_user(conn, user_id)
 
     owner_id = await conn.fetchval("SELECT solicitante_id FROM tickets WHERE id = $1", ticket_id)
     if not owner_id:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
-    if is_ceo:
-        raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
-    if str(owner_id) != str(user_id) and not (is_admin or is_dev):
+    if str(owner_id) != str(user_id) and not (is_admin or is_dev or is_ceo or is_tech):
         raise HTTPException(status_code=403, detail="No autorizado para eliminar este ticket")
 
     tenant_id = current_user.get("tenant_id")

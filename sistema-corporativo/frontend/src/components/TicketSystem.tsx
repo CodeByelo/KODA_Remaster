@@ -63,7 +63,11 @@ export default function TicketSystem({
     const normalizeText = (value: string) => (value || '').toLowerCase().trim();
     const isTechUser = normalizeText(userDept).includes('tecnolog');
     const isAdminUser = normalizeText(userRole || '').includes('admin');
-    const canOperateTicketFlow = isTechUser || isAdminUser;
+    const isDevUser = normalizeText(userRole || '').includes('desarrollador') || normalizeText(userRole || '').includes('dev');
+    const isCeoUser = normalizeText(userRole || '') === 'ceo';
+    const canOperateTicketFlow = isTechUser || isAdminUser || isDevUser;
+    const canDeleteByRole = isTechUser || isAdminUser || isDevUser || isCeoUser;
+    const canSeeGlobalFilters = isTechUser || isAdminUser || isDevUser || isCeoUser || hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_ALL);
 
     const [filterArea, setFilterArea] = useState<string>('all');
     const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -134,7 +138,7 @@ export default function TicketSystem({
 
     const deleteTicket = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
-        if (!hasPermission(PERMISSIONS_MASTER.TICKETS_DELETE)) {
+        if (!hasPermission(PERMISSIONS_MASTER.TICKETS_DELETE) && !canDeleteByRole) {
             alert("No tienes permiso para eliminar tickets.");
             return;
         }
@@ -149,17 +153,8 @@ export default function TicketSystem({
 
     const filteredTickets = useMemo(() => {
         return tickets.filter((t) => {
-            const canViewAll = hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_ALL);
-            const canViewDept = hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_DEPT);
-
-            if (!canViewAll && !canOperateTicketFlow) {
-                if (canViewDept) {
-                    const isDeptOwner = normalizeText(t.creatorDept || '') === normalizeText(userDept);
-                    const isOwner = !!t.ownerId && String(t.ownerId) === String(currentUserId);
-                    if (!isDeptOwner && !isOwner) return false;
-                } else {
-                    if (!t.ownerId || String(t.ownerId) !== String(currentUserId)) return false;
-                }
+            if (!canSeeGlobalFilters) {
+                if (!t.ownerId || String(t.ownerId) !== String(currentUserId)) return false;
             }
 
             const matchesSearch =
@@ -277,16 +272,18 @@ export default function TicketSystem({
                             className="bg-transparent border-none outline-none text-sm w-48 transition-all focus:w-64"
                         />
                     </div>
-                    <select
-                        value={filterArea}
-                        onChange={(e) => setFilterArea(e.target.value)}
-                        className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
-                    >
-                        <option value="all">Todas las Gerencias</option>
-                        {[...allAreas].map(area => (
-                            <option key={area} value={area}>{area}</option>
-                        ))}
-                    </select>
+                    {canSeeGlobalFilters && (
+                        <select
+                            value={filterArea}
+                            onChange={(e) => setFilterArea(e.target.value)}
+                            className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
+                        >
+                            <option value="all">Todas las Gerencias</option>
+                            {[...allAreas].map(area => (
+                                <option key={area} value={area}>{area}</option>
+                            ))}
+                        </select>
+                    )}
                     <select
                         value={filterPriority}
                         onChange={(e) => setFilterPriority(e.target.value)}
@@ -352,7 +349,7 @@ export default function TicketSystem({
                                                             Editar
                                                         </button>
                                                     )}
-                                                    {hasPermission(PERMISSIONS_MASTER.TICKETS_DELETE) && (
+                                                    {(hasPermission(PERMISSIONS_MASTER.TICKETS_DELETE) || canDeleteByRole) && (
                                                         <button
                                                             onClick={(e) => deleteTicket(e, ticket.id)}
                                                             className={`w-full px-3 py-2 text-xs font-semibold text-left text-red-500 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-red-50'}`}
