@@ -1213,6 +1213,13 @@ const DocumentManager: React.FC<{
             icon: Eye,
             label: "Recibido",
           };
+        case "leido":
+        case "leído":
+          return {
+            color: darkMode ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-700",
+            icon: Eye,
+            label: "Leído",
+          };
         default:
           return {
             color: darkMode ? "bg-slate-500/10 text-slate-400" : "bg-slate-50 text-slate-700",
@@ -1507,7 +1514,11 @@ const DocumentManager: React.FC<{
             <tbody className={`divide-y ${darkMode ? "divide-slate-800" : "divide-slate-200"}`}>
               {filteredDocs.map((doc) => {
                 const effectiveStatus =
-                  docView === "sent" && doc.leido ? "recibido" : doc.signatureStatus;
+                  docView === "inbox" && doc.leido
+                    ? "leido"
+                    : docView === "sent" && doc.leido
+                      ? "recibido"
+                      : doc.signatureStatus;
                 const statusInfo = getSignatureStatus(effectiveStatus);
                 const StatusIcon = statusInfo.icon;
                 const isUnread = !doc.leido && docView === "inbox";
