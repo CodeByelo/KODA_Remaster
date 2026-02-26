@@ -4,14 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Save, CheckCircle, Info } from 'lucide-react';
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../permissions/constants';
 import { useAuth } from '../hooks/useAuth';
-import { UserRole } from '../context/AuthContext';
 
 export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean }) {
     const { user } = useAuth();
     const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
     const [saved, setSaved] = useState(false);
+    const allPermissions = Object.values(PERMISSIONS_MASTER);
 
-    // Load AdminScope from localStorage or defaults
     useEffect(() => {
         const savedScope = localStorage.getItem('admin_scope_2026');
         if (savedScope) {
@@ -28,19 +27,28 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
         setSaved(false);
     };
 
+    const enableAllPermissions = () => {
+        setAdminPermissions([...allPermissions]);
+        setSaved(false);
+    };
+
+    const clearAllPermissions = () => {
+        setAdminPermissions([]);
+        setSaved(false);
+    };
+
     const saveAdminScope = () => {
         localStorage.setItem('admin_scope_2026', JSON.stringify(adminPermissions));
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
-        // Note: In a real app, this would update the DB for all Admin users
-        alert("Se ha actualizado el 'AdminScope'. Los administradores ahora tendrán estos permisos asignados.");
+        alert("Se actualizo AdminScope. Los administradores heredaran estos permisos.");
     };
 
     if (user?.role !== 'Desarrollador') {
         return (
             <div className="flex flex-col items-center justify-center p-20 text-red-500 font-bold">
                 <Shield size={48} className="mb-4" />
-                ACCESO DENEGADO - NIVEL RAÍZ REQUERIDO (DEV)
+                ACCESO DENEGADO - NIVEL RAIZ REQUERIDO (DEV)
             </div>
         );
     }
@@ -54,8 +62,8 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                             <Shield size={24} />
                         </div>
                         <div>
-                            <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>Panel de Configuración DEV (Nivel Raíz)</h2>
-                            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mt-1">Definición de AdminScope - Regla 1</p>
+                            <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>Panel de Configuracion DEV (Nivel Raiz)</h2>
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mt-1">Definicion de AdminScope</p>
                         </div>
                     </div>
                     <button
@@ -70,36 +78,58 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                 <div className={`p-4 rounded-xl mb-6 flex items-start gap-3 ${darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
                     <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-500/90 leading-relaxed font-medium">
-                        <strong>Instrucciones:</strong> Seleccione los permisos que el **Administrador** heredará. Según la jerarquía del sistema, el Administrador (Nivel Operativo) solo podrá gestionar a otros usuarios (CEO/USR) utilizando este subconjunto de permisos.
+                        Selecciona permisos para el rol Administrativo. Desde aqui tambien puedes activar todos en un clic.
                     </p>
                 </div>
 
+                <div className={`p-4 rounded-xl mb-6 border ${darkMode ? 'bg-zinc-950/60 border-zinc-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <p className={`text-[11px] font-bold uppercase tracking-widest mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                        Control Rapido de Permisos
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={enableAllPermissions}
+                            className="px-4 py-2 rounded-lg text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                        >
+                            ACTIVAR TODOS LOS PERMISOS
+                        </button>
+                        <button
+                            onClick={clearAllPermissions}
+                            className={`px-4 py-2 rounded-lg text-xs font-black transition-colors ${darkMode ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700' : 'bg-slate-200 text-slate-800 hover:bg-slate-300'}`}
+                        >
+                            QUITAR TODOS
+                        </button>
+                        <span className={`text-xs font-bold self-center ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                            {adminPermissions.length} / {allPermissions.length} activos
+                        </span>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* GRUPOS DE PERMISOS */}
                     <PermissionGroup
-                        title="1. Navegación y Visibilidad"
-                        permissions={Object.keys(PERMISSIONS_MASTER).filter(k => k.startsWith('VIEW_'))}
+                        title="1. Navegacion y Visibilidad"
+                        permissions={allPermissions.filter(k => k.startsWith('VIEW_'))}
                         selected={adminPermissions}
                         onToggle={togglePermission}
                         darkMode={darkMode}
                     />
                     <PermissionGroup
                         title="2. Acciones Operativas"
-                        permissions={Object.keys(PERMISSIONS_MASTER).filter(k => !k.startsWith('VIEW_') && !k.startsWith('ORG_') && !k.startsWith('SYS_'))}
+                        permissions={allPermissions.filter(k => !k.startsWith('VIEW_') && !k.startsWith('ORG_') && !k.startsWith('SYS_'))}
                         selected={adminPermissions}
                         onToggle={togglePermission}
                         darkMode={darkMode}
                     />
                     <PermissionGroup
                         title="3. Datos y Estructura"
-                        permissions={Object.keys(PERMISSIONS_MASTER).filter(k => k.startsWith('ORG_'))}
+                        permissions={allPermissions.filter(k => k.startsWith('ORG_'))}
                         selected={adminPermissions}
                         onToggle={togglePermission}
                         darkMode={darkMode}
                     />
                     <PermissionGroup
-                        title="4. Funciones Críticas (Suelo Dev)"
-                        permissions={Object.keys(PERMISSIONS_MASTER).filter(k => k.startsWith('SYS_'))}
+                        title="4. Funciones Criticas"
+                        permissions={allPermissions.filter(k => k.startsWith('SYS_'))}
                         selected={adminPermissions}
                         onToggle={togglePermission}
                         darkMode={darkMode}

@@ -626,7 +626,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         </thead>
                                         <tbody className={`divide-y ${darkMode ? 'divide-zinc-800' : 'divide-slate-100'}`}>
                                             {users.map((u) => {
-                                                const canManageThisUser = u.role !== 'Desarrollador' && u.id !== currentUserObj?.id;
+                                                const isCurrentDev = currentUserObj?.role === 'Desarrollador';
+                                                const canManageThisUser = u.id !== currentUserObj?.id && (isCurrentDev || u.role !== 'Desarrollador');
                                                 return (
                                                     <tr key={u.id} className={`${theme.rowHover} transition-colors`}>
                                                         <td className={`px-6 py-4 font-bold flex items-center gap-2 ${theme.text}`}>
@@ -866,6 +867,16 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
         setSaved(false);
     };
 
+    const enableAllForUser = () => {
+        setUserPerms([...availablePermissions]);
+        setSaved(false);
+    };
+
+    const clearAllForUser = () => {
+        setUserPerms([]);
+        setSaved(false);
+    };
+
     const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Desarrollador'
     const roles = ['Usuario', 'Administrativo', 'CEO', 'Desarrollador'];
 
@@ -928,6 +939,23 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2 flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={enableAllForUser}
+                                className="px-3 py-1.5 rounded-lg text-[11px] font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                            >
+                                ACTIVAR TODOS
+                            </button>
+                            <button
+                                onClick={clearAllForUser}
+                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${darkMode ? 'bg-zinc-800 text-zinc-200 hover:bg-zinc-700' : 'bg-slate-200 text-slate-800 hover:bg-slate-300'}`}
+                            >
+                                QUITAR TODOS
+                            </button>
+                            <span className="text-[11px] font-bold text-slate-500">
+                                {userPerms.length} / {availablePermissions.length} activos
+                            </span>
+                        </div>
                         {availablePermissions.length > 0 ? (
                             availablePermissions.map(perm => (
                                 <label key={perm} className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer group transition-all ${userPerms.includes(perm) ? (darkMode ? 'bg-blue-600/10 border-blue-500/50' : 'bg-blue-50 border-blue-200') : (darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-100')}`}>
