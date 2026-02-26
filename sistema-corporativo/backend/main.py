@@ -889,10 +889,16 @@ async def mark_as_read(
         user_id = current_user.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Usuario no identificado")
+        user_uuid = uuid.UUID(str(user_id))
+        user_gerencia_id = await conn.fetchval(
+            "SELECT gerencia_id FROM profiles WHERE id = $1::uuid",
+            user_uuid,
+        )
+        is_privileged = await _is_privileged_user(conn, current_user)
         if not tenant_id:
             tenant_id = await conn.fetchval(
                 "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
-                user_id,
+                user_uuid,
             )
         updated = await conn.fetchrow(
             """
@@ -906,13 +912,21 @@ async def mark_as_read(
                 fecha_ultima_actividad = NOW()
             WHERE id = $1
               AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR tenant_id IS NULL)
+              AND (
+                    $3::boolean = TRUE
+                    OR receptor_id = $4::uuid
+                    OR ($5::int IS NOT NULL AND receptor_gerencia_id = $5::int)
+                  )
             RETURNING id, COALESCE(titulo, title, 'Sin Asunto') as titulo, correlativo, estado
             """,
             id,
             tenant_id,
+            is_privileged,
+            user_uuid,
+            user_gerencia_id,
         )
         if not updated:
-            raise HTTPException(status_code=404, detail="Documento no encontrado")
+            raise HTTPException(status_code=404, detail="Documento no encontrado o sin permiso para marcarlo como leido")
 
         try:
             await _ensure_security_events_table(conn)
@@ -926,7 +940,7 @@ async def mark_as_read(
                 VALUES ($1::uuid, $2::uuid, $3, 'DOCUMENTO_LEIDO', $4, 'info', '/dashboard?tab=documentos')
                 """,
                 tenant_id,
-                user_id,
+                user_uuid,
                 username or "anon",
                 f"Documento abierto: {updated.get('correlativo') or updated.get('id')} | titulo='{updated.get('titulo')}' | nuevo_estado='{updated.get('estado')}'",
             )

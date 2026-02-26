@@ -1123,8 +1123,15 @@ const DocumentManager: React.FC<{
       setSelectedDoc(doc);
       setShowViewModal(true);
 
-      // Marcar como leído si no lo estaba y soy el receptor
-      if (!doc.leido && docView === "inbox") {
+      // Marcar como leído si no lo estaba y el usuario actual es receptor directo o por gerencia
+      const isDirectRecipient =
+        !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
+      const isDeptRecipient =
+        !!doc.receptor_gerencia_id &&
+        !!user?.gerencia_id &&
+        String(doc.receptor_gerencia_id) === String(user.gerencia_id);
+
+      if (!doc.leido && (isDirectRecipient || isDeptRecipient)) {
         try {
           await markAsRead(doc.id);
           // Actualización optimista local
@@ -1164,7 +1171,7 @@ const DocumentManager: React.FC<{
         };
       }
 
-      const statusLower = status.toLowerCase();
+      const statusLower = String(status).toLowerCase().trim();
 
       switch (statusLower) {
         case "pendiente":
