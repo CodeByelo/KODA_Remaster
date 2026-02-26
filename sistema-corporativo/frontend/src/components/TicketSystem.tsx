@@ -6,7 +6,7 @@ import { logTicketActivity } from '../app/dashboard/security/actions';
 import { UserRole } from '../context/AuthContext';
 import { createTicket as apiCreateTicket, updateTicket as apiUpdateTicket, updateTicketStatus as apiUpdateTicketStatus, deleteTicket as apiDeleteTicket, getTicketHistory as apiGetTicketHistory, searchTicketHistory as apiSearchTicketHistory, ApiTicketHistoryEvent } from '../lib/api';
 
-type TicketStatus = 'ABIERTO' | 'EN-PROCESO' | 'RESUELTO';
+type TicketStatus = 'ABIERTO' | 'EN-PROCESO' | 'RESUELTO' | 'ELIMINADO';
 type TicketPriority = 'ALTA' | 'MEDIA' | 'BAJA';
 type TicketArea = string;
 

@@ -10,6 +10,7 @@ import { Document } from '../types';
 import { Ticket } from '../../../components/TicketSystem';
 import { FilterBar } from './FilterBar';
 import { DetailTable } from './DetailTable';
+import { ApiTicketHistoryEvent, getTicketHistory as apiGetTicketHistory } from '../../../lib/api';
 import {
     filterByDateRange,
     filterByDepartment,
@@ -64,6 +65,10 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
     // Estado de Carga
     const [isLoading, setIsLoading] = useState(false);
     const [loadingStep, setLoadingStep] = useState(0); // Para simular carga progresiva
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyRows, setHistoryRows] = useState<ApiTicketHistoryEvent[]>([]);
+    const [historyTicketId, setHistoryTicketId] = useState<number | null>(null);
 
     // Opciones de fecha (últimos 12 meses)
     const monthOptions = useMemo(() => getLastNMonths(12), []);
@@ -120,6 +125,20 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
         } else {
             setSortField(field);
             setSortDirection('asc');
+        }
+    };
+
+    const handleOpenTicketHistory = async (ticketId: number) => {
+        setHistoryTicketId(ticketId);
+        setHistoryOpen(true);
+        setHistoryLoading(true);
+        try {
+            const rows = await apiGetTicketHistory(ticketId);
+            setHistoryRows(rows || []);
+        } catch {
+            setHistoryRows([]);
+        } finally {
+            setHistoryLoading(false);
         }
     };
 
@@ -267,8 +286,55 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                     sortField={sortField}
                     sortDirection={sortDirection}
                     onSort={handleSort}
+                    onOpenTicketHistory={handleOpenTicketHistory}
                 />
             </div>
+
+            {historyOpen && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className={`w-full max-w-4xl rounded-xl border ${darkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        <div className={`px-5 py-4 border-b flex items-center justify-between ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                            <h4 className={`font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                Historial del Ticket #{historyTicketId}
+                            </h4>
+                            <button
+                                onClick={() => setHistoryOpen(false)}
+                                className={`px-3 py-1 rounded text-sm font-semibold ${darkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-700'}`}
+                            >
+                                Cerrar
+                            </button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-auto">
+                            {historyLoading ? (
+                                <div className="p-6 text-sm opacity-70">Cargando historial...</div>
+                            ) : historyRows.length === 0 ? (
+                                <div className="p-6 text-sm opacity-70">Sin eventos para este ticket.</div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead className={darkMode ? 'text-slate-400' : 'text-slate-500'}>
+                                        <tr>
+                                            <th className="px-4 py-2 text-left">Fecha/Hora</th>
+                                            <th className="px-4 py-2 text-left">Accion</th>
+                                            <th className="px-4 py-2 text-left">Usuario</th>
+                                            <th className="px-4 py-2 text-left">Detalle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {historyRows.map((row) => (
+                                            <tr key={row.id} className={darkMode ? 'border-t border-slate-800' : 'border-t border-slate-100'}>
+                                                <td className="px-4 py-2">{new Date(row.created_at).toLocaleString('es-ES')}</td>
+                                                <td className="px-4 py-2 font-semibold">{row.action}</td>
+                                                <td className="px-4 py-2">{row.actor_username || 'sistema'}</td>
+                                                <td className="px-4 py-2">{row.details || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

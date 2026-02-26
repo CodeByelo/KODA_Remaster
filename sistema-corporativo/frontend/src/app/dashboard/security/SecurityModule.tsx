@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
 import {
     getAllUsers,
@@ -655,13 +656,13 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                 ) : (
                                                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">Solo Lectura (DEV/PROPIO)</span>
                                                                 )}
-                                                                <a
+                                                                <Link
                                                                     href={`/dashboard/security/user/${u.id}`}
                                                                     className="p-2 text-slate-400 hover:text-white transition-colors"
                                                                     title="Ver Auditoría"
                                                                 >
                                                                     <Activity size={16} />
-                                                                </a>
+                                                                </Link>
                                                             </div>
                                                         </td>
                                                     </tr>

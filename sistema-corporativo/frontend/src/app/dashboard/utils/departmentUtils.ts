@@ -8,6 +8,7 @@ import { Ticket } from '../../../components/TicketSystem';
 export interface CombinedDataItem {
     id: string;
     type: 'Documento' | 'Ticket';
+    ticketId?: number;
     tiempo: string;
     fechaHora: string;
     importancia: 'Alta' | 'Media' | 'Baja';
@@ -205,6 +206,7 @@ export function combineDocumentsAndTickets(
         combined.push({
             id: `ticket-${ticket.id}`,
             type: 'Ticket',
+            ticketId: ticket.id,
             tiempo: ticket.createdAt,
             fechaHora: ticket.createdAt,
             importancia: mapTicketToImportance(ticket.priority),

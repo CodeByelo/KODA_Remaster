@@ -1,22 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, Shield, Clock, Activity, FileText, Lock, Calendar } from 'lucide-react';
 import { getUserDetails, getUserLogs, deleteUser } from '../../actions';
 
-// Define params type correctly for Next.js 15+
-type Params = Promise<{ id: string }>;
-
-export default function UserHistoryPage({ params }: { params: Params }) {
+export default function UserHistoryPage() {
     const router = useRouter();
+    const params = useParams<{ id: string }>();
     const [user, setUser] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const [mounted, setMounted] = useState(false);
-    const resolvedParams = React.use(params);
-    const userId = resolvedParams.id;
+    const userId = params?.id;
 
     useEffect(() => {
         setMounted(true);

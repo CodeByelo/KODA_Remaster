@@ -1443,12 +1443,13 @@ async def search_ticket_history(
             e.observaciones, e.details, e.created_at,
             t.titulo, t.estado
         FROM ticket_events e
-        JOIN tickets t ON t.id = e.ticket_id
+        LEFT JOIN tickets t ON t.id = e.ticket_id
         WHERE ($1::uuid IS NULL OR e.tenant_id = $1::uuid)
           AND (
                 $2::text = ''
-                OR t.titulo ILIKE '%' || $2 || '%'
+                OR COALESCE(t.titulo, '') ILIKE '%' || $2 || '%'
                 OR CAST(e.ticket_id AS TEXT) ILIKE '%' || $2 || '%'
+                OR COALESCE(e.details, '') ILIKE '%' || $2 || '%'
               )
         ORDER BY e.created_at DESC
         LIMIT 500
@@ -1750,10 +1751,26 @@ async def delete_ticket(
         raise HTTPException(status_code=403, detail="No autorizado para eliminar este ticket")
 
     tenant_id = current_user.get("tenant_id")
-    await conn.execute("DELETE FROM tickets WHERE id = $1", ticket_id)
+    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+    deleted = await conn.fetchrow(
+        """
+        UPDATE tickets
+        SET
+            estado = 'eliminado',
+            observaciones = COALESCE(observaciones, '') || CASE
+                WHEN COALESCE(observaciones, '') = '' THEN ''
+                ELSE E'\n'
+            END || 'Eliminado por ' || COALESCE($2, 'usuario') || ' el ' || to_char(NOW(), 'DD/MM/YYYY HH24:MI')
+        WHERE id = $1
+        RETURNING id, titulo, estado
+        """,
+        ticket_id,
+        username or "usuario",
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
     try:
         await _ensure_security_events_table(conn)
-        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
         await conn.execute(
             """
             INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
@@ -1763,6 +1780,21 @@ async def delete_ticket(
             user_id,
             username or "anon",
             f"Ticket #{ticket_id} eliminado",
+        )
+    except Exception:
+        pass
+    try:
+        await _log_ticket_event(
+            conn,
+            int(ticket_id),
+            tenant_id,
+            user_id,
+            username or "anon",
+            "DELETED",
+            old_status=None,
+            new_status="eliminado",
+            observaciones=None,
+            details=f"Ticket eliminado: {deleted['titulo']}",
         )
     except Exception:
         pass

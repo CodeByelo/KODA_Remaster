@@ -2086,6 +2086,9 @@ export default function Dashboard() {
         creatorDept: t.solicitante_gerencia || "Sin Asignar",
         priority: (String(t.prioridad || "media").toUpperCase() as Ticket["priority"]),
         status:
+          String(t.estado || "abierto").toLowerCase() === "eliminado"
+            ? "ELIMINADO"
+            : 
           String(t.estado || "abierto").toLowerCase() === "resuelto"
             ? "RESUELTO"
             : String(t.estado || "abierto").toLowerCase() === "en-proceso"

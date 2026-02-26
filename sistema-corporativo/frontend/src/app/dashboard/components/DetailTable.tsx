@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Tag, User, Clock, CalendarDays } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Tag, User, Clock, CalendarDays, History } from 'lucide-react';
 import { CombinedDataItem, SortField, SortDirection } from '../utils/departmentUtils';
 
 interface DetailTableProps {
@@ -9,6 +9,7 @@ interface DetailTableProps {
     sortField: SortField;
     sortDirection: SortDirection;
     onSort: (field: SortField) => void;
+    onOpenTicketHistory: (ticketId: number) => void;
 }
 
 export const DetailTable: React.FC<DetailTableProps> = ({
@@ -17,7 +18,8 @@ export const DetailTable: React.FC<DetailTableProps> = ({
     isLoading,
     sortField,
     sortDirection,
-    onSort
+    onSort,
+    onOpenTicketHistory
 }) => {
 
     const getSortIcon = (field: SortField) => {
@@ -57,7 +59,7 @@ export const DetailTable: React.FC<DetailTableProps> = ({
 
     const renderSkeletonRow = (key: number) => (
         <tr key={key} className={darkMode ? 'border-b border-slate-800' : 'border-b border-slate-100'}>
-            {[...Array(6)].map((_, i) => (
+            {[...Array(7)].map((_, i) => (
                 <td key={i} className="px-4 py-4">
                     <div className={`h-4 rounded animate-pulse ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`} style={{ width: i === 0 ? '80%' : '60%' }} />
                 </td>
@@ -124,6 +126,7 @@ export const DetailTable: React.FC<DetailTableProps> = ({
                                     {getSortIcon('recibidoPor')}
                                 </div>
                             </th>
+                            <th className="px-4 py-3 font-bold text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -131,7 +134,7 @@ export const DetailTable: React.FC<DetailTableProps> = ({
                             [...Array(5)].map((_, i) => renderSkeletonRow(i))
                         ) : data.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-4 py-12 text-center">
+                                <td colSpan={7} className="px-4 py-12 text-center">
                                     <div className="flex flex-col items-center gap-3 opacity-50">
                                         <FileText size={48} className="stroke-1" />
                                         <p>No se encontraron registros con los filtros seleccionados</p>
@@ -182,6 +185,19 @@ export const DetailTable: React.FC<DetailTableProps> = ({
                                         <span className="truncate max-w-[150px] block opacity-80" title={item.recibidoPor}>
                                             {item.recibidoPor}
                                         </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                        {item.type === 'Ticket' && item.ticketId ? (
+                                            <button
+                                                onClick={() => onOpenTicketHistory(item.ticketId as number)}
+                                                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold border transition-colors ${darkMode ? 'bg-slate-800 text-slate-100 border-slate-700 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'}`}
+                                            >
+                                                <History size={12} />
+                                                Historial
+                                            </button>
+                                        ) : (
+                                            <span className="text-xs opacity-50">-</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))
