@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, MoreVertical, UsersRound, Clock, CheckCircle, FileText } from 'lucide-react';
+import { Search, Plus, MoreVertical, UsersRound, Clock, CheckCircle, FileText, History, X } from 'lucide-react';
 import { logTicketActivity } from '../app/dashboard/security/actions';
 import { UserRole } from '../context/AuthContext';
-import { createTicket as apiCreateTicket, updateTicket as apiUpdateTicket, updateTicketStatus as apiUpdateTicketStatus, deleteTicket as apiDeleteTicket } from '../lib/api';
+import { createTicket as apiCreateTicket, updateTicket as apiUpdateTicket, updateTicketStatus as apiUpdateTicketStatus, deleteTicket as apiDeleteTicket, getTicketHistory as apiGetTicketHistory, searchTicketHistory as apiSearchTicketHistory, ApiTicketHistoryEvent } from '../lib/api';
 
 type TicketStatus = 'ABIERTO' | 'EN-PROCESO' | 'RESUELTO';
 type TicketPriority = 'ALTA' | 'MEDIA' | 'BAJA';
@@ -73,6 +73,10 @@ export default function TicketSystem({
     const [filterPriority, setFilterPriority] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [historyRows, setHistoryRows] = useState<ApiTicketHistoryEvent[]>([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyQuery, setHistoryQuery] = useState('');
     const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
     const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
 
@@ -87,6 +91,20 @@ export default function TicketSystem({
     const [newArea, setNewArea] = useState<TicketArea>(TECH_DEPT);
     const [newPriority, setNewPriority] = useState<TicketPriority>('MEDIA');
     const [newObservations, setNewObservations] = useState('');
+
+    const openTicketHistory = async (ticketId?: number) => {
+        setShowHistoryModal(true);
+        setHistoryLoading(true);
+        try {
+            const rows = ticketId ? await apiGetTicketHistory(ticketId) : await apiSearchTicketHistory(historyQuery);
+            setHistoryRows(rows || []);
+        } catch (e) {
+            console.error("Error loading ticket history", e);
+            setHistoryRows([]);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
 
     useEffect(() => {
         const handleClickOutside = () => setMenuOpenId(null);
@@ -357,6 +375,12 @@ export default function TicketSystem({
                                                             Eliminar
                                                         </button>
                                                     )}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); openTicketHistory(ticket.id); }}
+                                                        className={`w-full px-3 py-2 text-xs font-semibold text-left ${darkMode ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-50 text-slate-700'}`}
+                                                    >
+                                                        Historial
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -524,6 +548,66 @@ export default function TicketSystem({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {showHistoryModal && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+                    <div className={`w-full max-w-3xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                        <div className="p-4 border-b flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-bold">
+                                <History size={18} />
+                                HISTORIAL DE TICKETS
+                            </div>
+                            <button onClick={() => setShowHistoryModal(false)} className="p-1 rounded hover:bg-slate-800/40">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="p-4 border-b flex gap-2">
+                            <input
+                                value={historyQuery}
+                                onChange={(e) => setHistoryQuery(e.target.value)}
+                                placeholder="Buscar por ID o título..."
+                                className={`flex-1 px-3 py-2 rounded-lg border text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
+                            />
+                            <button
+                                onClick={() => openTicketHistory(undefined)}
+                                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                            >
+                                BUSCAR
+                            </button>
+                        </div>
+                        <div className="max-h-[60vh] overflow-y-auto">
+                            {historyLoading ? (
+                                <div className="p-6 text-sm text-slate-500">Cargando historial...</div>
+                            ) : historyRows.length === 0 ? (
+                                <div className="p-6 text-sm text-slate-500">Sin registros para mostrar.</div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead className={`${darkMode ? 'bg-slate-950/60' : 'bg-slate-50'}`}>
+                                        <tr>
+                                            <th className="px-3 py-2 text-left">Ticket</th>
+                                            <th className="px-3 py-2 text-left">Acción</th>
+                                            <th className="px-3 py-2 text-left">Actor</th>
+                                            <th className="px-3 py-2 text-left">Detalle</th>
+                                            <th className="px-3 py-2 text-left">Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {historyRows.map((row) => (
+                                            <tr key={row.id} className={`border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                                                <td className="px-3 py-2">#{row.ticket_id}</td>
+                                                <td className="px-3 py-2">{row.action}</td>
+                                                <td className="px-3 py-2">{row.actor_username || 'sistema'}</td>
+                                                <td className="px-3 py-2">{row.details || row.observaciones || '-'}</td>
+                                                <td className="px-3 py-2">{new Date(row.created_at).toLocaleString('es-ES')}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

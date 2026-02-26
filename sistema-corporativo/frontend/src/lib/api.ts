@@ -63,6 +63,21 @@ export interface ApiTicket {
     fecha_creacion?: string;
     solicitante_nombre?: string;
     tecnico_nombre?: string | null;
+    solicitante_gerencia?: string;
+}
+
+export interface ApiTicketHistoryEvent {
+    id: number;
+    ticket_id: number;
+    actor_username?: string;
+    action: string;
+    old_status?: string;
+    new_status?: string;
+    observaciones?: string;
+    details?: string;
+    created_at: string;
+    titulo?: string;
+    estado?: string;
 }
 
 export interface AnnouncementData {
@@ -356,6 +371,23 @@ export async function deleteTicket(ticketId: number): Promise<{ status: string }
         headers: getAuthHeaders(),
     });
     return handleResponse<{ status: string }>(res);
+}
+
+export async function getTicketHistory(ticketId: number): Promise<ApiTicketHistoryEvent[]> {
+    const res = await fetch(`${BASE_URL}/tickets/${ticketId}/history`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+    });
+    return handleResponse<ApiTicketHistoryEvent[]>(res);
+}
+
+export async function searchTicketHistory(query: string): Promise<ApiTicketHistoryEvent[]> {
+    const q = encodeURIComponent(query || "");
+    const res = await fetch(`${BASE_URL}/tickets/history?q=${q}`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+    });
+    return handleResponse<ApiTicketHistoryEvent[]>(res);
 }
 
 // ==========================================
