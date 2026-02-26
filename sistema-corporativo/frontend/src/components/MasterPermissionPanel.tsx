@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Save, CheckCircle, Info } from 'lucide-react';
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../permissions/constants';
 import { useAuth } from '../hooks/useAuth';
+import { getAllUsers, updateUserPermissions } from '../lib/api';
 
 export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean }) {
     const { user } = useAuth();
     const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
     const [saved, setSaved] = useState(false);
+    const [saving, setSaving] = useState(false);
     const allPermissions = Object.values(PERMISSIONS_MASTER);
 
     useEffect(() => {
@@ -37,11 +39,30 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
         setSaved(false);
     };
 
-    const saveAdminScope = () => {
-        localStorage.setItem('admin_scope_2026', JSON.stringify(adminPermissions));
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-        alert("Se actualizo AdminScope. Los administradores heredaran estos permisos.");
+    const saveAdminScope = async () => {
+        try {
+            setSaving(true);
+            localStorage.setItem('admin_scope_2026', JSON.stringify(adminPermissions));
+
+            const users = await getAllUsers();
+            const admins = (users || []).filter((u: any) => {
+                const role = String(u.role || '').toLowerCase();
+                return role === 'administrativo' || role === 'admin' || role === 'administrador';
+            });
+
+            await Promise.all(
+                admins.map((a: any) => updateUserPermissions(String(a.id), adminPermissions))
+            );
+
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+            alert(`AdminScope aplicado. Administradores actualizados: ${admins.length}`);
+        } catch (e) {
+            console.error("Error guardando AdminScope", e);
+            alert("No se pudo aplicar AdminScope global. Revisa backend/permisos.");
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (user?.role !== 'Desarrollador') {
@@ -68,10 +89,11 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                     </div>
                     <button
                         onClick={saveAdminScope}
+                        disabled={saving}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all transform active:scale-95 ${saved ? 'bg-green-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20'}`}
                     >
                         {saved ? <CheckCircle size={18} /> : <Save size={18} />}
-                        {saved ? 'GUARDADO' : 'GUARDAR ADMIN_SCOPE'}
+                        {saving ? 'APLICANDO...' : saved ? 'GUARDADO' : 'GUARDAR ADMIN_SCOPE'}
                     </button>
                 </div>
 

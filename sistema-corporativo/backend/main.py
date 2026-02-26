@@ -323,6 +323,7 @@ async def login_compat(
 
     query = """
         SELECT p.id, p.username, p.password_hash, p.nombre, p.apellido, p.email, p.rol_id, r.nombre_rol, p.tenant_id,
+               p.permisos,
                p.gerencia_id, g.nombre as gerencia_nombre
         FROM profiles p
         LEFT JOIN roles r ON p.rol_id = r.id
@@ -411,6 +412,7 @@ async def login_compat(
             "tenant_id": user["tenant_id"],
             "gerencia_id": user["gerencia_id"],
             "gerencia_depto": user["gerencia_nombre"],
+            "permissions": list(user["permisos"] or []),
         },
     }
 

@@ -854,7 +854,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 }
 
 function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { user: any, onClose: () => void, darkMode: boolean, currentUserPerms: string[] }) {
-    const [userPerms, setUserPerms] = useState<string[]>(user.permissions || []);
+    const [userPerms, setUserPerms] = useState<string[]>(user.permissions || user.permisos || []);
     const [saved, setSaved] = useState(false);
 
     // Jerarquía: Los permisos disponibles para asignar son solo aquellos que el admin posee

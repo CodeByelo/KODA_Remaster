@@ -54,26 +54,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   ): string[] => {
     if (role === "Desarrollador") return Object.values(PERMISSIONS_MASTER);
 
+    // Prioridad absoluta: permisos persistidos del backend/usuario.
+    if (basePermissions && basePermissions.length > 0) {
+      return basePermissions;
+    }
+
     if (typeof window === "undefined") {
-      return basePermissions && basePermissions.length > 0
-        ? basePermissions
-        : DEFAULT_SCOPES[role] || [];
+      return DEFAULT_SCOPES[role] || [];
     }
 
-    if (role === "Administrativo") {
-      const savedScope = localStorage.getItem("admin_scope_2026");
-      if (savedScope) {
-        try {
-          return JSON.parse(savedScope);
-        } catch (e) {
-          console.error("Error parsing admin_scope_2026", e);
-        }
-      }
-    }
-
-    return basePermissions && basePermissions.length > 0
-      ? basePermissions
-      : DEFAULT_SCOPES[role] || [];
+    return DEFAULT_SCOPES[role] || [];
   };
 
   const normalizeRole = (rawRole: string): UserRole => {
@@ -86,6 +76,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const buildUserFromBackend = (backendUser: any): User => {
     const role = normalizeRole(String(backendUser.role || "Usuario"));
+    const persistedPerms =
+      backendUser.permissions ||
+      backendUser.permisos ||
+      [];
     return {
       id: String(backendUser.id),
       username: backendUser.username,
@@ -95,7 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       gerencia_depto: backendUser.gerencia_depto || "General",
       gerencia_id: backendUser.gerencia_id,
       role,
-      permissions: getEffectivePermissions(role),
+      permissions: getEffectivePermissions(role, persistedPerms),
     };
   };
 
