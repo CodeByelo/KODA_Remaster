@@ -845,6 +845,31 @@ async def create_documento(
                 INSERT INTO documento_adjuntos (documento_id, url_archivo)
                 VALUES ($1, $2)
             """, doc_id, url)
+
+        # ========== 7. LOG DE ENVIO ==========
+        try:
+            await _ensure_security_events_table(conn)
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            destino = (
+                f"usuario_id={receptor_id}" if receptor_id
+                else f"gerencia_id={receptor_gerencia_id}" if receptor_gerencia_id
+                else "destino_no_definido"
+            )
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'DOCUMENTO_ENVIADO', $4, 'success', '/dashboard?tab=documentos')
+                """,
+                tenant_id,
+                user_id,
+                username or "anon",
+                f"Documento enviado: {auto_correlativo} | titulo='{titulo}' | estado_inicial='en-proceso' | {destino}",
+            )
+        except Exception:
+            pass
         
         return {"id": doc_id, "correlativo": auto_correlativo, "status": "success"}
 
@@ -861,9 +886,15 @@ async def mark_as_read(
 ):
     try:
         tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
         if not tenant_id:
-            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
-        await conn.execute(
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+        updated = await conn.fetchrow(
             """
             UPDATE documentos
             SET
@@ -873,12 +904,38 @@ async def mark_as_read(
                     ELSE estado
                 END,
                 fecha_ultima_actividad = NOW()
-            WHERE id = $1 AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
+            WHERE id = $1
+              AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR tenant_id IS NULL)
+            RETURNING id, COALESCE(titulo, title, 'Sin Asunto') as titulo, correlativo, estado
             """,
             id,
             tenant_id,
         )
-        return {"status": "success"}
+        if not updated:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+        try:
+            await _ensure_security_events_table(conn)
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'DOCUMENTO_LEIDO', $4, 'info', '/dashboard?tab=documentos')
+                """,
+                tenant_id,
+                user_id,
+                username or "anon",
+                f"Documento abierto: {updated.get('correlativo') or updated.get('id')} | titulo='{updated.get('titulo')}' | nuevo_estado='{updated.get('estado')}'",
+            )
+        except Exception:
+            pass
+
+        return {"status": "success", "estado": updated.get("estado")}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -891,15 +948,45 @@ async def update_doc_status(
 ):
     try:
         tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
         if not tenant_id:
-            raise HTTPException(status_code=403, detail="Usuario sin tenant activo")
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
         nuevo_estado = status_data.get("estado")
-        await conn.execute("""
+        updated = await conn.fetchrow("""
             UPDATE documentos 
             SET estado = $1, fecha_ultima_actividad = NOW() 
-            WHERE id = $2 AND ($3::uuid IS NULL OR tenant_id = $3::uuid)
+            WHERE id = $2 AND ($3::uuid IS NULL OR tenant_id = $3::uuid OR tenant_id IS NULL)
+            RETURNING id, COALESCE(titulo, title, 'Sin Asunto') as titulo, correlativo, estado
         """, nuevo_estado, id, tenant_id)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+        try:
+            await _ensure_security_events_table(conn)
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'DOCUMENTO_ESTADO_ACTUALIZADO', $4, 'info', '/dashboard?tab=documentos')
+                """,
+                tenant_id,
+                user_id,
+                username or "anon",
+                f"Cambio de estado: {updated.get('correlativo') or updated.get('id')} | titulo='{updated.get('titulo')}' | nuevo_estado='{updated.get('estado')}'",
+            )
+        except Exception:
+            pass
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
