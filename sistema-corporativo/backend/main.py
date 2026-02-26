@@ -26,7 +26,8 @@ if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
 # AHORA sí importar módulos que dependen de variables de entorno
-from database.async_db import get_db_connection, init_db_pool, pool
+from database.async_db import get_db_connection, init_db_pool
+import database.async_db as async_db
 from middleware.tenant import get_tenant_context, trace_id_var
 from services.rate_limiter import rate_limiter_middleware
 from src import schemas
@@ -144,7 +145,9 @@ print()
 async def startup():
     await init_db_pool()
     try:
-        async with pool.acquire() as conn:
+        if async_db.pool is None:
+            raise RuntimeError("DB pool no inicializado en startup")
+        async with async_db.pool.acquire() as conn:
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS bot_knowledge (
                     id BIGSERIAL PRIMARY KEY,
@@ -175,8 +178,20 @@ async def startup():
                     locked_until TIMESTAMPTZ
                 )
             """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS dashboard_announcement (
+                    id INT PRIMARY KEY DEFAULT 1,
+                    badge TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    urgency TEXT NOT NULL,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    CONSTRAINT dashboard_announcement_singleton CHECK (id = 1)
+                )
+            """)
     except Exception as exc:
-        logger.warning(f"No se pudo garantizar bot_knowledge en startup: {exc}")
+        logger.warning(f"No se pudo garantizar tablas base en startup: {exc}")
     logger.info("Database Connection Pool Initialized")
 
 # ===================================================================
@@ -471,8 +486,23 @@ async def _ensure_security_events_table(conn) -> None:
     """)
 
 
+async def _ensure_announcement_table(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS dashboard_announcement (
+            id INT PRIMARY KEY DEFAULT 1,
+            badge TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            status TEXT NOT NULL,
+            urgency TEXT NOT NULL,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            CONSTRAINT dashboard_announcement_singleton CHECK (id = 1)
+        )
+    """)
+
+
 async def _resolve_org_id(conn, tenant_id: Optional[str] = None) -> Optional[str]:
-    # Global mode: single announcement/org structure shared by all users
+    # Global mode: single org row for shared configs
     return await conn.fetchval("SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1")
 
 
@@ -922,21 +952,35 @@ async def get_announcement(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
 ):
-    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
-    if not org_id:
-        raise HTTPException(status_code=500, detail="No existe organizacion base")
+    await _ensure_announcement_table(conn)
+    row = await conn.fetchrow("""
+        SELECT badge, title, description, status, urgency
+        FROM dashboard_announcement
+        WHERE id = 1
+    """)
+    if row:
+        return dict(row)
 
-    cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
-    announcement = (cfg or {}).get("dashboard_announcement") if isinstance(cfg, dict) else None
-    if not announcement:
-        announcement = {
-            "badge": "Comunicado del Dia",
-            "title": "Actualizacion de Protocolos 2026",
-            "description": "Mensaje institucional vigente para todas las gerencias.",
-            "status": "Activo",
-            "urgency": "Alta",
-        }
-    return announcement
+    default_announcement = {
+        "badge": "Comunicado del Dia",
+        "title": "Actualizacion de Protocolos 2026",
+        "description": "Mensaje institucional vigente para todas las gerencias.",
+        "status": "Activo",
+        "urgency": "Alta",
+    }
+    await conn.execute(
+        """
+        INSERT INTO dashboard_announcement (id, badge, title, description, status, urgency, updated_at)
+        VALUES (1, $1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (id) DO NOTHING
+        """,
+        default_announcement["badge"],
+        default_announcement["title"],
+        default_announcement["description"],
+        default_announcement["status"],
+        default_announcement["urgency"],
+    )
+    return default_announcement
 
 
 @app.put("/announcement")
@@ -948,21 +992,33 @@ async def save_announcement(
     if not await _is_privileged_user(conn, current_user):
         raise HTTPException(status_code=403, detail="No autorizado para editar anuncios")
 
-    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
-    if not org_id:
-        raise HTTPException(status_code=500, detail="No existe organizacion base")
-
+    await _ensure_announcement_table(conn)
+    data = payload.model_dump()
     await conn.execute(
         """
-        UPDATE organizations
-        SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{dashboard_announcement}', $2::jsonb, true),
+        INSERT INTO dashboard_announcement (id, badge, title, description, status, urgency, updated_at)
+        VALUES (1, $1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (id)
+        DO UPDATE SET
+            badge = EXCLUDED.badge,
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            status = EXCLUDED.status,
+            urgency = EXCLUDED.urgency,
             updated_at = NOW()
-        WHERE id = $1::uuid
         """,
-        org_id,
-        json.dumps(payload.model_dump()),
+        data["badge"],
+        data["title"],
+        data["description"],
+        data["status"],
+        data["urgency"],
     )
-    return {"status": "success", "announcement": payload.model_dump()}
+    saved = await conn.fetchrow("""
+        SELECT badge, title, description, status, urgency
+        FROM dashboard_announcement
+        WHERE id = 1
+    """)
+    return {"status": "success", "announcement": dict(saved) if saved else data}
 
 
 @app.get("/org-structure")
