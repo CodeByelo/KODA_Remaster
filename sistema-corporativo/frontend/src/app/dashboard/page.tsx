@@ -1499,7 +1499,9 @@ const DocumentManager: React.FC<{
             </thead>
             <tbody className={`divide-y ${darkMode ? "divide-slate-800" : "divide-slate-200"}`}>
               {filteredDocs.map((doc) => {
-                const statusInfo = getSignatureStatus(doc.signatureStatus);
+                const effectiveStatus =
+                  docView === "sent" && doc.leido ? "recibido" : doc.signatureStatus;
+                const statusInfo = getSignatureStatus(effectiveStatus);
                 const StatusIcon = statusInfo.icon;
                 const isUnread = !doc.leido && docView === "inbox";
 
@@ -2091,6 +2093,30 @@ export default function Dashboard() {
       fetchTickets();
     }
   }, [mounted, fetchDocuments, fetchUsers, fetchGerencias, fetchTickets]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const syncDocs = () => {
+      fetchDocuments();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncDocs();
+      }
+    };
+
+    const intervalId = window.setInterval(syncDocs, 8000);
+    window.addEventListener("focus", syncDocs);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", syncDocs);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [mounted, fetchDocuments]);
 
   // Lifted state for tickets
   const [tickets, setTickets] = useState<Ticket[]>([]);
