@@ -875,19 +875,38 @@ async def list_usuarios(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    if not await _is_privileged_user(conn, current_user):
-        raise HTTPException(status_code=403, detail="No autorizado para listar usuarios")
+    tenant_id = current_user.get("tenant_id")
+    user_id = current_user.get("sub")
+    if not tenant_id and user_id:
+        tenant_id = await conn.fetchval("SELECT tenant_id FROM profiles WHERE id = $1::uuid", user_id)
 
-    rows = await conn.fetch("""
-        SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
-               p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
-               p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
-               p.estado, p.ultima_conexion, p.tenant_id, p.permisos
-        FROM profiles p
-        LEFT JOIN roles r ON p.rol_id = r.id
-        LEFT JOIN gerencias g ON p.gerencia_id = g.id
-        ORDER BY p.nombre, p.apellido
-    """)
+    is_privileged = await _is_privileged_user(conn, current_user)
+
+    if is_privileged:
+        rows = await conn.fetch("""
+            SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
+                   p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
+                   p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
+                   p.estado, p.ultima_conexion, p.tenant_id, p.permisos
+            FROM profiles p
+            LEFT JOIN roles r ON p.rol_id = r.id
+            LEFT JOIN gerencias g ON p.gerencia_id = g.id
+            WHERE ($1::uuid IS NULL OR p.tenant_id = $1::uuid)
+            ORDER BY p.nombre, p.apellido
+        """, tenant_id)
+    else:
+        rows = await conn.fetch("""
+            SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
+                   p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
+                   p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
+                   p.estado, p.ultima_conexion, p.tenant_id, p.permisos
+            FROM profiles p
+            LEFT JOIN roles r ON p.rol_id = r.id
+            LEFT JOIN gerencias g ON p.gerencia_id = g.id
+            WHERE ($1::uuid IS NULL OR p.tenant_id = $1::uuid)
+              AND p.estado = TRUE
+            ORDER BY p.nombre, p.apellido
+        """, tenant_id)
     return [dict(r) for r in rows]
 
 

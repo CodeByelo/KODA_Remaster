@@ -2037,8 +2037,13 @@ export default function Dashboard() {
   }, []);
 
   const fetchUsers = useCallback(async () => {
-    const data = await getAllUsers();
-    setUsers(data);
+    try {
+      const data = await getAllUsers();
+      setUsers(data || []);
+    } catch (e) {
+      console.error("Error fetching users", e);
+      setUsers([]);
+    }
   }, []);
 
   const fetchTickets = useCallback(async () => {
