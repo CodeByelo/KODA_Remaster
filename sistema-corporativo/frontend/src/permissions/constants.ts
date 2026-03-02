@@ -131,7 +131,9 @@ export const DEFAULT_SCOPES: Record<string, string[]> = {
         // Pero para la implementación inicial, podemos darle un set básico
         PERMISSIONS_MASTER.VIEW_DASHBOARD,
         PERMISSIONS_MASTER.VIEW_SECURITY,
-        PERMISSIONS_MASTER.SECURITY_MANAGE_USERS
+        PERMISSIONS_MASTER.SECURITY_MANAGE_USERS,
+        PERMISSIONS_MASTER.SECURITY_VIEW_LOGS,
+        PERMISSIONS_MASTER.SECURITY_ANNOUNCEMENTS
     ],
     Desarrollador: Object.values(PERMISSIONS_MASTER) // Acceso total
 };

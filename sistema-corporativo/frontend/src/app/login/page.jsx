@@ -558,7 +558,7 @@ const LoginCorpoelecForm = () => {
           <div className="px-8 py-6 border-t border-gray-700/30 bg-gray-900/30">
             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span>Sistema operativo • Conexión Segura • Neon SQL Active</span>
+              <span>Sistema operativo • Conexión Segura • Supabase SQL Active</span>
             </div>
           </div>
         </div>
