@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useAuth } from '../hooks/useAuth';
 import { UserRole } from '../context/AuthContext';
@@ -23,7 +23,7 @@ export function RoleGuard({
     fallback,
     redirectTo
 }: RoleGuardProps) {
-    const { user, isLoading, isAuthenticated } = useAuth();
+    const { user, isLoading, isAuthenticated, logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -88,6 +88,7 @@ export function RoleGuard({
                     <p className="text-gray-500 text-sm mb-6">Tu rol actual: <span className="text-gray-300">{user.role}</span></p>
                     <button
                         onClick={() => {
+                            logout();
                             router.push('/login');
                         }}
                         className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
@@ -102,3 +103,6 @@ export function RoleGuard({
     // User is authorized
     return <>{children}</>;
 }
+
+
+

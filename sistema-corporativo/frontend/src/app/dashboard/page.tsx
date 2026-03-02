@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Home,
@@ -46,7 +46,7 @@ import {
   Send,
 } from "lucide-react";
 
-// ✅ IMPORTA LOS COMPONENTES DEL BOT AL INICIO
+// OK: Importa los componentes del bot al inicio
 import BotButton from "../../components/BotButton";
 import ChatWindow from "../../components/ChatWindow";
 import TicketSystem, { Ticket } from "../../components/TicketSystem";
@@ -197,7 +197,7 @@ const DEFAULT_ORG_STRUCTURE: OrgCategory[] = [
 const MANAGEMENT_DETAILS: Record<string, string[]> = {
   "Gerencia General": [
     "Definición de políticas institucionales.",
-    "Supervisión de gerencias operativas y administrativas.",
+    "Supervisión de Gerencias operativas y administrativas.",
     "Representación legal de la institución.",
     "Aprobación de presupuesto anual.",
     "Coordinación de relaciones interinstitucionales.",
@@ -207,10 +207,10 @@ const MANAGEMENT_DETAILS: Record<string, string[]> = {
     "Auditoría de procesos financieros y administrativos.",
     "Verificación del cumplimiento normativo.",
     "Investigación de irregularidades.",
-    "Elaboración de informes de gestión de riesgos.",
+    "Elaboración de informes de Gestión de riesgos.",
   ],
   "Consultoria Juridica": [
-    "Asesoría legal a la presidencia y gerencias.",
+    "Asesoría legal a la presidencia y Gerencias.",
     "Revisión y redacción de contratos y convenios.",
     "Defensa judicial y extrajudicial de la institución.",
     "Emitir dictámenes jurídicos vinculantes.",
@@ -218,7 +218,7 @@ const MANAGEMENT_DETAILS: Record<string, string[]> = {
   "Gerencia Nacional de Planificacion y presupuesto": [
     "Formulación del Plan Operativo Anual (POA).",
     "Control y seguimiento de la ejecución presupuestaria.",
-    "Evaluación de indicadores de gestión.",
+    "Evaluación de indicadores de Gestión.",
     "Proyección de escenarios financieros a mediano plazo.",
   ],
   "Gerencia Nacional de Administracion": [
@@ -256,7 +256,7 @@ const MANAGEMENT_DETAILS: Record<string, string[]> = {
 const getDefaultFunctions = (name: string) => [
   `Gestión operativa de ${name}.`,
   "Coordinación de personal asignado.",
-  "Reporte de indicadores de gestión.",
+  "Reporte de indicadores de Gestión.",
   "Cumplimiento de metas trimestrales asignadas.",
   "Seguimiento de planes de mejora continua.",
 ];
@@ -877,7 +877,7 @@ const DocumentManager: React.FC<{
   hasPermission: (permission: string) => boolean;
   user: User | null;
   users: any[];
-  gerencias: any[];
+  Gerencias: any[];
   refreshDocs: () => void;
 }> = ({
   darkMode,
@@ -890,7 +890,7 @@ const DocumentManager: React.FC<{
   hasPermission,
   user,
   users,
-  gerencias,
+  Gerencias,
   refreshDocs,
 }) => {
     const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -927,31 +927,28 @@ const DocumentManager: React.FC<{
     }, [orgStructure]);
 
     const messagingDeptOptions = useMemo(() => {
-      const byName = new Map<string, { id: string; nombre: string }>();
-
+      const byId = new Map<string, { id: string; nombre: string }>();
       gerencias.forEach((g) => {
         const name = String(g?.nombre || "").trim();
-        if (!name) return;
-        byName.set(name.toLowerCase(), {
-          id: String(g.id),
-          nombre: name,
-        });
+        const id = g?.id !== undefined && g?.id !== null ? String(g.id) : "";
+        if (!name || !id) return;
+        byId.set(id, { id, nombre: name });
       });
+      return Array.from(byId.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }, [gerencias]);
 
-      departments.forEach((nameRaw) => {
-        const name = String(nameRaw || "").trim();
-        if (!name) return;
-        const key = name.toLowerCase();
-        if (!byName.has(key)) {
-          byName.set(key, {
-            id: `name:${name}`,
-            nombre: name,
-          });
+    const messagingUserOptions = useMemo(() => {
+      const byId = new Map<string, { id: string; label: string }>();
+      users.forEach((u) => {
+        const id = u?.id !== undefined && u?.id !== null ? String(u.id) : "";
+        const label = `${u?.nombre || ""} ${u?.apellido || ""}`.trim();
+        if (!id || !label) return;
+        if (!byId.has(id)) {
+          byId.set(id, { id, label });
         }
       });
-
-      return Array.from(byName.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
-    }, [gerencias, departments]);
+      return Array.from(byId.values()).sort((a, b) => a.label.localeCompare(b.label));
+    }, [users]);
 
     const correlativoPreview = useMemo(() => {
       const raw = (user?.gerencia_depto || userDept || "").trim();
@@ -990,7 +987,7 @@ const DocumentManager: React.FC<{
 
       if (raw === "en-proceso" || raw === "en proceso" || raw === "en_proceso") return "en-proceso";
       if (raw === "recibido") return "recibido";
-      if (raw === "leido" || raw === "leído") return "leido";
+      if (raw === "leido" || raw === "Leído") return "leido";
       if (raw === "pendiente" || raw === "aprobado" || raw === "rechazado" || raw === "omitido") return "en-proceso";
 
       return "en-proceso";
@@ -1147,14 +1144,16 @@ const DocumentManager: React.FC<{
       if (!docName) setDocName(file.name);
     };
 
-    const handleUserRecipientsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-      setTargetUserIds(values);
+    const toggleUserRecipient = (id: string) => {
+      setTargetUserIds((prev) =>
+        prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+      );
     };
 
-    const handleDeptRecipientsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
-      setTargetDeptIds(values);
+    const toggleDeptRecipient = (id: string) => {
+      setTargetDeptIds((prev) =>
+        prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+      );
     };
 
     const confirmUpload = async (e: React.FormEvent) => {
@@ -1230,7 +1229,7 @@ const DocumentManager: React.FC<{
       setSelectedDoc(doc);
       setShowViewModal(true);
 
-      // Marcar como leído si no lo estaba y el usuario actual es receptor directo o por gerencia
+      // Marcar como Leído si no lo estaba y el usuario actual es receptor directo o por gerencia
       const isDirectRecipient =
         !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
       const isDeptRecipient =
@@ -1321,7 +1320,7 @@ const DocumentManager: React.FC<{
             label: "Recibido",
           };
         case "leido":
-        case "leído":
+        case "Leído":
           return {
             color: darkMode ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-700",
             icon: Eye,
@@ -1348,8 +1347,8 @@ const DocumentManager: React.FC<{
 
         {/* Nuevo Mensaje Modal (ex-Upload) */}
         {showUploadModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
-            <div className={`w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300 overflow-y-auto">
+            <div className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border shadow-2xl ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
               <div className="p-6 border-b flex justify-between items-center bg-red-700 text-white">
                 <h2 className="font-bold flex items-center gap-2 uppercase tracking-tight text-white">
                   <Mail size={20} />
@@ -1418,7 +1417,7 @@ const DocumentManager: React.FC<{
                   {priorityEnabled && (
                     <div className="mt-3">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
-                        Tiempo mÃ¡ximo de atenciÃ³n (dÃ­as)
+                        Tiempo máximo de atención (días)
                       </label>
                       <input
                         type="number"
@@ -1436,42 +1435,52 @@ const DocumentManager: React.FC<{
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
                       Destinatarios (Usuarios)
                     </label>
-                    <select
-                      multiple
-                      value={targetUserIds}
-                      onChange={handleUserRecipientsChange}
-                      className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm h-32 ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                    <details
+                      className={`w-full rounded-lg border px-3 py-2 ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                     >
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.nombre} {u.apellido}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Puedes seleccionar varios con Ctrl/Cmd.
-                    </p>
+                      <summary className="cursor-pointer text-sm">
+                        Seleccionar usuarios ({targetUserIds.length})
+                      </summary>
+                      <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                        {messagingUserOptions.map((u) => (
+                          <label key={u.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={targetUserIds.includes(u.id)}
+                              onChange={() => toggleUserRecipient(u.id)}
+                              className="accent-red-600"
+                            />
+                            <span>{u.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
                   </div>
                 ) : (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
                       Gerencias Destino
                     </label>
-                    <select
-                      multiple
-                      value={targetDeptIds}
-                      onChange={handleDeptRecipientsChange}
-                      className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm h-32 ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                    <details
+                      className={`w-full rounded-lg border px-3 py-2 ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                     >
-                      {messagingDeptOptions.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.nombre}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Puedes seleccionar varias con Ctrl/Cmd.
-                    </p>
+                      <summary className="cursor-pointer text-sm">
+                        Seleccionar gerencias ({targetDeptIds.length})
+                      </summary>
+                      <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                        {messagingDeptOptions.map((g) => (
+                          <label key={g.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={targetDeptIds.includes(g.id)}
+                              onChange={() => toggleDeptRecipient(g.id)}
+                              className="accent-red-600"
+                            />
+                            <span>{g.nombre}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </details>
                   </div>
                 )}
 
@@ -1814,7 +1823,7 @@ const DocumentManager: React.FC<{
                   </div>
                   <div>
                     <h2 className="font-bold text-white text-lg leading-tight">{selectedDoc.name}</h2>
-                    <p className="text-xs text-slate-500">De: {selectedDoc.uploadedBy} • {selectedDoc.uploadDate} {selectedDoc.uploadTime}</p>
+                    <p className="text-xs text-slate-500">De: {selectedDoc.uploadedBy} - {selectedDoc.uploadDate} {selectedDoc.uploadTime}</p>
                   </div>
                 </div>
                 <button onClick={() => setShowViewModal(false)} className="text-slate-400 hover:text-white transition-colors">
@@ -1846,7 +1855,7 @@ const DocumentManager: React.FC<{
                               <FileText size={20} />
                               <div>
                                 <div className="text-sm font-bold">Documento Adjunto {idx + 1}</div>
-                                <div className="text-[10px] opacity-70">PDF • LISTO</div>
+                                <div className="text-[10px] opacity-70">PDF - LISTO</div>
                               </div>
                             </div>
                             <a
@@ -1866,7 +1875,7 @@ const DocumentManager: React.FC<{
                             <FileText size={20} />
                             <div>
                               <div className="text-sm font-bold">Documento Adjunto Original</div>
-                              <div className="text-[10px] opacity-70">PDF • LISTO</div>
+                              <div className="text-[10px] opacity-70">PDF - LISTO</div>
                             </div>
                           </div>
                           <a
@@ -2126,7 +2135,7 @@ const ChartsModule: React.FC<{
 // DASHBOARD PRINCIPAL (MODULAR)
 // ==========================================
 export default function Dashboard() {
-  // ✅ HOOKS (Must be at top)
+  // OK: Hooks (must be at top)
   useIdleTimer(900000); // Auto-logout after 15 mins
 
   const [darkMode, setDarkMode] = useState(true);
@@ -2162,13 +2171,13 @@ export default function Dashboard() {
   // Lifted state for documents to share with SecurityModule
   const [documents, setDocuments] = useState<Document[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [gerencias, setGerencias] = useState<any[]>([]);
+  const [Gerencias, setGerencias] = useState<any[]>([]);
 
   const fetchDocuments = useCallback(async () => {
     try {
       const data = await getDocumentos();
 
-      console.log("📄 Documentos RAW del backend:", data);
+      console.log("ðŸ“„ Documentos RAW del backend:", data);
 
       const mappedDocs = data.map((d: any) => {
         // Fechas seguras
@@ -2239,7 +2248,7 @@ export default function Dashboard() {
         };
       });
 
-      console.log("📄 Documentos mapeados:", mappedDocs);
+      console.log("ðŸ“„ Documentos mapeados:", mappedDocs);
       setDocuments(mappedDocs as any);
     } catch (e) {
       console.error("Error fetching documents", e);
@@ -2251,7 +2260,7 @@ export default function Dashboard() {
       const data = await getGerencias();
       setGerencias(data);
     } catch (e) {
-      console.error("Error fetching gerencias", e);
+      console.error("Error fetching Gerencias", e);
     }
   }, []);
 
@@ -2270,7 +2279,7 @@ export default function Dashboard() {
       const rows = await getTickets();
       const mapped: Ticket[] = rows.map((t: any) => ({
         id: t.id,
-        title: t.titulo || "Sin título",
+        title: t.titulo || "Sin Título",
         description: t.descripcion || "",
         area:
           t.area ||
@@ -2410,7 +2419,7 @@ export default function Dashboard() {
     };
   }, [mounted, userRole, user?.id, canEditOrgStructure]);
 
-  // ✅ AÑADE EL ESTADO PARA EL BOT DE AYUDA
+  // OK: Añade el estado para el bot de ayuda
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   // ESTADO DE ANUNCIOS (Dashboard General)
@@ -2418,7 +2427,7 @@ export default function Dashboard() {
     badge: "Comunicado del Día",
     title: "Actualización de Protocolos de Seguridad 2026",
     description:
-      "Se les informa a todas las gerencias que a partir de las 14:00h se iniciará la migración de los protocolos de firma digital. Por favor, aseguren sus trámites pendientes.",
+      "Se les informa a todas las Gerencias que a partir de las 14:00h se iniciará la migración de los protocolos de firma digital. Por favor, aseguren sus trámites pendientes.",
     status: "Activo",
     urgency: "Alta",
   });
@@ -2672,7 +2681,7 @@ export default function Dashboard() {
             hasPermission={hasPermission}
             user={user}
             users={users}
-            gerencias={gerencias}
+            Gerencias={Gerencias}
             refreshDocs={fetchDocuments}
           />
         );
@@ -2724,7 +2733,7 @@ export default function Dashboard() {
                 <h1
                   className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}
                 >
-                  ¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
+                  Â¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
                 </h1>
                 <p
                   className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}
@@ -2898,7 +2907,7 @@ export default function Dashboard() {
 
   return (
     <RoleGuard
-      allowedRoles={["CEO", "Administrativo", "Usuario", "Desarrollador"]}
+      allowedRoles={["CEO", "Administrativo", "Usuario", "Desarrollador", "Gerente"]}
       redirectTo="/login"
     >
       <div
@@ -3095,7 +3104,7 @@ export default function Dashboard() {
               <div
                 className="flex items-center gap-3 cursor-pointer hover:bg-slate-100/10 p-1 rounded-md transition-colors"
                 onClick={() => {
-                  if (confirm("¿Desea cerrar sesión?")) {
+                  if (confirm("Â¿Desea cerrar sesión?")) {
                     logout();
                   }
                 }}
@@ -3186,7 +3195,7 @@ export default function Dashboard() {
                               ? "Gestión de usuarios, permisos y auditoría de seguridad."
                               : activeTab === "impresoras"
                                 ? "Monitoreo del estado operativo de impresoras y niveles de suministros."
-                                : "Vista de detalles del módulo seleccionado."}
+                                : "Vista de detalles del Módulo seleccionado."}
                     </p>
                   </div>
                 </div>
@@ -3196,7 +3205,7 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* ✅ INTEGRA EL BOT DE AYUDA AL FINAL DEL COMPONENTE */}
+        {/* OK: Integra el bot de ayuda al final del componente */}
         <BotButton onOpenChat={() => setIsChatOpen(true)} />
         <ChatWindow
           isOpen={isChatOpen}
@@ -3222,4 +3231,7 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+
+
+
 
