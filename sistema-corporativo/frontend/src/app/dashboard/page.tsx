@@ -453,7 +453,7 @@ const DeptCard: React.FC<DeptCardProps> = ({
   return (
     <div
       className={`
-      rounded-lg border transition-all duration-200
+      remaster-card remaster-lift rounded-lg border transition-all duration-200
       ${darkMode
           ? "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
           : "bg-white border-slate-200 hover:border-slate-300"
@@ -552,7 +552,7 @@ const DetailModal: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div
         className={`
-          w-full max-w-md rounded-lg shadow-xl transform transition-all scale-100
+          remaster-card w-full max-w-md rounded-lg shadow-xl transform transition-all scale-100
           ${darkMode ? "bg-zinc-900 border border-zinc-700" : "bg-white"}
         `}
       >
@@ -673,7 +673,7 @@ const StatCard: React.FC<{
 }) => (
     <div
       className={`
-    p-5 rounded-lg border flex flex-col justify-between h-full
+    remaster-card remaster-lift p-5 rounded-lg border flex flex-col justify-between h-full
     ${darkMode
           ? "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
           : "bg-white border-slate-200 hover:border-slate-300"
@@ -3062,7 +3062,7 @@ export default function Dashboard() {
             </div>
 
             {/* ANNOUNCEMENT BANNER */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-700 via-red-600 to-orange-600 p-8 shadow-xl shadow-red-900/20">
+            <div className="remaster-hero remaster-card relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-700 via-red-600 to-orange-600 p-8 shadow-xl shadow-red-900/20">
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="space-y-2">
                   <span className="inline-block px-3 py-1 rounded-full bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
@@ -3216,12 +3216,12 @@ export default function Dashboard() {
       redirectTo="/login"
     >
       <div
-        className={`min-h-screen ${theme.bg} ${theme.text} font-sans transition-colors duration-300`}
+        className={`min-h-screen remaster-shell ${theme.bg} ${theme.text} font-sans transition-colors duration-300`}
       >
         {/* SIDEBAR */}
         <aside
           className={`
-        fixed top-0 left-0 bottom-0 z-50 ${theme.sidebar} border-r transition-all duration-300
+        remaster-sidebar fixed top-0 left-0 bottom-0 z-50 ${theme.sidebar} border-r transition-all duration-300
         ${collapsed ? "w-16" : "w-64"}
       `}
         >
@@ -3384,7 +3384,7 @@ export default function Dashboard() {
           {/* TOP HEADER */}
           <header
             className={`
-          sticky top-0 z-40 h-16 px-6 flex items-center justify-between ${theme.header} border-b shrink-0
+          remaster-topbar sticky top-0 z-40 h-16 px-6 flex items-center justify-between ${theme.header} border-b shrink-0
         `}
           >
             <div className="flex items-center gap-4">
@@ -3464,7 +3464,7 @@ export default function Dashboard() {
             </div>
           </header>
           {/* WORKSPACE */}
-          <div className="p-8 w-full max-w-[1600px] mx-auto space-y-8 flex-1">
+          <div className="remaster-workspace p-8 w-full max-w-[1600px] mx-auto space-y-8 flex-1">
             {/* BREADCRUMB / TITLE */}
             {/* BREADCRUMB / TITLE - Hidden on overview as it has its own welcome header, and on graficos as it has internal headers */}
             {activeTab !== "overview" &&

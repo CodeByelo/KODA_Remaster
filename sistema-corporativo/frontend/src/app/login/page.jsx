@@ -277,7 +277,7 @@ const LoadingButton = ({ isLoading, children, ...props }) => (
   <button
     {...props}
     disabled={isLoading}
-    className={`relative overflow-hidden w-full py-4 rounded-xl font-bold text-lg tracking-wide transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none ${isLoading
+    className={`glass-hover relative overflow-hidden w-full py-4 rounded-xl font-bold text-lg tracking-wide transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none ${isLoading
       ? 'bg-gray-700 cursor-not-allowed'
       : 'bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-500 hover:to-orange-600 shadow-red-500/30 hover:shadow-red-500/50'
       } shadow-lg`}
@@ -442,11 +442,11 @@ const LoginCorpoelecForm = () => {
 
   if (loginSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <div className="min-h-screen remaster-auth-bg flex items-center justify-center p-4 relative bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <Particles />
         <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-orange-500/10" />
         <div className="relative max-w-md w-full text-center animate-scaleIn">
-          <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-red-500/50 p-12 shadow-2xl">
+          <div className="remaster-auth-card bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-red-500/50 p-12 shadow-2xl">
             <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <CheckCircle size={48} className="text-red-400" />
             </div>
@@ -465,7 +465,7 @@ const LoginCorpoelecForm = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      className="min-h-screen remaster-auth-bg flex items-center justify-center p-4 relative overflow-hidden"
       style={{
         backgroundImage: "url('/logo-bg.jpg')",
         backgroundSize: 'cover',
@@ -479,7 +479,7 @@ const LoginCorpoelecForm = () => {
       <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md" ref={formRef}>
-        <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] overflow-hidden">
+        <div className="remaster-auth-card bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] overflow-hidden">
           <div className="relative px-8 py-10 text-center border-b border-gray-700/30">
             <div className="absolute top-4 right-4 flex items-center gap-1 bg-red-500/20 px-3 py-1 rounded-full">
               <Shield size={14} className="text-red-400" />

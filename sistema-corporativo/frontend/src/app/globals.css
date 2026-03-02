@@ -512,6 +512,10 @@ input:-webkit-autofill:active {
 
 /* Glass Hover System */
 button,
+input[type="button"],
+input[type="submit"],
+a[href],
+[role="button"],
 .glass-hover {
   transition:
     transform 0.2s ease,
@@ -522,6 +526,10 @@ button,
 }
 
 button:hover:not(:disabled),
+input[type="button"]:hover:not(:disabled),
+input[type="submit"]:hover:not(:disabled),
+a[href]:hover,
+[role="button"]:hover,
 .glass-hover:hover {
   transform: translateY(-1px);
   box-shadow:
@@ -532,9 +540,110 @@ button:hover:not(:disabled),
 }
 
 button:active:not(:disabled),
+input[type="button"]:active:not(:disabled),
+input[type="submit"]:active:not(:disabled),
+a[href]:active,
+[role="button"]:active,
 .glass-hover:active {
   transform: translateY(0);
   box-shadow:
     0 4px 12px rgba(15, 23, 42, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+/* Remaster Visual Layer */
+.remaster-shell {
+  position: relative;
+  background:
+    radial-gradient(1200px 700px at 12% -10%, rgba(239, 68, 68, 0.12), transparent 60%),
+    radial-gradient(900px 520px at 92% 8%, rgba(249, 115, 22, 0.1), transparent 58%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0.98));
+}
+
+.remaster-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(circle at 50% 40%, black 30%, transparent 90%);
+}
+
+.remaster-workspace {
+  position: relative;
+  z-index: 1;
+}
+
+.remaster-sidebar {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 14px 0 34px rgba(2, 6, 23, 0.35);
+}
+
+.remaster-topbar {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.25);
+}
+
+.remaster-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow:
+    0 18px 34px rgba(2, 6, 23, 0.26),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.remaster-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 28%);
+}
+
+.remaster-lift {
+  transition: transform 0.26s ease, box-shadow 0.26s ease, border-color 0.26s ease;
+}
+
+.remaster-lift:hover {
+  transform: translateY(-3px);
+  border-color: rgba(239, 68, 68, 0.36);
+  box-shadow:
+    0 24px 42px rgba(2, 6, 23, 0.34),
+    0 0 0 1px rgba(239, 68, 68, 0.18) inset;
+}
+
+.remaster-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.remaster-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(500px 200px at -10% 0%, rgba(255, 255, 255, 0.14), transparent 60%),
+    radial-gradient(500px 240px at 110% 100%, rgba(255, 255, 255, 0.09), transparent 62%);
+}
+
+.remaster-auth-bg {
+  background:
+    radial-gradient(600px 340px at 18% 12%, rgba(239, 68, 68, 0.16), transparent 60%),
+    radial-gradient(520px 300px at 82% 82%, rgba(249, 115, 22, 0.14), transparent 60%);
+}
+
+.remaster-auth-card {
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.52),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
 }

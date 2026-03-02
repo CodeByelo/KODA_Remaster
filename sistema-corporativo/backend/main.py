@@ -455,6 +455,50 @@ async def login_compat(
     }
 
 
+@app.get("/auth/validate")
+async def validate_auth_session(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token invalido")
+
+    profile = await conn.fetchrow(
+        """
+        SELECT p.id, p.username, p.nombre, p.apellido, p.email, p.estado, p.permisos,
+               p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
+               COALESCE(r.nombre_rol, 'Usuario') as role
+        FROM profiles p
+        LEFT JOIN roles r ON p.rol_id = r.id
+        LEFT JOIN gerencias g ON p.gerencia_id = g.id
+        WHERE p.id = $1::uuid
+        LIMIT 1
+        """,
+        user_id,
+    )
+
+    if not profile:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+    if profile["estado"] is False:
+        raise HTTPException(status_code=403, detail="Usuario inactivo")
+
+    return {
+        "authenticated": True,
+        "user": {
+            "id": str(profile["id"]),
+            "username": profile["username"],
+            "nombre": profile["nombre"],
+            "apellido": profile["apellido"],
+            "email": profile["email"],
+            "role": profile["role"],
+            "gerencia_id": profile["gerencia_id"],
+            "gerencia_depto": profile["gerencia_depto"],
+            "permissions": list(profile["permisos"] or []),
+        },
+    }
+
+
 def _is_privileged_role(role_name: Optional[str]) -> bool:
     if not role_name:
         return False
