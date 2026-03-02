@@ -957,11 +957,61 @@ const DocumentManager: React.FC<{
       return orgStructure.flatMap((group) => group.items);
     }, [orgStructure]);
 
+    const messagingDeptOptions = useMemo(() => {
+      const byName = new Map<string, { id: string; nombre: string }>();
+
+      gerencias.forEach((g) => {
+        const name = String(g?.nombre || "").trim();
+        if (!name) return;
+        byName.set(name.toLowerCase(), {
+          id: String(g.id),
+          nombre: name,
+        });
+      });
+
+      departments.forEach((nameRaw) => {
+        const name = String(nameRaw || "").trim();
+        if (!name) return;
+        const key = name.toLowerCase();
+        if (!byName.has(key)) {
+          byName.set(key, {
+            id: `name:${name}`,
+            nombre: name,
+          });
+        }
+      });
+
+      return Array.from(byName.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }, [gerencias, departments]);
+
     useEffect(() => {
-      if (gerencias.length > 0 && !targetDeptId) {
-        setTargetDeptId(gerencias[0].id.toString());
+      if (messagingDeptOptions.length > 0 && !targetDeptId) {
+        setTargetDeptId(messagingDeptOptions[0].id);
       }
-    }, [gerencias, targetDeptId]);
+    }, [messagingDeptOptions, targetDeptId]);
+
+    useEffect(() => {
+      if (docView === "inbox" && filterStatus === "recibido") {
+        setFilterStatus("all");
+      }
+      if (docView === "sent" && filterStatus === "leido") {
+        setFilterStatus("all");
+      }
+    }, [docView, filterStatus]);
+
+    const normalizeMessagingStatus = useCallback((doc: Document, view: "inbox" | "sent"): string => {
+      const raw = String(doc.signatureStatus || "").toLowerCase().trim();
+
+      if (view === "inbox" && doc.leido) return "leido";
+      if (view === "sent" && doc.leido) return "recibido";
+
+      if (raw === "en-proceso" || raw === "en proceso" || raw === "en_proceso") return "en-proceso";
+      if (raw === "recibido") return "recibido";
+      if (raw === "leido" || raw === "leído") return "leido";
+      if (raw === "pendiente" || raw === "aprobado" || raw === "rechazado" || raw === "omitido") return "en-proceso";
+
+      return "en-proceso";
+    }, []);
 
     const MY_DEPT =
       "Gerencia Nacional de Tecnologias de la informacion y la comunicacion";
@@ -969,6 +1019,17 @@ const DocumentManager: React.FC<{
     const filteredDocs = documents.filter((doc) => {
       const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
       const canViewDept = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_DEPT);
+      const statusValue = normalizeMessagingStatus(doc, docView);
+      const deptValue = String(doc.targetDepartment || "").toLowerCase().trim();
+      const searchValue = `${doc.name || ""} ${doc.correlativo || ""}`.toLowerCase();
+
+      const matchesStatus = filterStatus === "all" || statusValue === filterStatus;
+      const matchesDept = filterDept === "all" || deptValue === String(filterDept).toLowerCase().trim();
+      const matchesSearch = !searchTerm.trim() || searchValue.includes(searchTerm.toLowerCase().trim());
+
+      if (!matchesStatus || !matchesDept || !matchesSearch) {
+        return false;
+      }
 
       // Debug logs
       console.log(`[FILTER] Doc: ${doc.name} | Receptor: ${doc.receptor_id} | Gerencia: ${doc.receptor_gerencia_id}`);
@@ -1081,7 +1142,11 @@ const DocumentManager: React.FC<{
       formData.append("contenido", messageContent);
 
       if (sendMode === "dept") {
-        formData.append("receptor_gerencia_id", targetDeptId);
+        if (targetDeptId.startsWith("name:")) {
+          formData.append("receptor_gerencia_nombre", targetDeptId.slice(5));
+        } else {
+          formData.append("receptor_gerencia_id", targetDeptId);
+        }
       } else if (targetUserId) {
         formData.append("receptor_id", targetUserId);
       } else {
@@ -1313,7 +1378,7 @@ const DocumentManager: React.FC<{
                       onChange={(e) => setTargetDeptId(e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                     >
-                      {gerencias.map((g) => (
+                      {messagingDeptOptions.map((g) => (
                         <option key={g.id} value={g.id}>
                           {g.nombre}
                         </option>
@@ -1456,11 +1521,17 @@ const DocumentManager: React.FC<{
               className={`w-full px-3 py-2 rounded-md border text-sm outline-none cursor-pointer ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
             >
               <option value="all">Todos los Estados</option>
-              <option value="pendiente">Pendientes</option>
-              <option value="en-proceso">En Proceso</option>
-              <option value="aprobado">Aprobados</option>
-              <option value="rechazado">Rechazados</option>
-              <option value="omitido">Omitidos</option>
+              {docView === "inbox" ? (
+                <>
+                  <option value="leido">Leído</option>
+                  <option value="en-proceso">En Proceso</option>
+                </>
+              ) : (
+                <>
+                  <option value="recibido">Recibido</option>
+                  <option value="en-proceso">En Proceso</option>
+                </>
+              )}
             </select>
           </div>
           {canAccessSecurityModule && (
@@ -1513,12 +1584,7 @@ const DocumentManager: React.FC<{
             </thead>
             <tbody className={`divide-y ${darkMode ? "divide-slate-800" : "divide-slate-200"}`}>
               {filteredDocs.map((doc) => {
-                const effectiveStatus =
-                  docView === "inbox" && doc.leido
-                    ? "leido"
-                    : docView === "sent" && doc.leido
-                      ? "recibido"
-                      : doc.signatureStatus;
+                const effectiveStatus = normalizeMessagingStatus(doc, docView);
                 const statusInfo = getSignatureStatus(effectiveStatus);
                 const StatusIcon = statusInfo.icon;
                 const isUnread = !doc.leido && docView === "inbox";
@@ -2176,13 +2242,26 @@ export default function Dashboard() {
     let cancelled = false;
     (async () => {
       let data: OrgCategory[] = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+      let hasLocalCache = false;
+      const localOrg = typeof window !== "undefined" ? localStorage.getItem("org_structure_data") : null;
+      if (localOrg) {
+        try {
+          const parsed = JSON.parse(localOrg);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            data = parsed as OrgCategory[];
+            hasLocalCache = true;
+          }
+        } catch {
+          // Ignore local cache parse errors and continue with API/default.
+        }
+      }
       try {
         const remote = await getOrgStructure();
-        if (remote?.org_structure?.length) {
+        if (!hasLocalCache && remote?.org_structure?.length) {
           data = remote.org_structure as OrgCategory[];
         }
       } catch (e) {
-        console.error("Error loading org structure from API", e);
+        console.error("Error loading org structure from API, using local cache/default", e);
       }
 
       if (userRole === "Desarrollador" && !data.some((g) => g.category?.includes("Desarrollo"))) {
@@ -3018,3 +3097,4 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+

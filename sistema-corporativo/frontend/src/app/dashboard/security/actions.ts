@@ -1,8 +1,12 @@
 import {
     createSecurityLog,
+    deleteUserAccount,
     getAllUsers,
     getSecurityLogs,
     getUserSecurityLogs,
+    resetUserPassword,
+    unlockUser,
+    updateUserRole,
 } from "../../../lib/api";
 
 export async function getSecurityLogsData() {
@@ -40,11 +44,61 @@ export async function logDocumentActivity(data: any) {
     });
 }
 
-export async function deleteUser(_userId: string) {
-    return { success: false, error: "Use panel de gestion de usuarios para desactivar/bloquear." };
+export async function deleteUser(userId: string) {
+    try {
+        await deleteUserAccount(userId);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo eliminar la cuenta" };
+    }
 }
 
-export async function updateUserStatus(_userId: string, _newStatus: string) {
-    return { success: false, error: "Funcion en construccion." };
+export async function updateUserStatus(userId: string, newStatus: string) {
+    try {
+        if (newStatus === "BLOQUEADO") {
+            return { success: false, error: "El bloqueo solo ocurre por intentos fallidos de login." };
+        }
+        if (newStatus === "ACTIVO") {
+            await unlockUser(userId);
+        }
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo actualizar estado" };
+    }
 }
 
+export async function changeUserRole(userId: string, roleLabel: string) {
+    const roleMap: Record<string, number> = {
+        CEO: 1,
+        Administrador: 2,
+        Usuario: 3,
+    };
+    const roleId = roleMap[roleLabel];
+    if (!roleId) {
+        return { success: false, error: "Rol no valido" };
+    }
+    try {
+        const user = await updateUserRole(userId, roleId);
+        return { success: true, user };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo actualizar rol" };
+    }
+}
+
+export async function unlockUserAccount(userId: string) {
+    try {
+        await unlockUser(userId);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo desbloquear" };
+    }
+}
+
+export async function resetUserPasswordAction(userId: string, newPassword: string) {
+    try {
+        await resetUserPassword(userId, newPassword);
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo resetear clave" };
+    }
+}

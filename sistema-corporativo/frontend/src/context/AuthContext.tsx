@@ -28,7 +28,10 @@ export interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (
+    username: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   setUser: (user: User | null) => void;
   switchRole: (newRole: UserRole) => Promise<boolean>;
@@ -122,20 +125,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setIsLoading(false);
   }, [isClient]);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (
+    username: string,
+    password: string,
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true);
       const formData = new FormData();
       formData.append("username", username);
       formData.append("password", password);
-
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        body: formData,
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      let response: Response;
+      try {
+        response = await fetch("/api/auth/login", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
-        return false;
+        let detail = "Credenciales incorrectas o error de servidor";
+        try {
+          const errData = await response.json();
+          const payload = errData?.detail ?? errData;
+          if (typeof payload === "string") {
+            detail = payload;
+          } else if (payload && typeof payload === "object") {
+            const message =
+              typeof payload.message === "string" ? payload.message : detail;
+            const remaining = Number(payload.remaining_attempts);
+            if (Number.isFinite(remaining)) {
+              if (remaining > 0) {
+                detail = `${message} Intentos restantes: ${remaining}.`;
+              } else {
+                detail = message;
+              }
+            } else {
+              detail = message;
+            }
+          }
+        } catch {
+          // ignore parse errors
+        }
+        return { success: false, error: detail };
       }
 
       const data = await response.json();
@@ -143,10 +179,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.setItem("sgd_token", data.access_token);
       localStorage.setItem("sgd_user", JSON.stringify(newUser));
       setUser(newUser);
-      return true;
+      return { success: true };
     } catch (error) {
       console.error("Login error:", error);
-      return false;
+      if (error instanceof Error && error.name === "AbortError") {
+        return {
+          success: false,
+          error: "Tiempo de espera agotado. Intente nuevamente.",
+        };
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Error inesperado de conexion",
+      };
     } finally {
       setIsLoading(false);
     }

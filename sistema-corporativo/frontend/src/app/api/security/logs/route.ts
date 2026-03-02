@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
+const FALLBACK_URL = "https://corpoelect-backend.onrender.com";
+const PRIMARY_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? FALLBACK_URL : "http://127.0.0.1:8000");
 
 function backendHeaders(request: Request, contentTypeJson = false): HeadersInit {
   const auth = request.headers.get("authorization");
@@ -11,24 +13,46 @@ function backendHeaders(request: Request, contentTypeJson = false): HeadersInit 
   };
 }
 
+function parseResponse(text: string) {
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return { detail: text || "Respuesta invalida del backend" };
+  }
+}
+
+async function proxyRequest(
+  endpoint: string,
+  init: RequestInit,
+) {
+  const urls = [PRIMARY_URL, FALLBACK_URL].filter((v, i, arr) => arr.indexOf(v) === i);
+  let lastErr: unknown = null;
+
+  for (const base of urls) {
+    try {
+      const response = await fetch(`${base}${endpoint}`, init);
+      const text = await response.text();
+      return NextResponse.json(parseResponse(text), { status: response.status });
+    } catch (error) {
+      lastErr = error;
+    }
+  }
+  throw lastErr || new Error("No se pudo conectar al backend");
+}
+
 export async function GET(request: Request) {
   try {
-    const response = await fetch(`${API_BASE_URL}/security/logs`, {
+    return await proxyRequest("/security/logs", {
       method: "GET",
       headers: backendHeaders(request),
     });
-    const text = await response.text();
-    let data: any = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { detail: text || "Respuesta invalida del backend" };
-    }
-    return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error("Security logs GET proxy error:", error);
     return NextResponse.json(
-      { detail: "Error en el proxy de logs" },
+      {
+        detail:
+          "Error en el proxy de logs. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
+      },
       { status: 500 },
     );
   }
@@ -37,25 +61,19 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
-    const response = await fetch(`${API_BASE_URL}/security/logs`, {
+    return await proxyRequest("/security/logs", {
       method: "POST",
       headers: backendHeaders(request, true),
       body: JSON.stringify(payload),
     });
-    const text = await response.text();
-    let data: any = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { detail: text || "Respuesta invalida del backend" };
-    }
-    return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error("Security logs POST proxy error:", error);
     return NextResponse.json(
-      { detail: "Error en el proxy de logs" },
+      {
+        detail:
+          "Error en el proxy de logs. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
+      },
       { status: 500 },
     );
   }
 }
-

@@ -3,7 +3,11 @@ import axios from 'axios';
 
 // CORRECCIÓN: Quitamos '/api' del final porque el backend sirve en la raíz
 const api = axios.create({
-  baseURL: 'https://corpoelect-backend.onrender.com',
+  baseURL:
+    process.env.NEXT_PUBLIC_API_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://corpoelect-backend.onrender.com'
+      : 'http://127.0.0.1:8000'),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -42,3 +46,4 @@ export const getGerencias = async () => {
   const response = await api.get('/gerencias'); // Asegúrate de tener esta ruta en backend
   return response.data;
 };
+

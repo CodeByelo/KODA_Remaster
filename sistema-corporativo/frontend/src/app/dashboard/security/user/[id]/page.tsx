@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, Shield, Clock, Activity, FileText, Lock, Calendar } from 'lucide-react';
-import { getUserDetails, getUserLogs, deleteUser } from '../../actions';
+import { changeUserRole, deleteUser, getUserDetails, getUserLogs, resetUserPasswordAction, unlockUserAccount } from '../../actions';
 
 export default function UserHistoryPage() {
     const router = useRouter();
@@ -14,6 +14,13 @@ export default function UserHistoryPage() {
 
     const [mounted, setMounted] = useState(false);
     const userId = params?.id;
+
+    const roleLabelFromBackend = (role: string | undefined) => {
+        const r = String(role || "").toLowerCase();
+        if (r.includes("ceo")) return "CEO";
+        if (r.includes("admin")) return "Administrador";
+        return "Usuario";
+    };
 
     useEffect(() => {
         setMounted(true);
@@ -50,6 +57,41 @@ export default function UserHistoryPage() {
         } catch (error) {
             alert("Error crítico al eliminar usuario.");
         }
+    };
+
+    const handleRoleChange = async (value: string) => {
+        const res = await changeUserRole(String(userId), value);
+        if (!res.success) {
+            alert("No se pudo cambiar el rol: " + res.error);
+            return;
+        }
+        if (res.user) {
+            setUser((prev: any) => ({ ...prev, ...res.user }));
+        } else {
+            setUser((prev: any) => ({ ...prev, role: value }));
+        }
+        alert("Rol actualizado correctamente.");
+    };
+
+    const handleUnlock = async () => {
+        const res = await unlockUserAccount(String(userId));
+        if (!res.success) {
+            alert("No se pudo desbloquear: " + res.error);
+            return;
+        }
+        setUser((prev: any) => ({ ...prev, is_locked: false, estado: true, failed_count: 0 }));
+        alert("Cuenta desbloqueada.");
+    };
+
+    const handleResetPassword = async () => {
+        const newPassword = window.prompt("Ingrese nueva clave (minimo 8 caracteres):");
+        if (!newPassword) return;
+        const res = await resetUserPasswordAction(String(userId), newPassword);
+        if (!res.success) {
+            alert("No se pudo resetear la clave: " + res.error);
+            return;
+        }
+        alert("Clave actualizada correctamente.");
     };
 
     if (!mounted || loading) {
@@ -104,7 +146,11 @@ export default function UserHistoryPage() {
                         <div className="flex items-center gap-1">
                             <Shield size={16} className="text-slate-400" />
                             <span className="font-medium">Nivel:</span>
-                            <select className="bg-transparent border-none text-sm font-medium outline-none text-slate-600 cursor-pointer">
+                            <select
+                                value={roleLabelFromBackend(user.role)}
+                                onChange={(e) => handleRoleChange(e.target.value)}
+                                className="bg-transparent border-none text-sm font-medium outline-none text-slate-600 cursor-pointer"
+                            >
                                 <option>Usuario</option>
                                 <option>Administrador</option>
                                 <option>CEO</option>
@@ -118,11 +164,19 @@ export default function UserHistoryPage() {
                 </div>
                 <div className="flex gap-2">
                     <button
-                        onClick={() => alert("Solicitud de restablecimiento enviada al correo corporativo.")}
+                        onClick={handleResetPassword}
                         className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium text-sm transition-colors"
                     >
                         Reset Password
                     </button>
+                    {(user?.is_locked || user?.estado === false) && (
+                        <button
+                            onClick={handleUnlock}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98]"
+                        >
+                            Desbloquear Cuenta
+                        </button>
+                    )}
 
                     <button
                         onClick={handleDelete}
@@ -148,20 +202,17 @@ export default function UserHistoryPage() {
                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                     <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Logins Fallidos</p>
                     <p className="text-2xl font-bold text-red-600 mt-1">
-                        {logs.filter(l => l.evento.toLowerCase().includes('fallido') || l.estado === 'danger').length}
+                        {typeof user?.failed_count === "number"
+                            ? user.failed_count
+                            : logs.filter(l => l.evento.toLowerCase().includes('fallido') || l.estado === 'danger').length}
                     </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                     <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Status</p>
                     <div className="mt-2">
-                        <select
-                            className="bg-slate-50 border border-slate-200 text-xs font-bold rounded px-2 py-1 outline-none focus:ring-1 focus:ring-red-500"
-                            defaultValue="ACTIVO"
-                        >
-                            <option value="ACTIVO">ACTIVO</option>
-                            <option value="INACTIVO">INACTIVO</option>
-                            <option value="BLOQUEADO">BLOQUEADO</option>
-                        </select>
+                        <span className={`inline-flex px-2 py-1 text-xs font-bold rounded ${user?.is_locked ? "bg-red-100 text-red-700" : user?.estado ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-700"}`}>
+                            {user?.is_locked ? "BLOQUEADO" : user?.estado ? "ACTIVO" : "INACTIVO"}
+                        </span>
                     </div>
                 </div>
             </div>

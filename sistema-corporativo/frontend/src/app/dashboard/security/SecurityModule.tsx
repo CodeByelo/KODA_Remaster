@@ -9,6 +9,7 @@ import {
     getSecurityLogs,
     saveAnnouncement,
     saveOrgStructure,
+    unlockUser,
     updateUserPermissions,
     updateUserRole,
 } from '../../../lib/api';
@@ -169,55 +170,60 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         };
     }, []);
 
-    const handleAddDept = () => {
-        if (!newDeptName) return;
-        const newOrg = [...orgStructure];
-        newOrg[newGroupIdx].items.push(newDeptName);
-        setOrgStructure(newOrg);
-        setNewDeptName('');
-        saveOrgStructure(newOrg).catch(() => undefined);
+    const persistOrgStructure = async (nextOrg: any[]) => {
+        setOrgStructure(nextOrg);
+        try {
+            await saveOrgStructure(nextOrg);
+        } catch (error) {
+            console.error("No se pudo guardar la estructura organizativa", error);
+            const msg = error instanceof Error ? error.message : "Error desconocido";
+            alert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesión/navegador.\n\n${msg}`);
+        }
     };
 
-    const handleAddModule = () => {
+    const handleAddDept = async () => {
+        if (!newDeptName.trim()) return;
+        const newOrg = [...orgStructure];
+        newOrg[newGroupIdx].items.push(newDeptName.trim());
+        await persistOrgStructure(newOrg);
+        setNewDeptName('');
+    };
+
+    const handleAddModule = async () => {
         if (!newModuleName.trim()) return;
         const newOrg = [...orgStructure, { category: newModuleName.trim(), icon: 'Briefcase', items: [] }];
-        setOrgStructure(newOrg);
+        await persistOrgStructure(newOrg);
         setNewModuleName('');
-        saveOrgStructure(newOrg).catch(() => undefined);
     };
 
-    const handleEditModule = (groupIdx: number) => {
+    const handleEditModule = async (groupIdx: number) => {
         const newName = prompt("Nuevo nombre para el modulo:", orgStructure[groupIdx].category);
         if (!newName?.trim()) return;
         const newOrg = [...orgStructure];
         newOrg[groupIdx].category = newName.trim();
-        setOrgStructure(newOrg);
-        saveOrgStructure(newOrg).catch(() => undefined);
+        await persistOrgStructure(newOrg);
     };
 
-    const handleDeleteModule = (groupIdx: number) => {
+    const handleDeleteModule = async (groupIdx: number) => {
         if (!confirm("Estas seguro de eliminar este modulo y todas sus gerencias?")) return;
         const newOrg = orgStructure.filter((_, idx) => idx !== groupIdx);
-        setOrgStructure(newOrg);
-        saveOrgStructure(newOrg).catch(() => undefined);
+        await persistOrgStructure(newOrg);
     };
 
-    const handleDeleteDept = (groupIdx: number, itemIdx: number) => {
+    const handleDeleteDept = async (groupIdx: number, itemIdx: number) => {
         if (confirm("¿Estás seguro de eliminar esta gerencia?")) {
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items.splice(itemIdx, 1);
-            setOrgStructure(newOrg);
-            saveOrgStructure(newOrg).catch(() => undefined);
+            await persistOrgStructure(newOrg);
         }
     };
 
-    const handleEditDept = (groupIdx: number, itemIdx: number) => {
+    const handleEditDept = async (groupIdx: number, itemIdx: number) => {
         const newName = prompt("Nuevo nombre para la gerencia:", orgStructure[groupIdx].items[itemIdx]);
-        if (newName) {
+        if (newName?.trim()) {
             const newOrg = [...orgStructure];
-            newOrg[groupIdx].items[itemIdx] = newName;
-            setOrgStructure(newOrg);
-            saveOrgStructure(newOrg).catch(() => undefined);
+            newOrg[groupIdx].items[itemIdx] = newName.trim();
+            await persistOrgStructure(newOrg);
         }
     };
 
@@ -647,12 +653,30 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         <td className="px-6 py-4 text-center">
                                                             <div className="flex items-center justify-center gap-3">
                                                                 {canManageThisUser && hasPermission(PERMISSIONS_MASTER.SECURITY_MANAGE_USERS) ? (
-                                                                    <button
-                                                                        onClick={() => setSelectedUserForPerms(u)}
-                                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 rounded-lg text-xs font-bold border border-blue-500/20 transition-all"
-                                                                    >
-                                                                        <Lock size={12} /> GESTIONAR PERMISOS
-                                                                    </button>
+                                                                    <>
+                                                                        <button
+                                                                            onClick={() => setSelectedUserForPerms(u)}
+                                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 rounded-lg text-xs font-bold border border-blue-500/20 transition-all"
+                                                                        >
+                                                                            <Lock size={12} /> GESTIONAR PERMISOS
+                                                                        </button>
+                                                                        {(u.is_locked || u.estado === false) && (
+                                                                            <button
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        await unlockUser(String(u.id));
+                                                                                        setUsers((prev: any[]) => prev.map((usr) => String(usr.id) === String(u.id) ? { ...usr, is_locked: false, estado: true, failed_count: 0 } : usr));
+                                                                                        alert("Cuenta desbloqueada.");
+                                                                                    } catch (error: any) {
+                                                                                        alert(error?.message || "No se pudo desbloquear la cuenta");
+                                                                                    }
+                                                                                }}
+                                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/10 text-green-400 hover:bg-green-600/20 rounded-lg text-xs font-bold border border-green-500/20 transition-all"
+                                                                            >
+                                                                                <CheckCircle size={12} /> DESBLOQUEAR
+                                                                            </button>
+                                                                        )}
+                                                                    </>
                                                                 ) : (
                                                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">Solo Lectura (DEV/PROPIO)</span>
                                                                 )}

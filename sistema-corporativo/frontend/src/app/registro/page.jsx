@@ -427,6 +427,11 @@ const Particles = () => {
 };
 
 const RegistroForm = () => {
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL ||
+    (process.env.NODE_ENV === "production"
+      ? "https://corpoelect-backend.onrender.com"
+      : "http://127.0.0.1:8000");
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -440,6 +445,7 @@ const RegistroForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [registroSuccess, setRegistroSuccess] = useState(false);
   const [terminosAceptados, setTerminosAceptados] = useState(false);
+  const [gerenciaOptions, setGerenciaOptions] = useState([]);
   const formRef = useRef(null);
 
   const router = useRouter();
@@ -473,6 +479,55 @@ const RegistroForm = () => {
       });
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (typeof window !== "undefined") {
+        const cachedOrg = localStorage.getItem("org_structure_data");
+        if (cachedOrg) {
+          try {
+            const parsed = JSON.parse(cachedOrg);
+            const localNames = (Array.isArray(parsed) ? parsed : [])
+              .flatMap((group) => (group?.items || []))
+              .map((n) => String(n || "").trim())
+              .filter(Boolean);
+            if (localNames.length > 0) {
+              const uniq = Array.from(new Set(localNames.map((n) => n.toLowerCase())))
+                .map((key) => localNames.find((n) => n.toLowerCase() === key))
+                .filter(Boolean);
+              if (!cancelled && uniq.length > 0) {
+                setGerenciaOptions(uniq);
+              }
+            }
+          } catch {
+            // Ignore parse errors.
+          }
+        }
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/gerencias/public`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (Array.isArray(data) && data.length > 0) {
+          const names = data
+            .map((g) => String(g?.nombre || "").trim())
+            .filter(Boolean);
+          if (names.length > 0) {
+            setGerenciaOptions(names);
+          }
+        }
+      } catch {
+        // Fallback silencioso a lista local.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [API_BASE_URL]);
 
   const validate = useCallback(() => {
     const newErrors = {};
@@ -675,7 +730,7 @@ const RegistroForm = () => {
                 icon={Briefcase}
                 error={errors.gerencia}
                 showError={!!errors.gerencia}
-                options={[
+                options={gerenciaOptions.length > 0 ? gerenciaOptions : [
                   'Gerencia General',
                   'Auditoria Interna',
                   'Consultoría Jurídica',

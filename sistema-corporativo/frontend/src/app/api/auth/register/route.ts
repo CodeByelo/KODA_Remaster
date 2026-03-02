@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://corpoelect-backend.onrender.com"
+    : "http://127.0.0.1:8000");
 
 export async function POST(request: Request) {
   try {
@@ -43,4 +46,5 @@ export async function POST(request: Request) {
     );
   }
 }
+
 

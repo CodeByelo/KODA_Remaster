@@ -1,7 +1,11 @@
 // src/lib/api.ts
 // Capa de API central para el frontend — conecta con el backend FastAPI en localhost:8000
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://corpoelect-backend.onrender.com"
+    : "http://127.0.0.1:8000");
 
 // ==========================================
 // TIPOS EXPORTADOS
@@ -35,13 +39,19 @@ export interface ApiDocument {
 export interface ApiUser {
     id: string;
     username: string;
+    usuario_corp?: string;
     email?: string;
     nombre?: string;
     apellido?: string;
     role?: string;
+    rol_id?: number;
     gerencia_id?: number;
     gerencia_nombre?: string;
+    gerencia_depto?: string;
     is_active?: boolean;
+    estado?: boolean;
+    failed_count?: number;
+    is_locked?: boolean;
 }
 
 export interface ApiGerencia {
@@ -230,7 +240,7 @@ export async function updateUserRole(
 }
 
 export async function unlockUser(userId: string): Promise<{ status: string }> {
-    const res = await fetch(`${BASE_URL}/users/${userId}/unlock`, {
+    const res = await fetch(`/api/users/${userId}/unlock`, {
         method: "PATCH",
         headers: getAuthHeaders(),
     });
@@ -245,6 +255,26 @@ export async function updateUserPermissions(
         method: "PATCH",
         headers: getAuthHeaders(),
         body: JSON.stringify({ permisos }),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export async function resetUserPassword(
+    userId: string,
+    newPassword: string,
+): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/users/${userId}/reset-password`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ new_password: newPassword }),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export async function deleteUserAccount(userId: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/users/${userId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
     });
     return handleResponse<{ status: string }>(res);
 }
@@ -437,3 +467,4 @@ export async function login(username: string, password: string): Promise<{ acces
     });
     return handleResponse<{ access_token: string; user: ApiUser }>(res);
 }
+

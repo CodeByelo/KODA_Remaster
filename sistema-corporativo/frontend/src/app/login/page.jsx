@@ -408,24 +408,24 @@ const LoginCorpoelecForm = () => {
     // Limpieza previa de sesion
     localStorage.removeItem('sgd_token');
     localStorage.removeItem('sgd_user');
-    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
 
     try {
       console.log("Intentando login corporativo para:", formData.username);
 
       // ✅ USAMOS EL SISTEMA DE AUTH UNIFICADO
-      const success = await authLogin(formData.username, formData.password);
+      const result = await authLogin(formData.username, formData.password);
 
-      if (success) {
+      if (result.success) {
         console.log('✅ Acceso autorizado por AuthContext');
         setLoginSuccess(true);
       } else {
-        setLoginError('Credenciales incorrectas o error de servidor');
+        setLoginError(result.error || 'Credenciales incorrectas o error de servidor');
         setIsLoading(false);
       }
     } catch (error) {
       console.error('Error en flujo de autenticación:', error);
-      setLoginError('Error inesperado de conexión');
+      setLoginError(error?.message || 'Error inesperado de conexión');
       setIsLoading(false);
     }
   };

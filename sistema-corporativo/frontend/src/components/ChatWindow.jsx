@@ -5,7 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, AlertCircle, MessageSquare, Plus, History, Brain, Save, Trash2, ChevronLeft } from 'lucide-react';
 
 export default function ChatWindow({ isOpen, onClose, userRole }) {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://corpoelect-backend.onrender.com';
+    const API_URL =
+        process.env.NEXT_PUBLIC_API_URL ||
+        (process.env.NODE_ENV === 'production'
+            ? 'https://corpoelect-backend.onrender.com'
+            : 'http://127.0.0.1:8000');
     const getAuthHeaders = () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('sgd_token') : null;
         return {
@@ -533,3 +537,4 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
         </AnimatePresence>
     );
 }
+

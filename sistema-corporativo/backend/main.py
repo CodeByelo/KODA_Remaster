@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from pathlib import Path
@@ -304,9 +304,13 @@ async def register_user(
 @app.post("/login")
 @app.post("/api/login")
 async def login_compat(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     conn = Depends(get_db_connection)
 ):
+    username_input = str(form_data.username or "").strip()
+    username_norm = username_input.lower()
+
     await conn.execute("""
         CREATE TABLE IF NOT EXISTS login_lockouts (
             username TEXT PRIMARY KEY,
@@ -316,26 +320,43 @@ async def login_compat(
     """)
     lock_row = await conn.fetchrow(
         "SELECT failed_count, locked_until FROM login_lockouts WHERE username = $1",
-        form_data.username,
+        username_norm,
     )
-    if lock_row and lock_row["locked_until"] and lock_row["locked_until"] > datetime.utcnow():
-        raise HTTPException(status_code=423, detail="Usuario bloqueado temporalmente. Contacte a un administrador")
+    now_utc = datetime.now(timezone.utc)
+    if lock_row and lock_row["locked_until"] and lock_row["locked_until"] > now_utc:
+        raise HTTPException(
+            status_code=423,
+            detail={
+                "message": "Usuario bloqueado contacte a un administrador",
+                "failed_count": int(lock_row["failed_count"] or 3),
+                "remaining_attempts": 0,
+                "is_locked": True,
+            },
+        )
+
+    forwarded_for = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    real_ip = request.headers.get("x-real-ip") or request.headers.get("X-Real-IP")
+    client_ip = (forwarded_for.split(",")[0].strip() if forwarded_for else (real_ip or (request.client.host if request.client else None)))
 
     query = """
         SELECT p.id, p.username, p.password_hash, p.nombre, p.apellido, p.email, p.rol_id, r.nombre_rol, p.tenant_id,
                p.permisos,
-               p.gerencia_id, g.nombre as gerencia_nombre
+               p.gerencia_id, g.nombre as gerencia_nombre,
+               p.estado
         FROM profiles p
         LEFT JOIN roles r ON p.rol_id = r.id
         LEFT JOIN gerencias g ON p.gerencia_id = g.id
-        WHERE p.username = $1 AND p.estado = TRUE
+        WHERE LOWER(p.username) = LOWER($1)
     """
-    user = await conn.fetchrow(query, form_data.username)
+    user = await conn.fetchrow(query, username_input)
+
+    if user and user["estado"] is False:
+        raise HTTPException(status_code=403, detail="Usuario inactivo. Contacte a un administrador")
 
     if not user or not verify_password(form_data.password, user["password_hash"]):
         failed_count = (lock_row["failed_count"] if lock_row else 0) + 1
         is_locked = failed_count >= 3
-        locked_until = datetime.utcnow() + timedelta(days=3650) if is_locked else None
+        locked_until = datetime.now(timezone.utc) + timedelta(days=3650) if is_locked else None
         await conn.execute(
             """
             INSERT INTO login_lockouts (username, failed_count, locked_until)
@@ -343,33 +364,48 @@ async def login_compat(
             ON CONFLICT (username)
             DO UPDATE SET failed_count = EXCLUDED.failed_count, locked_until = EXCLUDED.locked_until
             """,
-            form_data.username,
+            username_norm,
             failed_count,
             locked_until,
         )
-        if is_locked:
-            await conn.execute(
-                "UPDATE profiles SET estado = FALSE WHERE username = $1",
-                form_data.username,
-            )
         try:
             await _ensure_security_events_table(conn)
             await conn.execute(
                 """
-                INSERT INTO security_events (username, evento, detalles, estado, page)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO security_events (username, evento, detalles, estado, page, ip_origen)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 """,
-                form_data.username,
+                username_input,
                 "LOGIN_FALLIDO" if not is_locked else "USUARIO_BLOQUEADO",
                 f"Intento fallido #{failed_count}" if not is_locked else "Bloqueado tras 3 intentos fallidos",
                 "warning" if not is_locked else "danger",
                 "/login",
+                client_ip,
             )
         except Exception:
             pass
-        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+        if is_locked:
+            raise HTTPException(
+                status_code=423,
+                detail={
+                    "message": "Usuario bloqueado contacte a un administrador",
+                    "failed_count": int(failed_count),
+                    "remaining_attempts": 0,
+                    "is_locked": True,
+                },
+            )
+        remaining_attempts = max(0, 3 - int(failed_count))
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "message": f"Credenciales incorrectas. Intento {failed_count} de 3.",
+                "failed_count": int(failed_count),
+                "remaining_attempts": int(remaining_attempts),
+                "is_locked": False,
+            },
+        )
 
-    await conn.execute("DELETE FROM login_lockouts WHERE username = $1", form_data.username)
+    await conn.execute("DELETE FROM login_lockouts WHERE username = $1", username_norm)
 
     access_token = create_access_token(
         data={
@@ -389,12 +425,13 @@ async def login_compat(
         await _ensure_security_events_table(conn)
         await conn.execute(
             """
-            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
-            VALUES ($1::uuid, $2::uuid, $3, 'LOGIN_OK', 'Inicio de sesion exitoso', 'success', '/login')
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen)
+            VALUES ($1::uuid, $2::uuid, $3, 'LOGIN_OK', 'Inicio de sesion exitoso', 'success', '/login', $4)
             """,
             user["tenant_id"],
             user["id"],
             user["username"],
+            client_ip,
         )
     except Exception:
         pass
@@ -575,6 +612,31 @@ async def _ensure_announcement_table(conn) -> None:
 async def _resolve_org_id(conn, tenant_id: Optional[str] = None) -> Optional[str]:
     # Global mode: single org row for shared configs
     return await conn.fetchval("SELECT id FROM organizations ORDER BY created_at ASC LIMIT 1")
+
+async def _get_org_gerencia_names(conn, org_id: Optional[str]) -> List[str]:
+    if not org_id:
+        return []
+    cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
+    org_structure = (cfg or {}).get("org_structure") if isinstance(cfg, dict) else None
+    if not isinstance(org_structure, list):
+        return []
+
+    names: List[str] = []
+    seen = set()
+    for group in org_structure:
+        items = (group or {}).get("items") if isinstance(group, dict) else None
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            name = str(item or "").strip()
+            if not name:
+                continue
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            names.append(name)
+    return names
 
 
 class TicketCreate(BaseModel):
@@ -791,6 +853,7 @@ async def create_documento(
     tipo_documento: str = Form(...),
     prioridad: str = Form("media"),
     receptor_gerencia_id: Optional[int] = Form(None),
+    receptor_gerencia_nombre: Optional[str] = Form(None),
     receptor_id: Optional[uuid.UUID] = Form(None),
     contenido: Optional[str] = Form(None),
     archivos: List[UploadFile] = FastAPIFile(None),
@@ -817,6 +880,20 @@ async def create_documento(
             raise HTTPException(status_code=401, detail="Usuario no identificado")
         
         user_id = uuid.UUID(str(user_id_raw))
+
+        # Resolver gerencia por nombre cuando el cliente aun no tiene ID sincronizado.
+        if not receptor_gerencia_id and receptor_gerencia_nombre:
+            dept_name = receptor_gerencia_nombre.strip()
+            if dept_name:
+                receptor_gerencia_id = await conn.fetchval(
+                    "SELECT id FROM gerencias WHERE LOWER(nombre) = LOWER($1) LIMIT 1",
+                    dept_name,
+                )
+                if not receptor_gerencia_id:
+                    receptor_gerencia_id = await conn.fetchval(
+                        "INSERT INTO gerencias (nombre) VALUES ($1) RETURNING id",
+                        dept_name,
+                    )
         
         # ========== 2. OBTENER TENANT_ID ==========
         tenant_id = None
@@ -1080,8 +1157,40 @@ async def list_gerencias(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    rows = await conn.fetch("SELECT id, nombre, siglas FROM gerencias ORDER BY nombre")
-    return [dict(r) for r in rows]
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    org_names = await _get_org_gerencia_names(conn, org_id)
+
+    if not org_names:
+        rows = await conn.fetch("SELECT id, nombre, siglas FROM gerencias ORDER BY nombre")
+        return [dict(r) for r in rows]
+
+    lowered = [n.lower() for n in org_names]
+    async with conn.transaction():
+        for name in org_names:
+            exists = await conn.fetchval(
+                "SELECT 1 FROM gerencias WHERE LOWER(nombre) = LOWER($1) LIMIT 1",
+                name,
+            )
+            if not exists:
+                await conn.execute("INSERT INTO gerencias (nombre) VALUES ($1)", name)
+
+    rows = await conn.fetch(
+        "SELECT id, nombre, siglas FROM gerencias WHERE LOWER(nombre) = ANY($1::text[])",
+        lowered,
+    )
+    by_name = {str(r["nombre"]).strip().lower(): dict(r) for r in rows}
+    ordered = [by_name[n.lower()] for n in org_names if n.lower() in by_name]
+    return ordered
+
+@app.get("/gerencias/public")
+async def list_gerencias_public(conn = Depends(get_db_connection)):
+    org_id = await _resolve_org_id(conn, None)
+    org_names = await _get_org_gerencia_names(conn, org_id)
+    if org_names:
+        return [{"nombre": n} for n in org_names]
+
+    rows = await conn.fetch("SELECT nombre FROM gerencias ORDER BY nombre")
+    return [{"nombre": r["nombre"]} for r in rows]
 
 @app.get("/usuarios")
 async def list_usuarios(
@@ -1100,10 +1209,14 @@ async def list_usuarios(
             SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
                    p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
                    p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
-                   p.estado, p.ultima_conexion, p.tenant_id, p.permisos
+                   p.estado, p.ultima_conexion, p.tenant_id, p.permisos,
+                   COALESCE(ll.failed_count, 0) AS failed_count,
+                   ll.locked_until,
+                   CASE WHEN ll.locked_until IS NOT NULL AND ll.locked_until > NOW() THEN TRUE ELSE FALSE END AS is_locked
             FROM profiles p
             LEFT JOIN roles r ON p.rol_id = r.id
             LEFT JOIN gerencias g ON p.gerencia_id = g.id
+            LEFT JOIN login_lockouts ll ON LOWER(ll.username) = LOWER(p.username)
             WHERE p.id IS NOT NULL
             ORDER BY p.nombre, p.apellido
         """)
@@ -1112,10 +1225,14 @@ async def list_usuarios(
             SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
                    p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
                    p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
-                   p.estado, p.ultima_conexion, p.tenant_id, p.permisos
+                   p.estado, p.ultima_conexion, p.tenant_id, p.permisos,
+                   COALESCE(ll.failed_count, 0) AS failed_count,
+                   ll.locked_until,
+                   CASE WHEN ll.locked_until IS NOT NULL AND ll.locked_until > NOW() THEN TRUE ELSE FALSE END AS is_locked
             FROM profiles p
             LEFT JOIN roles r ON p.rol_id = r.id
             LEFT JOIN gerencias g ON p.gerencia_id = g.id
+            LEFT JOIN login_lockouts ll ON LOWER(ll.username) = LOWER(p.username)
             WHERE p.estado = TRUE
             ORDER BY p.nombre, p.apellido
         """)
@@ -1143,6 +1260,135 @@ async def update_user_permissions(
     )
     return {"status": "success", "user_id": str(user_id), "permisos": permisos}
 
+@app.put("/users/{user_id}/role")
+async def update_user_role(
+    user_id: uuid.UUID,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not await _is_privileged_user(conn, current_user):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    role_id = payload.get("rol_id")
+    if role_id not in {1, 2, 3, 4}:
+        raise HTTPException(status_code=400, detail="rol_id invalido")
+
+    exists = await conn.fetchval("SELECT 1 FROM profiles WHERE id = $1", user_id)
+    if not exists:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    await conn.execute("UPDATE profiles SET rol_id = $2 WHERE id = $1", user_id, role_id)
+    updated = await conn.fetchrow("""
+        SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
+               p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
+               p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
+               p.estado, p.ultima_conexion, p.tenant_id, p.permisos
+        FROM profiles p
+        LEFT JOIN roles r ON p.rol_id = r.id
+        LEFT JOIN gerencias g ON p.gerencia_id = g.id
+        WHERE p.id = $1
+    """, user_id)
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'ROL_ACTUALIZADO', $4, 'info', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Rol de usuario {updated['usuario_corp']} actualizado a {updated['role']}",
+        )
+    except Exception:
+        pass
+
+    return dict(updated)
+
+@app.put("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: uuid.UUID,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not await _is_privileged_user(conn, current_user):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    new_password = str(payload.get("new_password") or "").strip()
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="La nueva clave debe tener al menos 8 caracteres")
+
+    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1", user_id)
+    if not username:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    new_hash = get_password_hash(new_password)
+    await conn.execute(
+        "UPDATE profiles SET password_hash = $2, estado = TRUE WHERE id = $1",
+        user_id,
+        new_hash,
+    )
+    await conn.execute("DELETE FROM login_lockouts WHERE username = LOWER($1)", username)
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'PASSWORD_RESETEADO', $4, 'warning', '/dashboard/security/user')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Clave reseteada para usuario {username}",
+        )
+    except Exception:
+        pass
+
+    return {"status": "success", "user_id": str(user_id), "username": username}
+
+@app.delete("/users/{user_id}")
+async def delete_user_account(
+    user_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not await _is_privileged_user(conn, current_user):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    current_user_id = current_user.get("sub")
+    if current_user_id and str(current_user_id) == str(user_id):
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
+
+    row = await conn.fetchrow("SELECT username FROM profiles WHERE id = $1", user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    username = row["username"]
+
+    async with conn.transaction():
+        await conn.execute("DELETE FROM login_lockouts WHERE username = LOWER($1)", username)
+        await conn.execute("DELETE FROM profiles WHERE id = $1", user_id)
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'USUARIO_ELIMINADO', $4, 'danger', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Usuario eliminado: {username}",
+        )
+    except Exception:
+        pass
+
+    return {"status": "success", "user_id": str(user_id), "username": username}
+
 
 @app.patch("/users/{user_id}/unlock")
 async def unlock_user(
@@ -1158,7 +1404,7 @@ async def unlock_user(
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     await conn.execute("UPDATE profiles SET estado = TRUE WHERE id = $1", user_id)
-    await conn.execute("DELETE FROM login_lockouts WHERE username = $1", username)
+    await conn.execute("DELETE FROM login_lockouts WHERE username = LOWER($1)", username)
 
     try:
         await _ensure_security_events_table(conn)
@@ -1286,17 +1532,102 @@ async def save_org_structure(
     if not org_id:
         raise HTTPException(status_code=500, detail="No existe organizacion base")
 
-    await conn.execute(
-        """
-        UPDATE organizations
-        SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{org_structure}', $2::jsonb, true),
-            updated_at = NOW()
-        WHERE id = $1::uuid
-        """,
-        org_id,
-        json.dumps(payload.org_structure),
-    )
-    return {"status": "success", "org_structure": payload.org_structure}
+    normalized_structure: List[Dict[str, Any]] = []
+    ordered_unique_names: List[str] = []
+    seen_names = set()
+
+    # Normaliza payload y construye lista unica de gerencias para sincronizar catalogos.
+    for group in payload.org_structure or []:
+        category = str((group or {}).get("category") or "").strip()
+        icon = str((group or {}).get("icon") or "Briefcase").strip() or "Briefcase"
+        raw_items = (group or {}).get("items") or []
+        clean_items: List[str] = []
+        for item in raw_items:
+            name = str(item or "").strip()
+            if not name:
+                continue
+            clean_items.append(name)
+            key = name.lower()
+            if key not in seen_names:
+                seen_names.add(key)
+                ordered_unique_names.append(name)
+
+        if category:
+            normalized_structure.append({
+                "category": category,
+                "icon": icon,
+                "items": clean_items,
+            })
+
+    current_cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
+    previous_structure = (current_cfg or {}).get("org_structure") if isinstance(current_cfg, dict) else None
+
+    def _flatten_names(structure: Any) -> List[str]:
+        names: List[str] = []
+        if not isinstance(structure, list):
+            return names
+        for group in structure:
+            items = (group or {}).get("items") if isinstance(group, dict) else None
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                name = str(item or "").strip()
+                if name:
+                    names.append(name)
+        return names
+
+    previous_names = _flatten_names(previous_structure)
+
+    async with conn.transaction():
+        await conn.execute(
+            """
+            UPDATE organizations
+            SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{org_structure}', $2::jsonb, true),
+                updated_at = NOW()
+            WHERE id = $1::uuid
+            """,
+            org_id,
+            json.dumps(normalized_structure),
+        )
+
+        # Si fue una edicion (misma cantidad), intenta renombrar manteniendo IDs para no romper referencias.
+        if previous_names and len(previous_names) == len(ordered_unique_names):
+            for old_name, new_name in zip(previous_names, ordered_unique_names):
+                if old_name.lower() == new_name.lower():
+                    continue
+                exists_new = await conn.fetchval(
+                    "SELECT 1 FROM gerencias WHERE LOWER(nombre) = LOWER($1) LIMIT 1",
+                    new_name,
+                )
+                if not exists_new:
+                    await conn.execute(
+                        "UPDATE gerencias SET nombre = $1 WHERE LOWER(nombre) = LOWER($2)",
+                        new_name,
+                        old_name,
+                    )
+
+        # Inserta las nuevas gerencias para que Tickets/Mensajeria/Registro consuman el mismo catalogo.
+        for name in ordered_unique_names:
+            exists = await conn.fetchval(
+                "SELECT 1 FROM gerencias WHERE LOWER(nombre) = LOWER($1) LIMIT 1",
+                name,
+            )
+            if not exists:
+                await conn.execute("INSERT INTO gerencias (nombre) VALUES ($1)", name)
+
+        # Elimina gerencias fuera de la estructura solo si no estan en uso.
+        if ordered_unique_names:
+            await conn.execute(
+                """
+                DELETE FROM gerencias g
+                WHERE LOWER(g.nombre) <> ALL($1::text[])
+                  AND NOT EXISTS (SELECT 1 FROM profiles p WHERE p.gerencia_id = g.id)
+                  AND NOT EXISTS (SELECT 1 FROM documentos d WHERE d.receptor_gerencia_id = g.id)
+                """,
+                [n.lower() for n in ordered_unique_names],
+            )
+
+    return {"status": "success", "org_structure": normalized_structure}
 
 
 @app.post("/security/logs")

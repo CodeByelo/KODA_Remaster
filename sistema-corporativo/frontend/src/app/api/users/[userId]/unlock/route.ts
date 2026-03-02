@@ -20,19 +20,19 @@ function parseResponse(text: string) {
   }
 }
 
-export async function GET(
+export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ userId: string }> },
 ) {
+  const urls = [PRIMARY_URL, FALLBACK_URL].filter((v, i, arr) => arr.indexOf(v) === i);
   let lastErr: unknown = null;
+
   try {
     const { userId } = await params;
-    const urls = [PRIMARY_URL, FALLBACK_URL].filter((v, i, arr) => arr.indexOf(v) === i);
-
     for (const base of urls) {
       try {
-        const response = await fetch(`${base}/security/logs/user/${userId}`, {
-          method: "GET",
+        const response = await fetch(`${base}/users/${userId}/unlock`, {
+          method: "PATCH",
           headers: backendHeaders(request),
         });
         const text = await response.text();
@@ -44,11 +44,11 @@ export async function GET(
 
     throw lastErr || new Error("No se pudo conectar al backend");
   } catch (error) {
-    console.error("Security user logs GET proxy error:", error);
+    console.error("Users unlock proxy error:", error);
     return NextResponse.json(
       {
         detail:
-          "Error en el proxy de logs por usuario. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
+          "Error en el proxy de desbloqueo. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
       },
       { status: 500 },
     );
