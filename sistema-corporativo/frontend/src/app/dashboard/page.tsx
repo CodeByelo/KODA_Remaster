@@ -877,7 +877,7 @@ const DocumentManager: React.FC<{
   hasPermission: (permission: string) => boolean;
   user: User | null;
   users: any[];
-  Gerencias: any[];
+  gerencias: any[];
   refreshDocs: () => void;
 }> = ({
   darkMode,
@@ -890,7 +890,7 @@ const DocumentManager: React.FC<{
   hasPermission,
   user,
   users,
-  Gerencias,
+  gerencias,
   refreshDocs,
 }) => {
     const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -2171,7 +2171,7 @@ export default function Dashboard() {
   // Lifted state for documents to share with SecurityModule
   const [documents, setDocuments] = useState<Document[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [Gerencias, setGerencias] = useState<any[]>([]);
+  const [gerencias, setGerencias] = useState<any[]>([]);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -2260,7 +2260,7 @@ export default function Dashboard() {
       const data = await getGerencias();
       setGerencias(data);
     } catch (e) {
-      console.error("Error fetching Gerencias", e);
+      console.error("Error fetching gerencias", e);
     }
   }, []);
 
@@ -2681,7 +2681,7 @@ export default function Dashboard() {
             hasPermission={hasPermission}
             user={user}
             users={users}
-            Gerencias={Gerencias}
+            gerencias={gerencias}
             refreshDocs={fetchDocuments}
           />
         );
@@ -2733,7 +2733,7 @@ export default function Dashboard() {
                 <h1
                   className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}
                 >
-                  Â¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
+                  ¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
                 </h1>
                 <p
                   className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}
@@ -3104,7 +3104,7 @@ export default function Dashboard() {
               <div
                 className="flex items-center gap-3 cursor-pointer hover:bg-slate-100/10 p-1 rounded-md transition-colors"
                 onClick={() => {
-                  if (confirm("Â¿Desea cerrar sesión?")) {
+                  if (confirm("¿Desea cerrar sesión?")) {
                     logout();
                   }
                 }}
@@ -3231,6 +3231,7 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+
 
 
 
