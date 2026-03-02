@@ -83,7 +83,9 @@ import {
   markAsRead,
   getAnnouncement,
   getOrgStructure,
+  getOrgManagementDetails,
   saveOrgStructure,
+  saveOrgManagementDetails,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
 const ResponsiveContainerCompat =
@@ -1613,8 +1615,8 @@ const DocumentManager: React.FC<{
 
         {/* Nuevo Mensaje Modal (ex-Upload) */}
         {showUploadModal && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300 overflow-y-auto">
-            <div className={`w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border shadow-2xl ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
+          <div className="fixed inset-0 z-[60] flex items-start md:items-center justify-center bg-black/70 backdrop-blur-md p-3 md:p-4 animate-in fade-in duration-300 overflow-hidden">
+            <div className={`w-full max-w-xl max-h-[92vh] rounded-2xl border shadow-2xl flex flex-col glass-reflect ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
               <div className="p-6 border-b flex justify-between items-center bg-red-700 text-white">
                 <h2 className="font-bold flex items-center gap-2 uppercase tracking-tight text-white">
                   <Mail size={20} />
@@ -1624,7 +1626,7 @@ const DocumentManager: React.FC<{
                   <X size={20} />
                 </button>
               </div>
-              <form onSubmit={confirmUpload} className="p-6 space-y-4">
+              <form onSubmit={confirmUpload} className="p-5 md:p-6 space-y-4 overflow-y-auto no-scrollbar">
                 <div className="flex gap-4 mb-2">
                   <button
                     type="button"
@@ -1707,7 +1709,7 @@ const DocumentManager: React.FC<{
                       <summary className="cursor-pointer text-sm">
                         Seleccionar usuarios ({targetUserIds.length})
                       </summary>
-                      <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                      <div className="mt-2 max-h-40 overflow-y-auto no-scrollbar space-y-2">
                         {messagingUserOptions.map((u) => (
                           <label key={u.id} className="flex items-center gap-2 text-sm">
                             <input
@@ -1733,7 +1735,7 @@ const DocumentManager: React.FC<{
                       <summary className="cursor-pointer text-sm">
                         Seleccionar gerencias ({targetDeptIds.length})
                       </summary>
-                      <div className="mt-2 max-h-40 overflow-y-auto space-y-2">
+                      <div className="mt-2 max-h-40 overflow-y-auto no-scrollbar space-y-2">
                         {messagingDeptOptions.map((g) => (
                           <label key={g.id} className="flex items-center gap-2 text-sm">
                             <input
@@ -1865,7 +1867,7 @@ const DocumentManager: React.FC<{
 
         {/* Filters */}
         <div
-          className={`p-4 rounded-lg flex flex-wrap gap-4 items-end ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}
+          className={`glass-reflect p-4 rounded-lg flex flex-wrap gap-4 items-end ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}
         >
           <div className="flex-1 min-w-[200px]">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
@@ -1928,7 +1930,7 @@ const DocumentManager: React.FC<{
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200/20">
+        <div className="overflow-x-auto no-scrollbar rounded-lg border border-slate-200/20 glass-reflect">
           <table className={`w-full ${darkMode ? "bg-slate-900" : "bg-white"}`}>
             <thead
               className={`${darkMode ? "bg-slate-950/50" : "bg-slate-50"} border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
@@ -2428,7 +2430,10 @@ export default function Dashboard() {
     userRole === "Desarrollador";
   const canAccessStats = hasPermission(PERMISSIONS_MASTER.VIEW_STATS);
   const canAccessTickets = hasPermission(PERMISSIONS_MASTER.VIEW_TICKETS);
-  const canAccessPriorities = hasPermission(PERMISSIONS_MASTER.VIEW_PRIORITIES);
+  const canAccessPriorities =
+    hasPermission(PERMISSIONS_MASTER.VIEW_PRIORITIES) ||
+    userRole === "Usuario" ||
+    userRole === "Gerente";
   const canEditOrgStructure =
     userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
   const canEditManagementDetails =
@@ -2589,39 +2594,65 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!mounted) return;
-    try {
-      const raw = localStorage.getItem(MANAGEMENT_DETAILS_STORAGE_KEY);
-      if (!raw) {
-        setManagementDetailsMap(MANAGEMENT_DETAILS);
+    let cancelled = false;
+    (async () => {
+      try {
+        const remote = await getOrgManagementDetails();
+        const remoteMap = remote?.management_details || {};
+        if (!cancelled) {
+          const merged = {
+            ...MANAGEMENT_DETAILS,
+            ...remoteMap,
+          };
+          setManagementDetailsMap(merged);
+          localStorage.setItem(MANAGEMENT_DETAILS_STORAGE_KEY, JSON.stringify(merged));
+        }
         return;
+      } catch (error) {
+        console.error("No se pudieron cargar detalles de gerencias desde API", error);
       }
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        setManagementDetailsMap({
-          ...MANAGEMENT_DETAILS,
-          ...parsed,
-        });
+
+      try {
+        const raw = localStorage.getItem(MANAGEMENT_DETAILS_STORAGE_KEY);
+        if (!raw) {
+          if (!cancelled) setManagementDetailsMap(MANAGEMENT_DETAILS);
+          return;
+        }
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !cancelled) {
+          setManagementDetailsMap({
+            ...MANAGEMENT_DETAILS,
+            ...parsed,
+          });
+        }
+      } catch (error) {
+        console.error("No se pudieron cargar los detalles de gerencias personalizados", error);
+        if (!cancelled) setManagementDetailsMap(MANAGEMENT_DETAILS);
       }
-    } catch (error) {
-      console.error("No se pudieron cargar los detalles de gerencias personalizados", error);
-      setManagementDetailsMap(MANAGEMENT_DETAILS);
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [mounted]);
 
-  const handleSaveManagementDetails = useCallback((name: string, nextFunctions: string[]) => {
-    setManagementDetailsMap((prev) => {
-      const next = {
-        ...prev,
-        [name]: nextFunctions,
-      };
-      try {
-        localStorage.setItem(MANAGEMENT_DETAILS_STORAGE_KEY, JSON.stringify(next));
-      } catch (error) {
-        console.error("No se pudo persistir personalización de gerencia", error);
-      }
-      return next;
-    });
-  }, []);
+  const handleSaveManagementDetails = useCallback(async (name: string, nextFunctions: string[]) => {
+    const nextMap = {
+      ...managementDetailsMap,
+      [name]: nextFunctions,
+    };
+    setManagementDetailsMap(nextMap);
+    try {
+      localStorage.setItem(MANAGEMENT_DETAILS_STORAGE_KEY, JSON.stringify(nextMap));
+    } catch (error) {
+      console.error("No se pudo persistir personalización local de gerencia", error);
+    }
+    try {
+      await saveOrgManagementDetails(nextMap);
+    } catch (error) {
+      console.error("No se pudo persistir personalización de gerencia en backend", error);
+    }
+  }, [managementDetailsMap]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -2688,6 +2719,12 @@ export default function Dashboard() {
         if (remote?.org_structure?.length) {
           data = remote.org_structure as OrgCategory[];
           source = remote.source;
+        }
+        if (remote?.management_details && typeof remote.management_details === "object") {
+          setManagementDetailsMap((prev) => ({
+            ...prev,
+            ...remote.management_details,
+          }));
         }
       } catch (e) {
         console.error("Error loading org structure from API, using fallback", e);
@@ -2940,6 +2977,35 @@ export default function Dashboard() {
     );
   };
 
+  const normalizeDept = useCallback((value: string) => {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }, []);
+
+  const canViewAllGerencias =
+    userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
+
+  const effectiveOrgStructure = useMemo(() => {
+    const base = orgStructure.length > 0
+      ? orgStructure
+      : JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+
+    if (canViewAllGerencias) return base;
+
+    const myDept = normalizeDept(user?.gerencia_depto || "");
+    if (!myDept) return [];
+
+    return base
+      .map((group) => ({
+        ...group,
+        items: (group.items || []).filter((item) => normalizeDept(item) === myDept),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [orgStructure, canViewAllGerencias, normalizeDept, user?.gerencia_depto]);
+
   const renderContent = () => {
     switch (activeTab) {
       case "prioridades":
@@ -2960,7 +3026,7 @@ export default function Dashboard() {
         return canAccessTickets ? (
           <TicketSystem
             darkMode={darkMode}
-            orgStructure={orgStructure}
+            orgStructure={effectiveOrgStructure}
             userRole={userRole}
             userDept={user?.gerencia_depto || ""}
             currentUser={user?.nombre + " " + user?.apellido}
@@ -2982,7 +3048,7 @@ export default function Dashboard() {
             userDept={user?.gerencia_depto || "Usuario"}
             documents={documents}
             setDocuments={setDocuments}
-            orgStructure={orgStructure}
+            orgStructure={effectiveOrgStructure}
             hasPermission={hasPermission}
             user={user}
             users={users}
@@ -3013,7 +3079,7 @@ export default function Dashboard() {
             darkMode={darkMode}
             documents={documents}
             tickets={tickets}
-            orgStructure={orgStructure}
+            orgStructure={effectiveOrgStructure}
           />
         ) : (
           <div className="text-center p-20 font-bold text-red-500">
@@ -3118,15 +3184,21 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {orgStructure.map((group: OrgCategory, index: number) => (
-                  <DeptCard
-                    key={index}
-                    group={group}
-                    darkMode={darkMode}
-                    onToggle={() => toggleCategory(index)}
-                    onItemClick={(item) => setSelectedManagement(item)}
-                  />
-                ))}
+                {effectiveOrgStructure.length > 0 ? (
+                  effectiveOrgStructure.map((group: OrgCategory, index: number) => (
+                    <DeptCard
+                      key={index}
+                      group={group}
+                      darkMode={darkMode}
+                      onToggle={() => toggleCategory(index)}
+                      onItemClick={(item) => setSelectedManagement(item)}
+                    />
+                  ))
+                ) : (
+                  <div className={`col-span-full rounded-xl border p-6 text-sm ${darkMode ? "border-zinc-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                    No hay gerencias disponibles para tu perfil en este momento.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3464,7 +3536,7 @@ export default function Dashboard() {
             </div>
           </header>
           {/* WORKSPACE */}
-          <div className="remaster-workspace p-8 w-full max-w-[1600px] mx-auto space-y-8 flex-1">
+          <div className={`remaster-workspace p-6 md:p-8 w-full max-w-[1600px] mx-auto space-y-8 flex-1 transition-all duration-300 ${isChatOpen ? "xl:pr-[430px]" : ""}`}>
             {/* BREADCRUMB / TITLE */}
             {/* BREADCRUMB / TITLE - Hidden on overview as it has its own welcome header, and on graficos as it has internal headers */}
             {activeTab !== "overview" &&

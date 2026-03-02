@@ -331,7 +331,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 50 }}
                 transition={{ duration: 0.3 }}
-                className="fixed bottom-28 right-8 w-96 max-h-[85vh] h-[600px] flex flex-col bg-gray-900/95 border border-red-500/30 rounded-2xl shadow-2xl overflow-hidden z-50"
+                className="fixed bottom-24 right-3 md:right-6 w-[min(96vw,420px)] h-[min(78vh,620px)] flex flex-col bg-gray-900/95 border border-red-500/30 rounded-2xl shadow-2xl overflow-hidden z-50"
                 style={{ backdropFilter: 'blur(12px)' }}
             >
                 {/* Encabezado */}
@@ -379,7 +379,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                     {/* VISTA: CHAT */}
                     {view === 'chat' && (
                         <div className="h-full flex flex-col">
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
                                 {messages.map((message) => (
                                     <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[85%] rounded-2xl p-3 ${message.sender === 'user'
@@ -427,7 +427,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
 
                     {/* VISTA: HISTORIAL */}
                     {view === 'history' && (
-                        <div className="h-full flex flex-col p-4 overflow-y-auto">
+                        <div className="h-full flex flex-col p-4 overflow-y-auto no-scrollbar">
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-white font-semibold">Historial de Conversaciones</h4>
                             </div>
@@ -466,7 +466,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
 
                     {/* VISTA: ENTRENAMIENTO (TEACH MODE) */}
                     {view === 'train' && (
-                        <div className="h-full flex flex-col p-4 overflow-y-auto scrollbar-thin">
+                        <div className="h-full flex flex-col p-4 overflow-y-auto no-scrollbar scrollbar-thin">
                             <div className="flex items-center gap-2 mb-4 text-white">
                                 <button onClick={() => setView('chat')} className="hover:bg-white/10 p-1 rounded">
                                     <ChevronLeft size={20} />
@@ -511,7 +511,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
 
                                 <div className="border-t border-gray-800 pt-4 mt-2">
                                     <h5 className="text-gray-400 text-xs uppercase font-bold mb-2">Conocimiento Agregado ({customKnowledge.length})</h5>
-                                    <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+                                    <div className="space-y-2 max-h-[150px] overflow-y-auto no-scrollbar pr-1">
                                         {customKnowledge.map((k) => (
                                             <div key={k.id} className="bg-gray-800/50 border border-gray-700/50 p-2 rounded text-xs flex justify-between items-start group">
                                                 <div className="flex-1 overflow-hidden">

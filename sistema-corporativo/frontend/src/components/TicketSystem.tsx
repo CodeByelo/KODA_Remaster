@@ -323,11 +323,11 @@ export default function TicketSystem({
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-[600px] pb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-[560px] pb-8">
                 {(['ABIERTO', 'EN-PROCESO', 'RESUELTO'] as TicketStatus[]).map((status) => (
                     <div
                         key={status}
-                        className={`flex flex-col rounded-xl border shadow-xl ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}
+                        className={`glass-reflect flex flex-col rounded-xl border shadow-xl ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => handleDrop(e, status)}
                     >
@@ -338,7 +338,7 @@ export default function TicketSystem({
                             </span>
                         </div>
 
-                        <div className="p-3 flex-1 overflow-y-auto space-y-4 custom-scrollbar">
+                        <div className="p-3 flex-1 overflow-y-auto no-scrollbar space-y-4 custom-scrollbar">
                             {filteredTickets.filter(t => t.status === status).map((ticket) => (
                                 <div
                                     key={ticket.id}
@@ -466,8 +466,8 @@ export default function TicketSystem({
             </div>
 
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-                    <div className={`w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
+                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/70 backdrop-blur-md p-3 md:p-4 overflow-hidden">
+                    <div className={`glass-reflect w-full max-w-xl max-h-[92vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
                         <div className={`p-6 border-b flex justify-between items-center ${editingTicket ? 'bg-blue-600' : 'bg-red-600'}`}>
                             <h2 className="text-white font-bold flex items-center gap-2 uppercase tracking-tight">
                                 {editingTicket ? <FileText size={20} /> : <Plus size={20} />}
@@ -475,7 +475,7 @@ export default function TicketSystem({
                             </h2>
                             <button onClick={() => setShowModal(false)} className="text-white/80 hover:text-white text-2xl">&times;</button>
                         </div>
-                        <form onSubmit={handleSaveTicket} className="p-6 space-y-4">
+                        <form onSubmit={handleSaveTicket} className="p-5 md:p-6 space-y-4 overflow-y-auto no-scrollbar">
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Titulo de la Solicitud</label>
                                 <input
@@ -553,8 +553,8 @@ export default function TicketSystem({
             )}
 
             {showHistoryModal && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-                    <div className={`w-full max-w-3xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+                <div className="fixed inset-0 z-[70] flex items-start md:items-center justify-center bg-black/70 backdrop-blur-md p-3 md:p-4 overflow-hidden">
+                    <div className={`glass-reflect w-full max-w-3xl max-h-[92vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
                         <div className="p-4 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2 font-bold">
                                 <History size={18} />
@@ -578,7 +578,7 @@ export default function TicketSystem({
                                 BUSCAR
                             </button>
                         </div>
-                        <div className="max-h-[60vh] overflow-y-auto">
+                        <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
                             {historyLoading ? (
                                 <div className="p-6 text-sm text-slate-500">Cargando historial...</div>
                             ) : historyRows.length === 0 ? (

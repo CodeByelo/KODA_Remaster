@@ -302,11 +302,11 @@ export async function saveAnnouncement(data: AnnouncementData): Promise<{ status
     return handleResponse<{ status: string }>(res);
 }
 
-export async function getOrgStructure(): Promise<{ org_structure: any[]; source?: string }> {
+export async function getOrgStructure(): Promise<{ org_structure: any[]; management_details?: Record<string, string[]>; source?: string }> {
     const res = await fetch(`${BASE_URL}/org-structure`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<{ org_structure: any[]; source?: string }>(res);
+    return handleResponse<{ org_structure: any[]; management_details?: Record<string, string[]>; source?: string }>(res);
 }
 
 export async function saveOrgStructure(org_structure: any[]): Promise<{ status: string }> {
@@ -316,6 +316,24 @@ export async function saveOrgStructure(org_structure: any[]): Promise<{ status: 
         body: JSON.stringify({ org_structure }),
     });
     return handleResponse<{ status: string }>(res);
+}
+
+export async function getOrgManagementDetails(): Promise<{ management_details: Record<string, string[]> }> {
+    const res = await fetch(`${BASE_URL}/org-management-details`, {
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ management_details: Record<string, string[]> }>(res);
+}
+
+export async function saveOrgManagementDetails(
+    management_details: Record<string, string[]>,
+): Promise<{ status: string; management_details: Record<string, string[]> }> {
+    const res = await fetch(`${BASE_URL}/org-management-details`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ management_details }),
+    });
+    return handleResponse<{ status: string; management_details: Record<string, string[]> }>(res);
 }
 
 export async function getSecurityLogs(): Promise<SecurityLog[]> {

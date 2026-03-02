@@ -22,7 +22,7 @@ function addNonce(url: URL) {
     return url;
 }
 
-async function validateSession(token: string) {
+async function validateSession(token: string): Promise<{ status: "valid" | "invalid" | "unknown"; role: string }> {
     try {
         const response = await fetch(`${API_BASE_URL}/auth/validate`, {
             method: 'GET',
@@ -32,12 +32,18 @@ async function validateSession(token: string) {
             cache: 'no-store',
         });
 
-        if (!response.ok) return { ok: false as const, role: '' };
+        if (response.status === 401 || response.status === 403) {
+            return { status: "invalid", role: "" };
+        }
+        if (!response.ok) {
+            return { status: "unknown", role: "" };
+        }
         const data = await response.json();
         const role = String(data?.user?.role || '').toLowerCase().trim();
-        return { ok: true as const, role };
+        return { status: "valid", role };
     } catch {
-        return { ok: false as const, role: '' };
+        // Si falla la red o backend, no forzamos logout para evitar pantallas en blanco al recargar.
+        return { status: "unknown", role: "" };
     }
 }
 
@@ -58,7 +64,7 @@ export async function proxy(request: NextRequest) {
     }
 
     const validation = await validateSession(sessionCookie);
-    if (!validation.ok) {
+    if (validation.status === "invalid") {
         if (isProtectedRoute) {
             const loginUrl = addNonce(new URL('/login', request.url));
             loginUrl.searchParams.set('next', pathname);
@@ -70,14 +76,14 @@ export async function proxy(request: NextRequest) {
     // Bloqueo por rol para registro: solo perfiles privilegiados.
     if (pathname.startsWith('/registro')) {
         const privileged = ['desarrollador', 'dev', 'developer', 'administrativo', 'admin', 'administrador', 'ceo'];
-        if (!privileged.includes(validation.role)) {
+        if (validation.status === "valid" && !privileged.includes(validation.role)) {
             const dashboardUrl = addNonce(new URL('/dashboard', request.url));
             return withNoCache(NextResponse.redirect(dashboardUrl));
         }
     }
 
     // Si ya tiene sesion valida, no permitir volver a login por URL directa.
-    if (isAuthPage) {
+    if (isAuthPage && validation.status === "valid") {
         const dashboardUrl = addNonce(new URL('/dashboard', request.url));
         return withNoCache(NextResponse.redirect(dashboardUrl));
     }

@@ -25,6 +25,19 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+html,
+body {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* Splash Screen Styles */
 .splash-screen {
   min-height: 100vh;
@@ -510,6 +523,16 @@ input:-webkit-autofill:active {
   scrollbar-width: none; /* Firefox */
 }
 
+.custom-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.custom-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Glass Hover System */
 button,
 input[type="button"],
@@ -549,6 +572,60 @@ a[href]:active,
   box-shadow:
     0 4px 12px rgba(15, 23, 42, 0.2),
     0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.glass-reflect {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease,
+    border-color 0.28s ease,
+    background-color 0.28s ease;
+}
+
+.glass-reflect::before {
+  content: "";
+  position: absolute;
+  top: -120%;
+  left: -60%;
+  width: 52%;
+  height: 300%;
+  transform: rotate(24deg);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 20%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.04) 80%,
+    transparent 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+.glass-reflect:hover {
+  transform: translateY(-2px);
+  border-color: rgba(248, 113, 113, 0.35);
+  box-shadow:
+    0 18px 34px rgba(2, 6, 23, 0.36),
+    0 0 0 1px rgba(248, 113, 113, 0.12) inset;
+}
+
+.glass-reflect:hover::before {
+  opacity: 1;
+  animation: glass-sheen 860ms ease-out forwards;
+}
+
+@keyframes glass-sheen {
+  from {
+    transform: translateX(-18%) rotate(24deg);
+    opacity: 0.15;
+  }
+  to {
+    transform: translateX(245%) rotate(24deg);
+    opacity: 0;
+  }
 }
 
 /* Remaster Visual Layer */

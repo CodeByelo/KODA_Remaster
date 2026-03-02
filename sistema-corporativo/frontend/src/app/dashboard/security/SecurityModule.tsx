@@ -683,7 +683,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">Solo Lectura (DEV/PROPIO)</span>
                                                                 )}
                                                                 <Link
-                                                                    href={`/dashboard/security/user/${u.id}`}
+                                                                    href={`/dashboard/security/user/${encodeURIComponent(String(u.id))}`}
                                                                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                                                                         darkMode
                                                                             ? 'text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/15'

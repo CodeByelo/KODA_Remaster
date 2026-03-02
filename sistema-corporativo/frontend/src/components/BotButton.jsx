@@ -20,7 +20,7 @@ export default function BotButton({ onOpenChat }) {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 15 }}
-            className="fixed bottom-10 right-6 z-50"
+            className="fixed bottom-8 right-3 md:right-6 z-50"
         >
             <motion.div
                 whileHover={{ scale: 1.1 }}

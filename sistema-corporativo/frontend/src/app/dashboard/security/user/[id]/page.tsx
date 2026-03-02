@@ -33,13 +33,20 @@ export default function UserHistoryPage() {
         async function fetchData() {
             if (!userId) return;
             setLoading(true);
-            const [userData, logsData] = await Promise.all([
-                getUserDetails(userId),
-                getUserLogs(userId)
-            ]);
-            setUser(userData);
-            setLogs(logsData);
-            setLoading(false);
+            try {
+                const [userData, logsData] = await Promise.all([
+                    getUserDetails(userId),
+                    getUserLogs(userId)
+                ]);
+                setUser(userData);
+                setLogs(Array.isArray(logsData) ? logsData : []);
+            } catch (error) {
+                console.error("Error cargando auditoria de usuario:", error);
+                setLogs([]);
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
         }
         fetchData();
     }, [userId]);

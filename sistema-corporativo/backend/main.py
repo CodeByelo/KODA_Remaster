@@ -721,6 +721,10 @@ class OrgStructurePayload(BaseModel):
     org_structure: List[Dict[str, Any]]
 
 
+class OrgManagementDetailsPayload(BaseModel):
+    management_details: Dict[str, List[str]]
+
+
 class SecurityLogPayload(BaseModel):
     evento: str
     detalles: Optional[str] = ""
@@ -1593,7 +1597,11 @@ async def get_org_structure(
             "items": [r["nombre"] for r in rows],
         }]
         source = "catalog"
-    return {"org_structure": org_structure, "source": source}
+    management_details = (cfg or {}).get("management_details") if isinstance(cfg, dict) else None
+    if not isinstance(management_details, dict):
+        management_details = {}
+
+    return {"org_structure": org_structure, "management_details": management_details, "source": source}
 
 
 @app.put("/org-structure")
@@ -1705,6 +1713,62 @@ async def save_org_structure(
             )
 
     return {"status": "success", "org_structure": normalized_structure}
+
+
+@app.get("/org-management-details")
+async def get_org_management_details(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
+    details = (cfg or {}).get("management_details") if isinstance(cfg, dict) else {}
+    if not isinstance(details, dict):
+        details = {}
+    return {"management_details": details}
+
+
+@app.put("/org-management-details")
+async def save_org_management_details(
+    payload: OrgManagementDetailsPayload,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    if not await _is_privileged_user(conn, current_user):
+        raise HTTPException(status_code=403, detail="No autorizado para editar detalles de gerencia")
+
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    normalized: Dict[str, List[str]] = {}
+    for key, value in (payload.management_details or {}).items():
+        name = str(key or "").strip()
+        if not name:
+            continue
+        lines: List[str] = []
+        if isinstance(value, list):
+            for item in value:
+                text = str(item or "").strip()
+                if text:
+                    lines.append(text)
+        normalized[name] = lines
+
+    await conn.execute(
+        """
+        UPDATE organizations
+        SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{management_details}', $2::jsonb, true),
+            updated_at = NOW()
+        WHERE id = $1::uuid
+        """,
+        org_id,
+        json.dumps(normalized),
+    )
+
+    return {"status": "success", "management_details": normalized}
 
 
 @app.post("/security/logs")
