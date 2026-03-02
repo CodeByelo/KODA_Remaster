@@ -2969,8 +2969,6 @@ export default function Dashboard() {
     ];
   }, [userRole]);
 
-  if (!mounted) return null;
-
   const toggleCategory = (index: number) => {
     setExpandedCategories((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
@@ -3005,6 +3003,8 @@ export default function Dashboard() {
       }))
       .filter((group) => group.items.length > 0);
   }, [orgStructure, canViewAllGerencias, normalizeDept, user?.gerencia_depto]);
+
+  if (!mounted) return null;
 
   const renderContent = () => {
     switch (activeTab) {
