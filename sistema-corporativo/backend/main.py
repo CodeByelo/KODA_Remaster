@@ -12,6 +12,7 @@ print(f"\n🔍 Buscando .env en: {env_path}")
 print(f"📁 Existe: {env_path.exists()}\n")
 
 load_dotenv(dotenv_path=env_path)
+DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "JJDKoda**")
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -1298,6 +1299,11 @@ async def update_user_role(
     role_id = payload.get("rol_id")
     if role_id not in {1, 2, 3, 4, 5}:
         raise HTTPException(status_code=400, detail="rol_id invalido")
+
+    if role_id == 4:
+        master_password = payload.get("master_password")
+        if master_password != DEV_ROLE_MASTER_PASSWORD:
+            raise HTTPException(status_code=403, detail="Clave maestra invalida para rol Desarrollador")
 
     exists = await conn.fetchval("SELECT 1 FROM profiles WHERE id = $1", user_id)
     if not exists:

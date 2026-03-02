@@ -67,7 +67,7 @@ export async function updateUserStatus(userId: string, newStatus: string) {
     }
 }
 
-export async function changeUserRole(userId: string, roleLabel: string) {
+export async function changeUserRole(userId: string, roleLabel: string, masterPassword?: string) {
     const roleMap: Record<string, number> = {
         CEO: 1,
         Administrador: 2,
@@ -81,7 +81,7 @@ export async function changeUserRole(userId: string, roleLabel: string) {
         return { success: false, error: "Rol no valido" };
     }
     try {
-        const user = await updateUserRole(userId, roleId);
+        const user = await updateUserRole(userId, roleId, masterPassword);
         return { success: true, user };
     } catch (error: any) {
         return { success: false, error: error?.message || "No se pudo actualizar rol" };

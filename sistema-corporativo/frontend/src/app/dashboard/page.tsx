@@ -376,6 +376,8 @@ const SECURITY_LOGS = [
   },
 ];
 
+const MANAGEMENT_DETAILS_STORAGE_KEY = "management_details_custom_2026";
+
 // ==========================================
 // COMPONENTES REUTILIZABLES (CORPORATE STYLE)
 // ==========================================
@@ -418,7 +420,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     tabIndex={0}
     aria-label={label}
     className={`
-      group flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-all duration-200
+      group glass-hover flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-all duration-200
       ${active
         ? darkMode
           ? "bg-red-900/50 text-white shadow-sm border border-red-800/50"
@@ -519,8 +521,32 @@ const DetailModal: React.FC<{
   title: string;
   functions: string[];
   darkMode: boolean;
-}> = ({ isOpen, onClose, title, functions, darkMode }) => {
+  canEdit: boolean;
+  onSave: (title: string, nextFunctions: string[]) => void;
+}> = ({ isOpen, onClose, title, functions, darkMode, canEdit, onSave }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftFunctions, setDraftFunctions] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setIsEditing(false);
+    setDraftFunctions((functions || []).join("\n"));
+  }, [isOpen, title, functions]);
+
   if (!isOpen) return null;
+
+  const saveChanges = () => {
+    const next = draftFunctions
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (next.length === 0) {
+      alert("Debe existir al menos una función para guardar.");
+      return;
+    }
+    onSave(title, next);
+    setIsEditing(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -552,27 +578,66 @@ const DetailModal: React.FC<{
           >
             Funciones Operativas
           </h4>
-          <ul className="space-y-3">
-            {functions.map((func, idx) => (
-              <li key={idx} className="flex items-start gap-3">
-                <div
-                  className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${darkMode ? "bg-red-500" : "bg-red-600"}`}
-                />
-                <span
-                  className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-700"}`}
-                >
-                  {func}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {isEditing ? (
+            <div className="space-y-2">
+              <p className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-500"}`}>
+                Una función por línea.
+              </p>
+              <textarea
+                value={draftFunctions}
+                onChange={(e) => setDraftFunctions(e.target.value)}
+                rows={10}
+                className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${darkMode ? "bg-zinc-950 border-zinc-700 text-slate-200" : "bg-white border-slate-300 text-slate-800"}`}
+              />
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {functions.map((func, idx) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <div
+                    className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${darkMode ? "bg-red-500" : "bg-red-600"}`}
+                  />
+                  <span
+                    className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {func}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div
-          className={`p-4 border-t flex justify-end ${darkMode ? "border-zinc-800" : "border-slate-100"}`}
+          className={`p-4 border-t flex justify-end gap-2 ${darkMode ? "border-zinc-800" : "border-slate-100"}`}
         >
+          {canEdit && !isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${darkMode
+                ? "bg-blue-700/70 text-white hover:bg-blue-600"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+            >
+              Editar
+            </button>
+          )}
+          {canEdit && isEditing && (
+            <button
+              onClick={saveChanges}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${darkMode
+                ? "bg-emerald-700/80 text-white hover:bg-emerald-600"
+                : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
+            >
+              Guardar cambios
+            </button>
+          )}
           <button
-            onClick={onClose}
+            onClick={() => {
+              setIsEditing(false);
+              onClose();
+            }}
             className={`
               px-4 py-2 rounded-md text-sm font-medium transition-colors
               ${darkMode
@@ -718,6 +783,11 @@ const PriorityMatrix: React.FC<{
   documents: Document[];
   hasPermission: (permission: string) => boolean;
 }> = ({ darkMode, userRole, isReadOnly, documents, hasPermission }) => {
+  const [trackingSearch, setTrackingSearch] = useState("");
+  const [trackingStatus, setTrackingStatus] = useState<string>("all");
+  const [trackingSender, setTrackingSender] = useState<string>("all");
+  const [selectedTrackingDoc, setSelectedTrackingDoc] = useState<any | null>(null);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "aprobado":
@@ -740,23 +810,113 @@ const PriorityMatrix: React.FC<{
     }
   };
 
+  const parseDate = (value: string) => {
+    if (!value) return 0;
+    const normalized = value.trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
+      const [dd, mm, yyyy] = normalized.split("/");
+      return new Date(`${yyyy}-${mm}-${dd}T00:00:00`).getTime();
+    }
+    const ts = Date.parse(normalized);
+    return Number.isNaN(ts) ? 0 : ts;
+  };
+
   const mappedTracking = useMemo(() => {
-    return documents
-      .filter((doc) => String(doc.prioridad || "").toLowerCase() === "control")
-      .map((doc) => ({
+    const controlDocs = documents.filter(
+      (doc) => String(doc.prioridad || "").toLowerCase() === "control",
+    );
+    const source = controlDocs.length > 0 ? controlDocs : documents;
+    return source.map((doc) => ({
         id: doc.id,
         title: doc.name,
+        correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
         sentBy: doc.uploadedBy || "Desconocido",
         receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
         date: doc.uploadDate || "N/A",
         status: String(doc.signatureStatus || "pendiente").toLowerCase(),
+        contenido: doc.contenido || "",
+        fileUrl: doc.fileUrl,
+        archivos: doc.archivos || [],
       }));
   }, [documents]);
 
-  const filteredTracking = mappedTracking;
+  const senderOptions = useMemo(
+    () =>
+      Array.from(new Set(mappedTracking.map((item) => item.sentBy)))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [mappedTracking],
+  );
+
+  const filteredTracking = useMemo(() => {
+    const normalizedSearch = trackingSearch.trim().toLowerCase();
+    return mappedTracking
+      .filter((item) => {
+        const matchesStatus = trackingStatus === "all" || item.status === trackingStatus;
+        const matchesSender = trackingSender === "all" || item.sentBy === trackingSender;
+        const haystack = `${item.title} ${item.correlativo} ${item.sentBy} ${item.receivedBy}`.toLowerCase();
+        const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
+        return matchesStatus && matchesSender && matchesSearch;
+      })
+      .sort((a, b) => parseDate(b.date) - parseDate(a.date));
+  }, [mappedTracking, trackingSearch, trackingStatus, trackingSender]);
 
   return (
     <div className="space-y-4 pt-2">
+      <div
+        className={`p-4 rounded-lg border flex flex-wrap gap-3 items-end ${darkMode ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}
+      >
+        <div className="min-w-[220px] flex-1">
+          <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+            Buscar
+          </label>
+          <div
+            className={`flex items-center px-3 py-2 rounded-md border ${darkMode ? "bg-slate-950 border-slate-700" : "bg-white border-slate-300"}`}
+          >
+            <Search size={14} className="text-slate-500 mr-2" />
+            <input
+              value={trackingSearch}
+              onChange={(e) => setTrackingSearch(e.target.value)}
+              placeholder="Correlativo, documento, remitente..."
+              className="bg-transparent border-none outline-none text-sm w-full"
+            />
+          </div>
+        </div>
+        <div className="w-56">
+          <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+            Estado
+          </label>
+          <select
+            value={trackingStatus}
+            onChange={(e) => setTrackingStatus(e.target.value)}
+            className={`w-full px-3 py-2 rounded-md border text-sm outline-none ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
+          >
+            <option value="all">Todos</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="en-proceso">En proceso</option>
+            <option value="aprobado">Aprobado</option>
+            <option value="rechazado">Rechazado</option>
+            <option value="omitido">Omitido</option>
+          </select>
+        </div>
+        <div className="w-64">
+          <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+            Enviado por
+          </label>
+          <select
+            value={trackingSender}
+            onChange={(e) => setTrackingSender(e.target.value)}
+            className={`w-full px-3 py-2 rounded-md border text-sm outline-none ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
+          >
+            <option value="all">Todos</option>
+            {senderOptions.map((sender) => (
+              <option key={sender} value={sender}>
+                {sender}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       {hasPermission(PERMISSIONS_MASTER.PRIORITIES_EXPORT) && (
         <div className="flex justify-end mb-2">
           <button
@@ -789,6 +949,12 @@ const PriorityMatrix: React.FC<{
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
                   }`}
               >
+                Correlativo
+              </th>
+              <th
+                className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
+                  }`}
+              >
                 Enviado por
               </th>
               <th
@@ -809,16 +975,16 @@ const PriorityMatrix: React.FC<{
               >
                 Estado
               </th>
+              <th
+                className={`px-4 py-3 text-center text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
+                  }`}
+              >
+                Vista
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filteredTracking
-              .sort((a, b) => {
-                const dateA = a.deadline.split("/").reverse().join("-");
-                const dateB = b.deadline.split("/").reverse().join("-");
-                return dateA.localeCompare(dateB);
-              })
-              .map((item) => (
+            {filteredTracking.map((item) => (
                 <tr
                   key={item.id}
                   className={`border-t transition-colors ${darkMode
@@ -830,6 +996,11 @@ const PriorityMatrix: React.FC<{
                     className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
                   >
                     <div className="font-medium">{item.title}</div>
+                  </td>
+                  <td
+                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    <span className="font-mono text-xs">{item.correlativo}</span>
                   </td>
                   <td
                     className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
@@ -855,11 +1026,97 @@ const PriorityMatrix: React.FC<{
                       {item.status.replace("-", " ")}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-center">
+                    <button
+                      onClick={() => setSelectedTrackingDoc(item)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold border ${darkMode
+                        ? "border-slate-700 text-slate-300 hover:bg-slate-800"
+                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                        }`}
+                    >
+                      <Eye size={13} />
+                      Ver
+                    </button>
+                  </td>
                 </tr>
               ))}
+            {filteredTracking.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500 italic">
+                  No hay documentos para los filtros seleccionados.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {selectedTrackingDoc && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-2xl rounded-xl border shadow-2xl ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+            <div className={`p-4 border-b flex items-center justify-between ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
+              <div>
+                <h3 className={`font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>{selectedTrackingDoc.title}</h3>
+                <p className="text-xs text-slate-500 mt-1">Correlativo: {selectedTrackingDoc.correlativo}</p>
+              </div>
+              <button
+                onClick={() => setSelectedTrackingDoc(null)}
+                className={`p-2 rounded-md ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                  <span className="font-semibold">Enviado por:</span> {selectedTrackingDoc.sentBy}
+                </div>
+                <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                  <span className="font-semibold">Recibido por:</span> {selectedTrackingDoc.receivedBy}
+                </div>
+                <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                  <span className="font-semibold">Fecha:</span> {selectedTrackingDoc.date}
+                </div>
+                <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                  <span className="font-semibold">Estado:</span> {selectedTrackingDoc.status}
+                </div>
+              </div>
+
+              {selectedTrackingDoc.contenido ? (
+                <div className={`rounded-lg border p-4 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                  {selectedTrackingDoc.contenido}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic">Sin contenido de mensaje en texto.</p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {selectedTrackingDoc.fileUrl && (
+                  <a
+                    href={selectedTrackingDoc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`px-3 py-2 rounded-md text-sm font-semibold border ${darkMode ? "border-blue-700 text-blue-300 hover:bg-blue-900/20" : "border-blue-300 text-blue-700 hover:bg-blue-50"}`}
+                  >
+                    Ver archivo principal
+                  </a>
+                )}
+                {(selectedTrackingDoc.archivos || []).map((file: string, idx: number) => (
+                  <a
+                    key={`${file}-${idx}`}
+                    href={file}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`px-3 py-2 rounded-md text-sm font-semibold border ${darkMode ? "border-slate-700 text-slate-300 hover:bg-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-50"}`}
+                  >
+                    Adjunto {idx + 1}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -920,6 +1177,11 @@ const DocumentManager: React.FC<{
       userRole === "Administrativo" ||
       userRole === "Desarrollador";
     const isManager = userRole === "Gerente";
+    const isPrivilegedAuditRole =
+      userRole === "Desarrollador" ||
+      userRole === "Administrativo" ||
+      userRole === "CEO";
+    const canUseAuditView = isManager || isPrivilegedAuditRole;
 
     // Extract unique departments for filter
     const departments = useMemo(() => {
@@ -1011,7 +1273,10 @@ const DocumentManager: React.FC<{
       const searchValue = `${doc.name || ""} ${doc.correlativo || ""}`.toLowerCase();
 
       const matchesStatus = filterStatus === "all" || statusValue === filterStatus;
-      const matchesDept = filterDept === "all" || deptValue === String(filterDept).toLowerCase().trim();
+      const matchesDept =
+        docView === "audit" && isManager && !isPrivilegedAuditRole
+          ? true
+          : filterDept === "all" || deptValue === String(filterDept).toLowerCase().trim();
       const matchesSearch = !searchTerm.trim() || searchValue.includes(searchTerm.toLowerCase().trim());
 
       if (!matchesStatus || !matchesDept || !matchesSearch) {
@@ -1023,7 +1288,8 @@ const DocumentManager: React.FC<{
       console.log(`[FILTER] User: ${user?.id} | Dept: ${userDept}`);
 
       if (docView === "audit") {
-        if (!isManager) return false;
+        if (!canUseAuditView) return false;
+        if (isPrivilegedAuditRole) return true;
 
         const myGerId = user?.gerencia_id?.toString() || "";
         if (!myGerId) return false;
@@ -1575,7 +1841,7 @@ const DocumentManager: React.FC<{
               <Send size={14} />
               ENVIADOS
             </button>
-            {isManager && (
+            {canUseAuditView && (
               <button
                 onClick={() => setDocView("audit")}
                 className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "audit" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
@@ -2149,6 +2415,7 @@ export default function Dashboard() {
   const [selectedManagement, setSelectedManagement] = useState<string | null>(
     null,
   );
+  const [managementDetailsMap, setManagementDetailsMap] = useState<Record<string, string[]>>(MANAGEMENT_DETAILS);
 
   const { user, logout, switchRole, hasPermission } = useAuth();
   const userRole = user?.role || "Usuario";
@@ -2164,6 +2431,8 @@ export default function Dashboard() {
   const canAccessPriorities = hasPermission(PERMISSIONS_MASTER.VIEW_PRIORITIES);
   const canEditOrgStructure =
     userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
+  const canEditManagementDetails =
+    userRole === "Desarrollador" || userRole === "Administrativo";
 
   // Action specific check
   const isReadOnly = !hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD);
@@ -2317,6 +2586,42 @@ export default function Dashboard() {
       fetchTickets();
     }
   }, [mounted, fetchDocuments, fetchUsers, fetchGerencias, fetchTickets]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      const raw = localStorage.getItem(MANAGEMENT_DETAILS_STORAGE_KEY);
+      if (!raw) {
+        setManagementDetailsMap(MANAGEMENT_DETAILS);
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        setManagementDetailsMap({
+          ...MANAGEMENT_DETAILS,
+          ...parsed,
+        });
+      }
+    } catch (error) {
+      console.error("No se pudieron cargar los detalles de gerencias personalizados", error);
+      setManagementDetailsMap(MANAGEMENT_DETAILS);
+    }
+  }, [mounted]);
+
+  const handleSaveManagementDetails = useCallback((name: string, nextFunctions: string[]) => {
+    setManagementDetailsMap((prev) => {
+      const next = {
+        ...prev,
+        [name]: nextFunctions,
+      };
+      try {
+        localStorage.setItem(MANAGEMENT_DETAILS_STORAGE_KEY, JSON.stringify(next));
+      } catch (error) {
+        console.error("No se pudo persistir personalización de gerencia", error);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -2831,7 +3136,7 @@ export default function Dashboard() {
                 href="https://workspace.google.com/intl/es-419/gmail/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-4 rounded-xl border flex items-center gap-4 transition-all group ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-red-900/50 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-red-200 hover:shadow-lg hover:shadow-red-500/5"}`}
+                className={`glass-hover p-4 rounded-xl border flex items-center gap-4 transition-all group ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-red-900/50 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-red-200 hover:shadow-lg hover:shadow-red-500/5"}`}
               >
                 <div
                   className={`p-3 rounded-lg ${darkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"} group-hover:scale-110 transition-transform`}
@@ -2856,7 +3161,7 @@ export default function Dashboard() {
                 href="https://quillbot.com/es/corrector-ortografico"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`p-4 rounded-xl border flex items-center gap-4 transition-all group ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-blue-900/50 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"}`}
+                className={`glass-hover p-4 rounded-xl border flex items-center gap-4 transition-all group ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-blue-900/50 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5"}`}
               >
                 <div
                   className={`p-3 rounded-lg ${darkMode ? "bg-blue-900/20 text-blue-400" : "bg-blue-50 text-blue-600"} group-hover:scale-110 transition-transform`}
@@ -2879,7 +3184,7 @@ export default function Dashboard() {
 
               <button
                 onClick={logout}
-                className={`p-4 rounded-xl border flex items-center gap-4 transition-all group text-left ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-slate-700 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-500/5"}`}
+                className={`glass-hover p-4 rounded-xl border flex items-center gap-4 transition-all group text-left ${darkMode ? "bg-zinc-900 border-zinc-800 hover:border-slate-700 hover:bg-zinc-800/50" : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg hover:shadow-slate-500/5"}`}
               >
                 <div
                   className={`p-3 rounded-lg ${darkMode ? "bg-slate-800 text-slate-400" : "bg-slate-100 text-slate-500"} group-hover:scale-110 transition-transform`}
@@ -3219,13 +3524,15 @@ export default function Dashboard() {
           onClose={() => setSelectedManagement(null)}
           title={selectedManagement || ""}
           functions={
-            selectedManagement && MANAGEMENT_DETAILS[selectedManagement]
-              ? MANAGEMENT_DETAILS[selectedManagement]
+            selectedManagement && managementDetailsMap[selectedManagement]
+              ? managementDetailsMap[selectedManagement]
               : selectedManagement
                 ? getDefaultFunctions(selectedManagement)
                 : []
           }
           darkMode={darkMode}
+          canEdit={canEditManagementDetails}
+          onSave={handleSaveManagementDetails}
         />
       </div>
     </RoleGuard>

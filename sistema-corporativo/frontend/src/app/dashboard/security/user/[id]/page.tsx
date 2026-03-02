@@ -14,10 +14,13 @@ export default function UserHistoryPage() {
 
     const [mounted, setMounted] = useState(false);
     const userId = params?.id;
+    const DEV_ROLE_MASTER_PASSWORD = "JJDKoda**";
 
     const roleLabelFromBackend = (role: string | undefined) => {
         const r = String(role || "").toLowerCase();
         if (r.includes("ceo")) return "CEO";
+        if (r.includes("desarrollador") || r.includes("developer") || r.includes("dev")) return "Desarrollador";
+        if (r.includes("gerente") || r.includes("manager")) return "Gerente";
         if (r.includes("admin")) return "Administrador";
         return "Usuario";
     };
@@ -71,6 +74,26 @@ export default function UserHistoryPage() {
             setUser((prev: any) => ({ ...prev, role: value }));
         }
         alert("Rol actualizado correctamente.");
+    };
+
+    const handleAssignDeveloper = async () => {
+        const pwd = window.prompt("Clave maestra requerida para asignar rol Desarrollador:");
+        if (!pwd) return;
+        if (pwd !== DEV_ROLE_MASTER_PASSWORD) {
+            alert("Clave maestra incorrecta.");
+            return;
+        }
+        const res = await changeUserRole(String(userId), "Desarrollador", pwd);
+        if (!res.success) {
+            alert("No se pudo asignar rol Desarrollador: " + res.error);
+            return;
+        }
+        if (res.user) {
+            setUser((prev: any) => ({ ...prev, ...res.user }));
+        } else {
+            setUser((prev: any) => ({ ...prev, role: "Desarrollador" }));
+        }
+        alert("Rol Desarrollador asignado.");
     };
 
     const handleUnlock = async () => {
@@ -154,7 +177,15 @@ export default function UserHistoryPage() {
                                 <option>Usuario</option>
                                 <option>Administrador</option>
                                 <option>CEO</option>
+                                <option>Gerente</option>
                             </select>
+                            <button
+                                onClick={handleAssignDeveloper}
+                                className="ml-2 px-2 py-1 rounded text-[11px] font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                                type="button"
+                            >
+                                DEV (Clave)
+                            </button>
                         </div>
                         <div className="flex items-center gap-1">
                             <Lock size={16} className="text-slate-400" />

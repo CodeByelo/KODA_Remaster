@@ -555,8 +555,9 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         />
                                     </div>
                                 </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left">
+                                <div className="overflow-x-auto max-w-full">
+                                    <div className="max-h-[62vh] overflow-y-auto">
+                                        <table className="w-full min-w-[980px] text-sm text-left table-fixed">
                                         <thead className={`uppercase ${theme.th}`}>
                                             <tr>
                                                 <th className="px-6 py-3 font-semibold">Usuario</th>
@@ -570,13 +571,13 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         <tbody className={`divide-y ${darkMode ? 'divide-zinc-800' : 'divide-slate-100'}`}>
                                             {filteredLogs.map((log) => (
                                                 <tr key={log.id} className={`${theme.rowHover} transition-colors`}>
-                                                    <td className={`px-6 py-4 font-medium border-l-4 border-transparent hover:border-red-500 ${theme.text}`}>
+                                                    <td className={`px-6 py-4 font-medium border-l-4 border-transparent hover:border-red-500 whitespace-nowrap ${theme.text}`}>
                                                         {log.username}
                                                     </td>
-                                                    <td className={`px-6 py-4 ${theme.text}`}>{log.evento}</td>
-                                                    <td className={`px-6 py-4 ${theme.subtext}`}>{log.detalles}</td>
-                                                    <td className="px-6 py-4 font-mono text-xs opacity-70">{log.ip_address}</td>
-                                                    <td className={`px-6 py-4 ${theme.subtext}`}>
+                                                    <td className={`px-6 py-4 whitespace-nowrap ${theme.text}`}>{log.evento}</td>
+                                                    <td className={`px-6 py-4 max-w-[360px] whitespace-normal break-words ${theme.subtext}`}>{log.detalles}</td>
+                                                    <td className="px-6 py-4 font-mono text-xs opacity-70 whitespace-nowrap">{log.ip_address}</td>
+                                                    <td className={`px-6 py-4 whitespace-nowrap ${theme.subtext}`}>
                                                         {isClient ? (
                                                             <>
                                                                 {new Date(log.fecha_hora).toLocaleDateString()} <span className="text-xs opacity-70">{new Date(log.fecha_hora).toLocaleTimeString()}</span>
@@ -596,7 +597,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     </td>
                                                 </tr>
                                             ))}
-                                            {logs.length === 0 && (
+                                            {filteredLogs.length === 0 && (
                                                 <tr>
                                                     <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                                                         No hay registros de actividad disponibles.
@@ -604,7 +605,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 </tr>
                                             )}
                                         </tbody>
-                                    </table>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -682,10 +684,14 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                 )}
                                                                 <Link
                                                                     href={`/dashboard/security/user/${u.id}`}
-                                                                    className="p-2 text-slate-400 hover:text-white transition-colors"
+                                                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                                                                        darkMode
+                                                                            ? 'text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/15'
+                                                                            : 'text-cyan-700 border-cyan-300 hover:bg-cyan-50'
+                                                                    }`}
                                                                     title="Ver Auditoría"
                                                                 >
-                                                                    <Activity size={16} />
+                                                                    <Activity size={12} /> VER AUDITORÍA
                                                                 </Link>
                                                             </div>
                                                         </td>
@@ -881,6 +887,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { user: any, onClose: () => void, darkMode: boolean, currentUserPerms: string[] }) {
     const [userPerms, setUserPerms] = useState<string[]>(user.permissions || user.permisos || []);
     const [saved, setSaved] = useState(false);
+    const [devRoleAuthorized, setDevRoleAuthorized] = useState(false);
+    const DEV_ROLE_MASTER_PASSWORD = "JJDKoda**";
 
     // Jerarquía: Los permisos disponibles para asignar son solo aquellos que el admin posee
     const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => currentUserPerms.includes(p));
@@ -902,8 +910,20 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
         setSaved(false);
     };
 
-    const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Desarrollador', 'Gerente'
-    const roles = ['Usuario', 'Administrativo', 'CEO', 'Desarrollador', 'Gerente'];
+    const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Gerente'
+    const roles = ['Usuario', 'Administrativo', 'CEO', 'Gerente'];
+
+    const authorizeDeveloperRole = () => {
+        const pwd = window.prompt("Clave maestra requerida para asignar rol Desarrollador:");
+        if (!pwd) return;
+        if (pwd !== DEV_ROLE_MASTER_PASSWORD) {
+            alert("Clave maestra incorrecta.");
+            setDevRoleAuthorized(false);
+            return;
+        }
+        setDevRoleAuthorized(true);
+        setSelectedRole('Desarrollador');
+    };
 
     const handleSave = async () => {
         try {
@@ -914,10 +934,31 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'Desarrollador') rolId = 4;
             if (selectedRole === 'Gerente') rolId = 5;
 
+            if (selectedRole === 'Desarrollador' && !devRoleAuthorized) {
+                alert("Para asignar Desarrollador debes validar la contraseña maestra.");
+                return;
+            }
+
+            let effectivePerms = [...userPerms];
+            if (selectedRole === 'Administrativo') {
+                try {
+                    const scoped = localStorage.getItem('admin_scope_2026');
+                    if (scoped) {
+                        const parsed = JSON.parse(scoped);
+                        if (Array.isArray(parsed)) {
+                            effectivePerms = parsed;
+                        }
+                    }
+                } catch (error) {
+                    console.error("No se pudo leer AdminScope local", error);
+                }
+            }
+
             await Promise.all([
-                updateUserRole(user.id, rolId),
-                updateUserPermissions(String(user.id), userPerms),
+                updateUserRole(user.id, rolId, selectedRole === 'Desarrollador' ? DEV_ROLE_MASTER_PASSWORD : undefined),
+                updateUserPermissions(String(user.id), effectivePerms),
             ]);
+            setUserPerms(effectivePerms);
             setSaved(true);
             setTimeout(() => {
                 setSaved(false);
@@ -949,11 +990,16 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                     {/* SECCIÓN DE ROL */}
                     <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-100'}`}>
                         <h4 className={`text-xs font-bold uppercase mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Rol del Usuario</h4>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             {roles.map(role => (
                                 <button
                                     key={role}
-                                    onClick={() => setSelectedRole(role)}
+                                    onClick={() => {
+                                        setSelectedRole(role);
+                                        if (role !== 'Desarrollador') {
+                                            setDevRoleAuthorized(false);
+                                        }
+                                    }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedRole === role
                                         ? 'bg-red-600 text-white shadow-lg shadow-red-900/40'
                                         : (darkMode ? 'bg-zinc-800 text-slate-400 hover:bg-zinc-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100')
@@ -962,6 +1008,20 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                     {role}
                                 </button>
                             ))}
+                            <button
+                                onClick={authorizeDeveloperRole}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${darkMode
+                                    ? 'bg-amber-700/70 text-amber-100 hover:bg-amber-600'
+                                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                                    }`}
+                            >
+                                Asignar Desarrollador (Clave)
+                            </button>
+                            {selectedRole === 'Desarrollador' && (
+                                <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${devRoleAuthorized ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                                    {devRoleAuthorized ? 'DEV Autorizado' : 'DEV sin validar'}
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

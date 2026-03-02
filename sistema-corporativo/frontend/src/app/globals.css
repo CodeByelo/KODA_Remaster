@@ -509,3 +509,32 @@ input:-webkit-autofill:active {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/* Glass Hover System */
+button,
+.glass-hover {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    filter 0.25s ease;
+}
+
+button:hover:not(:disabled),
+.glass-hover:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+button:active:not(:disabled),
+.glass-hover:active {
+  transform: translateY(0);
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}

@@ -234,12 +234,13 @@ export async function getGerencias(): Promise<ApiGerencia[]> {
  */
 export async function updateUserRole(
     userId: string | number,
-    roleId: number
+    roleId: number,
+    masterPassword?: string
 ): Promise<ApiUser> {
     const res = await fetch(`${BASE_URL}/users/${userId}/role`, {
         method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ rol_id: roleId }),
+        body: JSON.stringify({ rol_id: roleId, ...(masterPassword ? { master_password: masterPassword } : {}) }),
     });
     return handleResponse<ApiUser>(res);
 }
