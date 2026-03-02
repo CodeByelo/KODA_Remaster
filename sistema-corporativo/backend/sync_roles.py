@@ -23,7 +23,8 @@ async def sync_roles():
             1: "CEO",
             2: "Administrativo",
             3: "Usuario",
-            4: "Desarrollador"
+            4: "Desarrollador",
+            5: "Gerente",
         }
         
         for r_id, r_name in role_mapping.items():
@@ -43,7 +44,7 @@ async def sync_roles():
                 print(f"Actualizado: ID {r_id} -> {r_name}")
         
         # Opcional: Eliminar roles sobrantes
-        await conn.execute("DELETE FROM roles WHERE id > 4")
+        await conn.execute("DELETE FROM roles WHERE id > 5")
         
         print("\nVerificando cambios...")
         roles = await conn.fetch("SELECT * FROM roles ORDER BY id")

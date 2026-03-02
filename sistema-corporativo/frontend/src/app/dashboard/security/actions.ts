@@ -71,7 +71,10 @@ export async function changeUserRole(userId: string, roleLabel: string) {
     const roleMap: Record<string, number> = {
         CEO: 1,
         Administrador: 2,
+        Administrativo: 2,
+        Gerente: 5,
         Usuario: 3,
+        Desarrollador: 4,
     };
     const roleId = roleMap[roleLabel];
     if (!roleId) {

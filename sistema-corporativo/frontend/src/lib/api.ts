@@ -24,6 +24,8 @@ export interface ApiDocument {
     targetDepartment?: string;
     receptor_gerencia_id?: number;
     receptor_gerencia_nombre?: string;
+    receptor_gerencia_id_usuario?: number;
+    receptor_gerencia_nombre_usuario?: string;
     emisor_gerencia_id?: number;
     emisor_gerencia_nombre?: string;
     emisor_usuario_id?: number;
@@ -34,6 +36,9 @@ export interface ApiDocument {
     descripcion?: string;
     created_at?: string;
     updated_at?: string;
+    remitente_gerencia_id?: number;
+    remitente_gerencia_nombre?: string;
+    fecha_caducidad?: string;
 }
 
 export interface ApiUser {
@@ -296,11 +301,11 @@ export async function saveAnnouncement(data: AnnouncementData): Promise<{ status
     return handleResponse<{ status: string }>(res);
 }
 
-export async function getOrgStructure(): Promise<{ org_structure: any[] }> {
+export async function getOrgStructure(): Promise<{ org_structure: any[]; source?: string }> {
     const res = await fetch(`${BASE_URL}/org-structure`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<{ org_structure: any[] }>(res);
+    return handleResponse<{ org_structure: any[]; source?: string }>(res);
 }
 
 export async function saveOrgStructure(org_structure: any[]): Promise<{ status: string }> {

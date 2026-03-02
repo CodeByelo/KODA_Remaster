@@ -12,7 +12,7 @@ export const PERMISSIONS_MASTER = {
     VIEW_STATS: 'VIEW_STATS',
 
     // 2. Acciones en Módulos
-    // Matriz de Prioridades
+    // Control de Seguimiento
     PRIORITIES_VIEW_ALL: 'PRIORITIES_VIEW_ALL',
     PRIORITIES_EXPORT: 'PRIORITIES_EXPORT',
 
@@ -51,7 +51,7 @@ export const PERMISSIONS_MASTER = {
 export const PERMISSION_LABELS: Record<string, string> = {
     // Navegación
     VIEW_DASHBOARD: 'Ver Dashboard General',
-    VIEW_PRIORITIES: 'Ver Matriz de Prioridades',
+    VIEW_PRIORITIES: 'Ver Control de Seguimiento',
     VIEW_TICKETS: 'Ver Sistema de Tickets',
     VIEW_DOCUMENTS: 'Ver Gestor Documental',
     VIEW_SECURITY: 'Ver Módulo de Seguridad',
@@ -96,6 +96,16 @@ export type Permission = keyof typeof PERMISSIONS_MASTER;
 // Perfiles por defecto (Heredados según requerimiento)
 export const DEFAULT_SCOPES: Record<string, string[]> = {
     Usuario: [
+        PERMISSIONS_MASTER.VIEW_DASHBOARD,
+        PERMISSIONS_MASTER.VIEW_TICKETS,
+        PERMISSIONS_MASTER.VIEW_DOCUMENTS,
+        PERMISSIONS_MASTER.DOCS_VIEW_DEPT,
+        PERMISSIONS_MASTER.DOCS_UPLOAD,
+        PERMISSIONS_MASTER.TICKETS_CREATE,
+        PERMISSIONS_MASTER.TICKETS_VIEW_DEPT,
+        PERMISSIONS_MASTER.ORG_VIEW_LIMITED
+    ],
+    Gerente: [
         PERMISSIONS_MASTER.VIEW_DASHBOARD,
         PERMISSIONS_MASTER.VIEW_TICKETS,
         PERMISSIONS_MASTER.VIEW_DOCUMENTS,

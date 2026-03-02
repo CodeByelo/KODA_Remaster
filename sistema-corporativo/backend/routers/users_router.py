@@ -45,6 +45,8 @@ async def update_user_role(
         rol_id = data.get("rol_id")
         if not rol_id:
             raise HTTPException(status_code=400, detail="rol_id es requerido")
+        if rol_id not in {1, 2, 3, 4, 5}:
+            raise HTTPException(status_code=400, detail="rol_id invalido")
             
         await conn.execute(
             "UPDATE profiles SET rol_id = $1 WHERE id = $2",

@@ -83,6 +83,7 @@ import {
   markAsRead,
   getAnnouncement,
   getOrgStructure,
+  saveOrgStructure,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
 const ResponsiveContainerCompat =
@@ -717,67 +718,42 @@ const PriorityMatrix: React.FC<{
   documents: Document[];
   hasPermission: (permission: string) => boolean;
 }> = ({ darkMode, userRole, isReadOnly, documents, hasPermission }) => {
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "alta":
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "aprobado":
         return darkMode
           ? "bg-red-500/10 text-red-400"
           : "bg-red-50 text-red-700";
-      case "media":
+      case "omitido":
+        return darkMode
+          ? "bg-green-500/10 text-green-400"
+          : "bg-green-50 text-green-700";
+      case "en-proceso":
+      case "pendiente":
         return darkMode
           ? "bg-amber-500/10 text-amber-400"
           : "bg-amber-50 text-amber-700";
-      case "baja":
-        return darkMode
-          ? "bg-green-500/10 text-green-400"
-          : "bg-green-50 text-green-700";
       default:
-        return "";
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pendiente":
         return darkMode
           ? "bg-slate-800 text-slate-400"
           : "bg-slate-100 text-slate-600";
-      case "en-progreso":
-        return darkMode
-          ? "bg-blue-500/10 text-blue-400"
-          : "bg-blue-50 text-blue-700";
-      case "completado":
-        return darkMode
-          ? "bg-green-500/10 text-green-400"
-          : "bg-green-50 text-green-700";
-      default:
-        return "";
     }
   };
 
-  // Convert documents to Priority Items format
-  const mappedPriorities = useMemo(() => {
-    return documents.map(doc => ({
-      id: doc.id,
-      title: doc.name,
-      description: doc.category,
-      priority: (doc.prioridad || "media").toLowerCase() as any,
-      responsible: doc.receptor_gerencia_nombre || doc.targetDepartment || "Sin Asignar",
-      deadline: doc.uploadDate || "N/A", // Here we could use a raw deadline date if available
-      status: doc.signatureStatus === "aprobado" ? "completado" :
-        doc.signatureStatus === "en-proceso" ? "en-progreso" : "pendiente" as any
-    }));
+  const mappedTracking = useMemo(() => {
+    return documents
+      .filter((doc) => String(doc.prioridad || "").toLowerCase() === "control")
+      .map((doc) => ({
+        id: doc.id,
+        title: doc.name,
+        sentBy: doc.uploadedBy || "Desconocido",
+        receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
+        date: doc.uploadDate || "N/A",
+        status: String(doc.signatureStatus || "pendiente").toLowerCase(),
+      }));
   }, [documents]);
 
-  const filteredPriorities = hasPermission(
-    PERMISSIONS_MASTER.PRIORITIES_VIEW_ALL,
-  )
-    ? mappedPriorities
-    : mappedPriorities.filter(
-      (item) =>
-        item.responsible.includes("TIC") ||
-        item.responsible === "Gerencia TI",
-    );
+  const filteredTracking = mappedTracking;
 
   return (
     <div className="space-y-4 pt-2">
@@ -807,25 +783,25 @@ const PriorityMatrix: React.FC<{
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
                   }`}
               >
-                Prioridad
+                Nombre de Documento
               </th>
               <th
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
                   }`}
               >
-                Título
+                Enviado por
               </th>
               <th
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
                   }`}
               >
-                Responsable
+                Recibido por
               </th>
               <th
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
                   }`}
               >
-                Plazo
+                Fecha
               </th>
               <th
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
@@ -836,7 +812,7 @@ const PriorityMatrix: React.FC<{
             </tr>
           </thead>
           <tbody>
-            {filteredPriorities
+            {filteredTracking
               .sort((a, b) => {
                 const dateA = a.deadline.split("/").reverse().join("-");
                 const dateB = b.deadline.split("/").reverse().join("-");
@@ -850,34 +826,25 @@ const PriorityMatrix: React.FC<{
                     : "border-slate-200 hover:bg-slate-50"
                     }`}
                 >
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getPriorityColor(
-                        item.priority,
-                      )}`}
-                    >
-                      {item.priority}
-                    </span>
-                  </td>
                   <td
                     className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
                   >
                     <div className="font-medium">{item.title}</div>
-                    <div
-                      className={`text-xs mt-1 ${darkMode ? "text-slate-500" : "text-slate-500"}`}
-                    >
-                      {item.description}
-                    </div>
                   </td>
                   <td
                     className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
                   >
-                    {item.responsible}
+                    {item.sentBy}
                   </td>
                   <td
                     className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
                   >
-                    {item.deadline}
+                    {item.receivedBy}
+                  </td>
+                  <td
+                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {item.date}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -885,7 +852,7 @@ const PriorityMatrix: React.FC<{
                         item.status,
                       )}`}
                     >
-                      {item.status}
+                      {item.status.replace("-", " ")}
                     </span>
                   </td>
                 </tr>
@@ -929,20 +896,21 @@ const DocumentManager: React.FC<{
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [filterDept, setFilterDept] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState("");
-    const [docView, setDocView] = useState<"inbox" | "sent">("inbox");
+    const [docView, setDocView] = useState<"inbox" | "sent" | "audit">("inbox");
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     // Modal State
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [docName, setDocName] = useState("");
-    const [sentBy, setSentBy] = useState("Maria Rodríguez");
     const [docCategory, setDocCategory] = useState("Informe");
-    const [targetDeptId, setTargetDeptId] = useState<string>("");
     const [correlativo, setCorrelativo] = useState("");
+    const [priorityEnabled, setPriorityEnabled] = useState(false);
+    const [priorityDays, setPriorityDays] = useState<number>(3);
 
     // Messaging Specific States
-    const [targetUserId, setTargetUserId] = useState<string>("");
+    const [targetUserIds, setTargetUserIds] = useState<string[]>([]);
+    const [targetDeptIds, setTargetDeptIds] = useState<string[]>([]);
     const [sendMode, setSendMode] = useState<"user" | "dept">("user");
     const [messageContent, setMessageContent] = useState("");
     const [showViewModal, setShowViewModal] = useState(false);
@@ -951,6 +919,7 @@ const DocumentManager: React.FC<{
       hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
       userRole === "Administrativo" ||
       userRole === "Desarrollador";
+    const isManager = userRole === "Gerente";
 
     // Extract unique departments for filter
     const departments = useMemo(() => {
@@ -984,14 +953,23 @@ const DocumentManager: React.FC<{
       return Array.from(byName.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [gerencias, departments]);
 
-    useEffect(() => {
-      if (messagingDeptOptions.length > 0 && !targetDeptId) {
-        setTargetDeptId(messagingDeptOptions[0].id);
-      }
-    }, [messagingDeptOptions, targetDeptId]);
+    const correlativoPreview = useMemo(() => {
+      const raw = (user?.gerencia_depto || userDept || "").trim();
+      const siglas = raw
+        ? raw
+            .split(/\s+/)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 6)
+        : "GER";
+      const year = new Date().getFullYear();
+      const manual = correlativo.trim() || "___";
+      return `${siglas}-${manual}-${year}`;
+    }, [correlativo, user?.gerencia_depto, userDept]);
 
     useEffect(() => {
-      if (docView === "inbox" && filterStatus === "recibido") {
+      if (docView !== "sent" && filterStatus === "recibido") {
         setFilterStatus("all");
       }
       if (docView === "sent" && filterStatus === "leido") {
@@ -999,10 +977,15 @@ const DocumentManager: React.FC<{
       }
     }, [docView, filterStatus]);
 
-    const normalizeMessagingStatus = useCallback((doc: Document, view: "inbox" | "sent"): string => {
+    useEffect(() => {
+      setTargetUserIds([]);
+      setTargetDeptIds([]);
+    }, [sendMode]);
+
+    const normalizeMessagingStatus = useCallback((doc: Document, view: "inbox" | "sent" | "audit"): string => {
       const raw = String(doc.signatureStatus || "").toLowerCase().trim();
 
-      if (view === "inbox" && doc.leido) return "leido";
+      if (view !== "sent" && doc.leido) return "leido";
       if (view === "sent" && doc.leido) return "recibido";
 
       if (raw === "en-proceso" || raw === "en proceso" || raw === "en_proceso") return "en-proceso";
@@ -1012,6 +995,13 @@ const DocumentManager: React.FC<{
 
       return "en-proceso";
     }, []);
+
+    const docViewLabel =
+      docView === "inbox"
+        ? "Bandeja de Entrada"
+        : docView === "sent"
+          ? "Enviados"
+          : "Auditar Mensajes";
 
     const MY_DEPT =
       "Gerencia Nacional de Tecnologias de la informacion y la comunicacion";
@@ -1034,6 +1024,29 @@ const DocumentManager: React.FC<{
       // Debug logs
       console.log(`[FILTER] Doc: ${doc.name} | Receptor: ${doc.receptor_id} | Gerencia: ${doc.receptor_gerencia_id}`);
       console.log(`[FILTER] User: ${user?.id} | Dept: ${userDept}`);
+
+      if (docView === "audit") {
+        if (!isManager) return false;
+
+        const myGerId = user?.gerencia_id?.toString() || "";
+        if (!myGerId) return false;
+
+        const senderGerId = doc.remitente_gerencia_id?.toString() || "";
+        const receiverGerId = doc.receptor_gerencia_id?.toString() || "";
+        const receiverUserGerId = doc.receptor_gerencia_id_usuario?.toString() || "";
+        const isInMyGerencia =
+          myGerId === senderGerId ||
+          myGerId === receiverGerId ||
+          myGerId === receiverUserGerId;
+
+        if (!isInMyGerencia) return false;
+
+        const isOwn =
+          (doc.remitente_id && user?.id && String(doc.remitente_id) === String(user.id)) ||
+          (doc.receptor_id && user?.id && String(doc.receptor_id) === String(user.id));
+
+        return !isOwn;
+      }
 
       if (docView === "inbox") {
         // BANDEJA DE ENTRADA
@@ -1112,8 +1125,11 @@ const DocumentManager: React.FC<{
       setSelectedFiles([]);
       setDocName("");
       setCorrelativo("");
+      setPriorityEnabled(false);
+      setPriorityDays(3);
       setMessageContent("");
-      setTargetUserId("");
+      setTargetUserIds([]);
+      setTargetDeptIds([]);
       setShowUploadModal(true);
     };
 
@@ -1131,43 +1147,65 @@ const DocumentManager: React.FC<{
       if (!docName) setDocName(file.name);
     };
 
+    const handleUserRecipientsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+      setTargetUserIds(values);
+    };
+
+    const handleDeptRecipientsChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const values = Array.from(e.target.selectedOptions).map((opt) => opt.value);
+      setTargetDeptIds(values);
+    };
+
     const confirmUpload = async (e: React.FormEvent) => {
       e.preventDefault();
 
-      const formData = new FormData();
-      formData.append("titulo", docName || "Mensaje sin asunto");
-      formData.append("correlativo", correlativo);
-      formData.append("tipo_documento", docCategory);
-      formData.append("prioridad", "media");
-      formData.append("contenido", messageContent);
-
-      if (sendMode === "dept") {
-        if (targetDeptId.startsWith("name:")) {
-          formData.append("receptor_gerencia_nombre", targetDeptId.slice(5));
-        } else {
-          formData.append("receptor_gerencia_id", targetDeptId);
-        }
-      } else if (targetUserId) {
-        formData.append("receptor_id", targetUserId);
-      } else {
-        alert("Por favor selecciona un destinatario.");
+      const recipients = sendMode === "dept" ? targetDeptIds : targetUserIds;
+      if (!recipients || recipients.length === 0) {
+        alert("Por favor selecciona al menos un destinatario.");
         return;
       }
 
-      if (selectedFiles.length > 0) {
-        selectedFiles.forEach((file) => {
-          formData.append("archivos", file);
-        });
-      }
+      const priorityValue = priorityEnabled ? "control" : "media";
+      const manualId = correlativo.trim();
 
       try {
-        const res = await uploadDocumento(formData);
+        const uploads = recipients.map((recipient) => {
+          const formData = new FormData();
+          formData.append("titulo", docName || "Mensaje sin asunto");
+          if (manualId) formData.append("correlativo", manualId);
+          formData.append("tipo_documento", docCategory);
+          formData.append("prioridad", priorityValue);
+          formData.append("contenido", messageContent);
+          if (priorityEnabled && priorityDays > 0) {
+            formData.append("tiempo_maximo_dias", String(priorityDays));
+          }
+
+          if (sendMode === "dept") {
+            if (recipient.startsWith("name:")) {
+              formData.append("receptor_gerencia_nombre", recipient.slice(5));
+            } else {
+              formData.append("receptor_gerencia_id", recipient);
+            }
+          } else {
+            formData.append("receptor_id", recipient);
+          }
+
+          if (selectedFiles.length > 0) {
+            selectedFiles.forEach((file) => {
+              formData.append("archivos", file);
+            });
+          }
+
+          return uploadDocumento(formData);
+        });
+        await Promise.all(uploads);
         refreshDocs();
 
         await logDocumentActivity({
           username: user?.nombre || "Usuario",
           evento: "MENSAJERÍA INTERNA",
-          detalles: `Envío de mensaje: "${docName}" a ${sendMode === "user" ? "usuario" : "gerencia"}`,
+          detalles: `Envío de mensaje: "${docName}" a ${recipients.length} ${sendMode === "user" ? "usuario(s)" : "gerencia(s)"}`,
           estado: "success",
         });
 
@@ -1176,6 +1214,10 @@ const DocumentManager: React.FC<{
         setDocName("");
         setMessageContent("");
         setCorrelativo("");
+        setPriorityEnabled(false);
+        setPriorityDays(3);
+        setTargetUserIds([]);
+        setTargetDeptIds([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
         alert(`Mensaje enviado con éxito.`);
       } catch (e) {
@@ -1348,35 +1390,78 @@ const DocumentManager: React.FC<{
                   />
                 </div>
 
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
+                    Correlativo (ID Manual)
+                  </label>
+                  <input
+                    value={correlativo}
+                    onChange={(e) => setCorrelativo(e.target.value)}
+                    placeholder="Ej: 015"
+                    className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Formato final: {correlativoPreview}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border p-3 border-dashed border-slate-700/40">
+                  <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={priorityEnabled}
+                      onChange={(e) => setPriorityEnabled(e.target.checked)}
+                      className="accent-red-600"
+                    />
+                    Control de seguimiento (prioridad)
+                  </label>
+                  {priorityEnabled && (
+                    <div className="mt-3">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
+                        Tiempo mÃ¡ximo de atenciÃ³n (dÃ­as)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={priorityDays}
+                        onChange={(e) => setPriorityDays(Math.max(1, Number(e.target.value || 1)))}
+                        className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 {sendMode === "user" ? (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
-                      Destinatario (Usuario)
+                      Destinatarios (Usuarios)
                     </label>
                     <select
-                      required
-                      value={targetUserId}
-                      onChange={(e) => setTargetUserId(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                      multiple
+                      value={targetUserIds}
+                      onChange={handleUserRecipientsChange}
+                      className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm h-32 ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                     >
-                      <option value="">Seleccionar Usuario...</option>
                       {users.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.nombre} {u.apellido}
                         </option>
                       ))}
                     </select>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Puedes seleccionar varios con Ctrl/Cmd.
+                    </p>
                   </div>
                 ) : (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
-                      Gerencia Destino
+                      Gerencias Destino
                     </label>
                     <select
-                      required
-                      value={targetDeptId}
-                      onChange={(e) => setTargetDeptId(e.target.value)}
-                      className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                      multiple
+                      value={targetDeptIds}
+                      onChange={handleDeptRecipientsChange}
+                      className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm h-32 ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                     >
                       {messagingDeptOptions.map((g) => (
                         <option key={g.id} value={g.id}>
@@ -1384,6 +1469,9 @@ const DocumentManager: React.FC<{
                         </option>
                       ))}
                     </select>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Puedes seleccionar varias con Ctrl/Cmd.
+                    </p>
                   </div>
                 )}
 
@@ -1478,6 +1566,15 @@ const DocumentManager: React.FC<{
               <Send size={14} />
               ENVIADOS
             </button>
+            {isManager && (
+              <button
+                onClick={() => setDocView("audit")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "audit" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
+              >
+                <Shield size={14} />
+                AUDITAR MENSAJES
+              </button>
+            )}
           </div>
           <div className="flex gap-2">
             {hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD) && (
@@ -1521,7 +1618,7 @@ const DocumentManager: React.FC<{
               className={`w-full px-3 py-2 rounded-md border text-sm outline-none cursor-pointer ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
             >
               <option value="all">Todos los Estados</option>
-              {docView === "inbox" ? (
+              {docView !== "sent" ? (
                 <>
                   <option value="leido">Leído</option>
                   <option value="en-proceso">En Proceso</option>
@@ -1572,7 +1669,10 @@ const DocumentManager: React.FC<{
                   Fecha / Hora
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Gerencia Receptora
+                  Enviado Por
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Recibido Por
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Estado
@@ -1621,10 +1721,27 @@ const DocumentManager: React.FC<{
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
+                        <Users size={12} className="text-slate-500" />
+                        <span className="text-xs text-slate-400 truncate max-w-[150px]">
+                          {doc.uploadedBy || "Desconocido"}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                        {doc.remitente_gerencia_nombre || "Sin Gerencia"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
                         <Building2 size={12} className="text-slate-500" />
                         <span className="text-xs text-slate-400 truncate max-w-[150px]">
                           {doc.receivedBy !== "Pendiente" ? doc.receivedBy : doc.targetDepartment}
                         </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                        {doc.receptor_gerencia_nombre ||
+                          doc.receptor_gerencia_nombre_usuario ||
+                          doc.targetDepartment ||
+                          "Sin Gerencia"}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -1662,7 +1779,7 @@ const DocumentManager: React.FC<{
               {/* Mensaje de vacío FUERA del .map() */}
               {filteredDocs.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-slate-500 italic">
+                  <td colSpan={7} className="p-10 text-center text-slate-500 italic">
                     No se encontraron documentos
                   </td>
                 </tr>
@@ -1674,7 +1791,7 @@ const DocumentManager: React.FC<{
               <div className="text-slate-500 italic mb-2">No se encontraron mensajes</div>
               <div className="text-xs text-slate-400 mb-4 space-y-1">
                 <div>Total en sistema: {documents.length}</div>
-                <div>Filtros activos: {docView === "inbox" ? "Bandeja de Entrada" : "Enviados"} | {filterDept !== "all" ? filterDept : "Todos"}</div>
+                <div>Filtros activos: {docViewLabel} | {filterDept !== "all" ? filterDept : "Todos"}</div>
               </div>
               <button
                 onClick={refreshDocs}
@@ -2036,6 +2153,8 @@ export default function Dashboard() {
   const canAccessStats = hasPermission(PERMISSIONS_MASTER.VIEW_STATS);
   const canAccessTickets = hasPermission(PERMISSIONS_MASTER.VIEW_TICKETS);
   const canAccessPriorities = hasPermission(PERMISSIONS_MASTER.VIEW_PRIORITIES);
+  const canEditOrgStructure =
+    userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
 
   // Action specific check
   const isReadOnly = !hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD);
@@ -2095,6 +2214,12 @@ export default function Dashboard() {
           receptor_id: d.receptor_id ? String(d.receptor_id) : null,
           receptor_gerencia_id: d.receptor_gerencia_id ? String(d.receptor_gerencia_id) : null,
           remitente_id: d.remitente_id ? String(d.remitente_id) : null,
+          receptor_gerencia_id_usuario: d.receptor_gerencia_id_usuario
+            ? Number(d.receptor_gerencia_id_usuario)
+            : undefined,
+          receptor_gerencia_nombre_usuario: d.receptor_gerencia_nombre_usuario,
+          remitente_gerencia_id: d.remitente_gerencia_id ? Number(d.remitente_gerencia_id) : undefined,
+          remitente_gerencia_nombre: d.remitente_gerencia_nombre,
           uploadDate,
           uploadTime,
           signatureStatus: d.estado || d.signatureStatus || "en-proceso",
@@ -2109,7 +2234,8 @@ export default function Dashboard() {
           tenant_id: d.tenant_id,
           user_id: d.user_id,
           contenido: d.contenido, // Nuevo
-          leido: d.leido          // Nuevo
+          leido: d.leido,          // Nuevo
+          fecha_caducidad: d.fecha_caducidad || undefined,
         };
       });
 
@@ -2241,27 +2367,31 @@ export default function Dashboard() {
     if (!mounted) return;
     let cancelled = false;
     (async () => {
-      let data: OrgCategory[] = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
-      let hasLocalCache = false;
-      const localOrg = typeof window !== "undefined" ? localStorage.getItem("org_structure_data") : null;
-      if (localOrg) {
-        try {
-          const parsed = JSON.parse(localOrg);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            data = parsed as OrgCategory[];
-            hasLocalCache = true;
-          }
-        } catch {
-          // Ignore local cache parse errors and continue with API/default.
-        }
-      }
+      let data: OrgCategory[] = [];
+      let source: string | undefined;
       try {
         const remote = await getOrgStructure();
-        if (!hasLocalCache && remote?.org_structure?.length) {
+        if (remote?.org_structure?.length) {
           data = remote.org_structure as OrgCategory[];
+          source = remote.source;
         }
       } catch (e) {
-        console.error("Error loading org structure from API, using local cache/default", e);
+        console.error("Error loading org structure from API, using fallback", e);
+      }
+
+      if (data.length === 0) {
+        data = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+        source = source || "default";
+      }
+
+      if (source === "catalog" && canEditOrgStructure) {
+        try {
+          await saveOrgStructure(DEFAULT_ORG_STRUCTURE);
+          data = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+          source = "seeded";
+        } catch (e) {
+          console.error("No se pudo inicializar la estructura organizativa", e);
+        }
       }
 
       if (userRole === "Desarrollador" && !data.some((g) => g.category?.includes("Desarrollo"))) {
@@ -2278,13 +2408,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, userRole, user?.id]);
-
-  useEffect(() => {
-    if (orgStructure.length > 0) {
-      localStorage.setItem("org_structure_data", JSON.stringify(orgStructure));
-    }
-  }, [orgStructure]);
+  }, [mounted, userRole, user?.id, canEditOrgStructure]);
 
   // ✅ AÑADE EL ESTADO PARA EL BOT DE AYUDA
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -2834,7 +2958,7 @@ export default function Dashboard() {
               {canAccessPriorities && (
                 <SidebarItem
                   icon={Flag}
-                  label="Matriz de Prioridades"
+                  label="Control de seguimiento"
                   active={
                     activeSection === "dashboard" && activeTab === "prioridades"
                   }
@@ -3010,6 +3134,7 @@ export default function Dashboard() {
                     >
                       <option value="Usuario">USR</option>
                       <option value="Administrativo">ADM</option>
+                      <option value="Gerente">GER</option>
                       <option value="CEO">CEO</option>
                       <option value="Desarrollador">DEV</option>
                     </select>
@@ -3037,7 +3162,7 @@ export default function Dashboard() {
                       className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}
                     >
                       {activeTab === "prioridades"
-                        ? "Matriz de Prioridades"
+                        ? "Control de seguimiento"
                         : activeTab === "tickets"
                           ? "Sistema de Tickets"
                           : activeTab === "documentos"
@@ -3052,7 +3177,7 @@ export default function Dashboard() {
                       className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}
                     >
                       {activeTab === "prioridades"
-                        ? "Control y seguimiento de tareas prioritarias por gerencia."
+                        ? "Control de seguimiento de documentos con prioridad."
                         : activeTab === "tickets"
                           ? "Gestión de solicitudes técnicas y administrativas."
                           : activeTab === "documentos"

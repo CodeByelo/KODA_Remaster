@@ -902,8 +902,8 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
         setSaved(false);
     };
 
-    const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Desarrollador'
-    const roles = ['Usuario', 'Administrativo', 'CEO', 'Desarrollador'];
+    const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Desarrollador', 'Gerente'
+    const roles = ['Usuario', 'Administrativo', 'CEO', 'Desarrollador', 'Gerente'];
 
     const handleSave = async () => {
         try {
@@ -912,6 +912,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'Administrativo') rolId = 2;
             if (selectedRole === 'CEO') rolId = 1;
             if (selectedRole === 'Desarrollador') rolId = 4;
+            if (selectedRole === 'Gerente') rolId = 5;
 
             await Promise.all([
                 updateUserRole(user.id, rolId),

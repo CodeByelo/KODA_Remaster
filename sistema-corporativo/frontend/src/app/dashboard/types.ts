@@ -15,8 +15,12 @@ export interface Document {
     size: string;
     uploadedBy: string;
     remitente_id?: number | string;
+    remitente_gerencia_id?: number;
+    remitente_gerencia_nombre?: string;
     receivedBy: string;
     receptor_id?: number | string;
+    receptor_gerencia_id_usuario?: number;
+    receptor_gerencia_nombre_usuario?: string;
     uploadDate: string;
     uploadTime: string;
     signatureStatus: 'pendiente' | 'aprobado' | 'rechazado' | 'omitido' | 'en-proceso';
@@ -30,6 +34,7 @@ export interface Document {
     prioridad?: string;
     contenido?: string; // Nuevo: cuerpo del mensaje
     leido?: boolean;    // Nuevo: estado de lectura
+    fecha_caducidad?: string;
 }
 
 // Re-export Ticket type if needed or define common shared types here

@@ -768,6 +768,8 @@ async def list_documentos(
             user_id,
         )
         is_privileged = await _is_privileged_user(conn, current_user)
+        role_norm = _normalize_text(current_user.get("role"))
+        is_manager = role_norm in {"gerente", "manager"}
 
         # 1. Ejecutar máquina de estados automática
         await conn.execute("""
@@ -796,9 +798,13 @@ async def list_documentos(
                 d.remitente_id,
                 COALESCE(p_rem.nombre || ' ' || p_rem.apellido, 'Desconocido') as uploadedBy,
                 COALESCE(p_rem.nombre || ' ' || p_rem.apellido, 'Desconocido') as remitente_nombre,
+                p_rem.gerencia_id as remitente_gerencia_id,
+                g_rem.nombre as remitente_gerencia_nombre,
                 d.receptor_id,
                 d.receptor_gerencia_id,
                 COALESCE(p_rec.nombre || ' ' || p_rec.apellido, g.nombre, 'Sin Asignar') as receptor_nombre,
+                p_rec.gerencia_id as receptor_gerencia_id_usuario,
+                g_rec.nombre as receptor_gerencia_nombre_usuario,
                 COALESCE(g.nombre, 'Mensaje Personal') as targetDepartment,
                 d.url_archivo as fileUrl,
                 (SELECT array_agg(da.url_archivo) FROM documento_adjuntos da WHERE da.documento_id = d.id) as archivos,
@@ -813,12 +819,23 @@ async def list_documentos(
             LEFT JOIN profiles p_rem ON d.remitente_id = p_rem.id
             LEFT JOIN profiles p_rec ON d.receptor_id = p_rec.id
             LEFT JOIN gerencias g ON d.receptor_gerencia_id = g.id
+            LEFT JOIN gerencias g_rem ON p_rem.gerencia_id = g_rem.id
+            LEFT JOIN gerencias g_rec ON p_rec.gerencia_id = g_rec.id
             WHERE
                 (
                     $4::boolean = TRUE
                     OR d.remitente_id = $2::uuid
                     OR d.receptor_id = $2::uuid
                     OR ($3::int IS NOT NULL AND d.receptor_gerencia_id = $3::int)
+                    OR (
+                        $5::boolean = TRUE
+                        AND $3::int IS NOT NULL
+                        AND (
+                            p_rem.gerencia_id = $3::int
+                            OR p_rec.gerencia_id = $3::int
+                            OR d.receptor_gerencia_id = $3::int
+                        )
+                    )
                 )
                 AND (
                     $1::uuid IS NULL
@@ -827,7 +844,7 @@ async def list_documentos(
                 )
             ORDER BY d.fecha_creacion DESC
         """
-        rows = await conn.fetch(query, tenant_id, user_id, user_gerencia_id, is_privileged)
+        rows = await conn.fetch(query, tenant_id, user_id, user_gerencia_id, is_privileged, is_manager)
         # Convertir record a dict y manejar el campo archivos
         result = []
         for r in rows:
@@ -852,6 +869,7 @@ async def create_documento(
     correlativo_user: Optional[str] = Form(None, alias="correlativo"),
     tipo_documento: str = Form(...),
     prioridad: str = Form("media"),
+    tiempo_maximo_dias: Optional[int] = Form(None),
     receptor_gerencia_id: Optional[int] = Form(None),
     receptor_gerencia_nombre: Optional[str] = Form(None),
     receptor_id: Optional[uuid.UUID] = Form(None),
@@ -950,7 +968,11 @@ async def create_documento(
             WHERE correlativo LIKE $1 || '-%-' || $2 AND tenant_id = $3
         """, siglas, str(year), tenant_id)
         
-        auto_correlativo = f"{siglas}-{str((count or 0) + 1).zfill(3)}-{year}"
+        manual_part = (correlativo_user or "").strip()
+        if manual_part:
+            auto_correlativo = f"{siglas}-{manual_part}-{year}"
+        else:
+            auto_correlativo = f"{siglas}-{str((count or 0) + 1).zfill(3)}-{year}"
         
         # ========== 4. PROCESAR MÚLTIPLES ARCHIVOS ==========
         file_urls = []
@@ -971,7 +993,10 @@ async def create_documento(
 
         # ========== 5. INSERTAR EN BD ==========
         fecha_creacion = datetime.now()
-        fecha_caducidad = fecha_creacion + timedelta(days=6)
+        if tiempo_maximo_dias and int(tiempo_maximo_dias) > 0:
+            fecha_caducidad = fecha_creacion + timedelta(days=int(tiempo_maximo_dias))
+        else:
+            fecha_caducidad = fecha_creacion + timedelta(days=6)
 
         doc_id = await conn.fetchval("""
             INSERT INTO documentos (
@@ -1271,7 +1296,7 @@ async def update_user_role(
         raise HTTPException(status_code=403, detail="No autorizado")
 
     role_id = payload.get("rol_id")
-    if role_id not in {1, 2, 3, 4}:
+    if role_id not in {1, 2, 3, 4, 5}:
         raise HTTPException(status_code=400, detail="rol_id invalido")
 
     exists = await conn.fetchval("SELECT 1 FROM profiles WHERE id = $1", user_id)
@@ -1509,6 +1534,7 @@ async def get_org_structure(
 
     cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
     org_structure = (cfg or {}).get("org_structure") if isinstance(cfg, dict) else None
+    source = "config"
     if not org_structure:
         rows = await conn.fetch("SELECT nombre FROM gerencias ORDER BY nombre")
         org_structure = [{
@@ -1516,7 +1542,8 @@ async def get_org_structure(
             "icon": "Briefcase",
             "items": [r["nombre"] for r in rows],
         }]
-    return {"org_structure": org_structure}
+        source = "catalog"
+    return {"org_structure": org_structure, "source": source}
 
 
 @app.put("/org-structure")

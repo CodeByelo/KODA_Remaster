@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS roles (
     nombre_rol TEXT UNIQUE NOT NULL
 );
 
-INSERT INTO roles (nombre_rol) VALUES ('CEO'), ('Administrativo'), ('Usuario'), ('Desarrollador') ON CONFLICT DO NOTHING;
+INSERT INTO roles (nombre_rol) VALUES ('CEO'), ('Administrativo'), ('Usuario'), ('Desarrollador'), ('Gerente') ON CONFLICT DO NOTHING;
 
 -- 2. Gerencias
 CREATE TABLE IF NOT EXISTS gerencias (

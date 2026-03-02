@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { DEFAULT_SCOPES, PERMISSIONS_MASTER } from "../permissions/constants";
 
-export type UserRole = "CEO" | "Administrativo" | "Usuario" | "Desarrollador";
+export type UserRole = "CEO" | "Administrativo" | "Usuario" | "Desarrollador" | "Gerente";
 
 export interface User {
   id: string;
@@ -71,6 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const normalizeRole = (rawRole: string): UserRole => {
     const value = (rawRole || "").trim().toLowerCase();
+    if (value === "gerente" || value === "manager") return "Gerente";
     if (value === "desarrollador" || value === "developer" || value === "dev") return "Desarrollador";
     if (value === "administrativo" || value === "administrador" || value === "admin") return "Administrativo";
     if (value === "ceo") return "CEO";
@@ -218,6 +219,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } else if (newRole === "Administrativo") {
       newNombre = "Administrador";
       newApellido = "General";
+    } else if (newRole === "Gerente") {
+      newNombre = "Gerente";
+      newApellido = "Principal";
     } else if (newRole === "Usuario") {
       newNombre = "Operador";
       newApellido = "Estandar";
