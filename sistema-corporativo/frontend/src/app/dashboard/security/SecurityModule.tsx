@@ -32,7 +32,7 @@ interface SecurityModuleProps {
     announcement: any;
     setAnnouncement: (data: any) => void;
     documents: any[];
-    setDocuments: (docs: any[]) => void;
+    setDocuments: (docs: any[] | ((prev: any[]) => any[])) => void;
     userRole: string;
     orgStructure: any[];
     setOrgStructure: (data: any[]) => void;
@@ -201,7 +201,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         if (ok) {
             try {
                 await deleteDocumento(id);
-                setDocuments((documents || []).filter((d: any) => String(d.id) !== String(id)));
+                setDocuments((prev: any[]) => prev.filter((d: any) => String(d.id) !== String(id)));
                 void uiAlert("Documento eliminado correctamente.", "Documentos");
             } catch (error: any) {
                 console.error("No se pudo eliminar el documento", error);
