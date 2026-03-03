@@ -50,6 +50,15 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     // Search states
     const [logSearch, setLogSearch] = useState('');
     const [docSearch, setDocSearch] = useState('');
+    const [userSearch, setUserSearch] = useState('');
+    const [userDeptFilter, setUserDeptFilter] = useState('all');
+
+    const normalizeText = (value: string) =>
+        String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
 
     const filteredLogs = logs.filter(log =>
         log.username.toLowerCase().includes(logSearch.toLowerCase()) ||
@@ -64,6 +73,33 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         doc.idDoc.toLowerCase().includes(docSearch.toLowerCase()) ||
         doc.uploadedBy.toLowerCase().includes(docSearch.toLowerCase())
     );
+
+    const userDeptOptions = Array.from(
+        new Set(
+            users
+                .map((u) => String(u.gerencia_depto || '').trim())
+                .filter(Boolean)
+        )
+    ).sort((a, b) => a.localeCompare(b));
+
+    const filteredUsers = users.filter((u) => {
+        const dept = String(u.gerencia_depto || '').trim();
+        const deptMatches = userDeptFilter === 'all' || dept === userDeptFilter;
+
+        const haystack = [
+            u.usuario_corp,
+            u.nombre,
+            u.apellido,
+            `${u.nombre || ''} ${u.apellido || ''}`.trim(),
+            u.gerencia_depto,
+            u.role,
+        ]
+            .map((v) => normalizeText(String(v || '')))
+            .join(' ');
+
+        const searchMatches = !userSearch.trim() || haystack.includes(normalizeText(userSearch));
+        return deptMatches && searchMatches;
+    });
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -645,6 +681,32 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         </a>
                                     )}
                                 </div>
+                                <div className={`p-4 border-b grid grid-cols-1 md:grid-cols-2 gap-3 ${darkMode ? 'border-zinc-800 bg-zinc-950/30' : 'border-slate-100 bg-slate-50/70'}`}>
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            value={userSearch}
+                                            onChange={(e) => setUserSearch(e.target.value)}
+                                            placeholder="Buscar usuario, nombre, apellido o rol..."
+                                            className={`w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                        />
+                                    </div>
+                                    <div>
+                                        <select
+                                            value={userDeptFilter}
+                                            onChange={(e) => setUserDeptFilter(e.target.value)}
+                                            className={`w-full px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                        >
+                                            <option value="all">Todas las gerencias</option>
+                                            {userDeptOptions.map((dept) => (
+                                                <option key={dept} value={dept}>
+                                                    {dept}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-left">
                                         <thead className={`uppercase ${theme.th}`}>
@@ -657,7 +719,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             </tr>
                                         </thead>
                                         <tbody className={`divide-y ${darkMode ? 'divide-zinc-800' : 'divide-slate-100'}`}>
-                                            {users.map((u) => {
+                                            {filteredUsers.map((u) => {
                                                 const isCurrentDev = currentUserObj?.role === 'Desarrollador';
                                                 const canManageThisUser = u.id !== currentUserObj?.id && (isCurrentDev || u.role !== 'Desarrollador');
                                                 return (
@@ -720,6 +782,13 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     </tr>
                                                 );
                                             })}
+                                            {filteredUsers.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                                                        No hay usuarios que coincidan con los filtros seleccionados.
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
