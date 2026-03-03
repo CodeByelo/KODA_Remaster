@@ -28,6 +28,14 @@ export function RoleGuard({
 
     useEffect(() => {
         if (!isLoading && !isAuthenticated && redirectTo) {
+            const nextPath =
+                typeof window !== "undefined"
+                    ? `${window.location.pathname}${window.location.search || ""}`
+                    : "";
+            if (redirectTo === "/login" && nextPath.startsWith("/")) {
+                router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+                return;
+            }
             router.push(redirectTo);
         }
     }, [isLoading, isAuthenticated, redirectTo, router]);

@@ -107,26 +107,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (!isClient) return;
 
-    const token = localStorage.getItem("sgd_token");
-    const storedUser = localStorage.getItem("sgd_user");
+    const hydrateSession = async () => {
+      const token = localStorage.getItem("sgd_token");
+      const storedUser = localStorage.getItem("sgd_user");
 
-    if (token && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser) as User;
-        const role = normalizeRole(String(parsedUser.role || "Usuario"));
-        setUser({
-          ...parsedUser,
-          role,
-          permissions: getEffectivePermissions(role, parsedUser.permissions),
-        });
-      } catch (e) {
-        console.error("Error parsing stored user", e);
-        localStorage.removeItem("sgd_user");
-        localStorage.removeItem("sgd_token");
+      if (token && storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser) as User;
+          const role = normalizeRole(String(parsedUser.role || "Usuario"));
+          setUser({
+            ...parsedUser,
+            role,
+            permissions: getEffectivePermissions(role, parsedUser.permissions),
+          });
+          return;
+        } catch (e) {
+          console.error("Error parsing stored user", e);
+          localStorage.removeItem("sgd_user");
+          localStorage.removeItem("sgd_token");
+        }
       }
-    }
 
-    setIsLoading(false);
+      // Fallback: recuperar usuario desde cookie de sesion (HttpOnly) para evitar
+      // redirecciones falsas al login cuando localStorage se pierde.
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!data?.authenticated || !data?.user) return;
+
+        const recoveredUser = buildUserFromBackend(data.user);
+        setUser(recoveredUser);
+        localStorage.setItem("sgd_user", JSON.stringify(recoveredUser));
+      } catch (error) {
+        console.error("Session hydration error:", error);
+      }
+    };
+
+    hydrateSession().finally(() => {
+      setIsLoading(false);
+    });
   }, [isClient]);
 
   const login = async (
