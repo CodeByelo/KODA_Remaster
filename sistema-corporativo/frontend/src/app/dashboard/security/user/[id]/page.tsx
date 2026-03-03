@@ -11,9 +11,15 @@ export default function UserHistoryPage() {
     const [user, setUser] = useState<any>(null);
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
 
     const [mounted, setMounted] = useState(false);
     const userId = params?.id;
+
+    const showNotice = (type: "success" | "error" | "info", message: string) => {
+        setNotice({ type, message });
+        window.setTimeout(() => setNotice(null), 3200);
+    };
 
     const roleLabelFromBackend = (role: string | undefined) => {
         const r = String(role || "").toLowerCase();
@@ -68,20 +74,20 @@ export default function UserHistoryPage() {
         try {
             const res = await deleteUser(userId);
             if (res.success) {
-                alert("Usuario eliminado correctamente.");
+                showNotice("success", "Usuario eliminado correctamente.");
                 router.push('/dashboard?tab=seguridad');
             } else {
-                alert("Error al eliminar usuario: " + res.error);
+                showNotice("error", "Error al eliminar usuario: " + res.error);
             }
         } catch (error) {
-            alert("Error critico al eliminar usuario.");
+            showNotice("error", "Error critico al eliminar usuario.");
         }
     };
 
     const handleRoleChange = async (value: string) => {
         const res = await changeUserRole(String(userId), value);
         if (!res.success) {
-            alert("No se pudo cambiar el rol: " + res.error);
+            showNotice("error", "No se pudo cambiar el rol: " + res.error);
             return;
         }
         if (res.user) {
@@ -89,7 +95,7 @@ export default function UserHistoryPage() {
         } else {
             setUser((prev: any) => ({ ...prev, role: value }));
         }
-        alert("Rol actualizado correctamente.");
+        showNotice("success", "Rol actualizado correctamente.");
     };
 
     const handleAssignDeveloper = async () => {
@@ -97,7 +103,7 @@ export default function UserHistoryPage() {
         if (!pwd) return;
         const res = await changeUserRole(String(userId), "Desarrollador", pwd);
         if (!res.success) {
-            alert("No se pudo asignar rol Desarrollador: " + res.error);
+            showNotice("error", "No se pudo asignar rol Desarrollador: " + res.error);
             return;
         }
         if (res.user) {
@@ -105,7 +111,7 @@ export default function UserHistoryPage() {
         } else {
             setUser((prev: any) => ({ ...prev, role: "Desarrollador" }));
         }
-        alert("Rol Desarrollador asignado.");
+        showNotice("success", "Rol Desarrollador asignado.");
     };
 
     const handleSetStatus = async (status: "ACTIVO" | "INACTIVO" | "BLOQUEADO") => {
@@ -120,11 +126,11 @@ export default function UserHistoryPage() {
 
         const res = await setUserStatus(String(userId), status);
         if (!res.success) {
-            alert("No se pudo cambiar el estado: " + res.error);
+            showNotice("error", "No se pudo cambiar el estado: " + res.error);
             return;
         }
         await refreshUserFromServer();
-        alert(`Estado actualizado: ${status}`);
+        showNotice("success", `Estado actualizado: ${status}`);
     };
 
     const handleResetPassword = async () => {
@@ -132,10 +138,10 @@ export default function UserHistoryPage() {
         if (!newPassword) return;
         const res = await resetUserPasswordAction(String(userId), newPassword);
         if (!res.success) {
-            alert("No se pudo resetear la clave: " + res.error);
+            showNotice("error", "No se pudo resetear la clave: " + res.error);
             return;
         }
-        alert("Clave actualizada correctamente.");
+        showNotice("success", "Clave actualizada correctamente.");
     };
 
     if (!mounted || loading) {
@@ -157,6 +163,21 @@ export default function UserHistoryPage() {
 
     return (
         <div className="p-6 space-y-6 bg-zinc-950 min-h-screen font-sans text-zinc-200">
+            {notice && (
+                <div className="fixed top-5 right-5 z-[120] max-w-md">
+                    <div
+                        className={`rounded-xl border px-4 py-3 shadow-xl backdrop-blur-sm ${
+                            notice.type === "success"
+                                ? "bg-emerald-900/85 border-emerald-500/50 text-emerald-100"
+                                : notice.type === "error"
+                                    ? "bg-red-900/85 border-red-500/50 text-red-100"
+                                    : "bg-zinc-900/90 border-zinc-600 text-zinc-100"
+                        }`}
+                    >
+                        <p className="text-sm font-semibold tracking-wide">{notice.message}</p>
+                    </div>
+                </div>
+            )}
             {/* Header / Back */}
             <div className="flex items-center gap-4 mb-6">
                 <button

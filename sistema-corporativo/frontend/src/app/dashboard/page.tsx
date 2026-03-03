@@ -3103,12 +3103,12 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1
-                  className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}
+                  className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-zinc-950"}`}
                 >
                   ¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
                 </h1>
                 <p
-                  className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}
+                  className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-700"}`}
                 >
                   {new Date().toLocaleDateString("es-ES", {
                     weekday: "long",

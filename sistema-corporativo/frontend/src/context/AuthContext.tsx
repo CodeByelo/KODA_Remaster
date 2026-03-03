@@ -32,7 +32,7 @@ export interface AuthContextType {
     username: string,
     password: string,
   ) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   setUser: (user: User | null) => void;
   switchRole: (newRole: UserRole) => Promise<boolean>;
   hasPermission: (permission: string) => boolean;
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const roleSimulationEnabled =
     process.env.NEXT_PUBLIC_ENABLE_ROLE_SIMULATION === "true" &&
     process.env.NODE_ENV !== "production";
@@ -236,12 +237,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const logout = () => {
-    fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+  const logout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
+    } catch {
+      // no-op
+    }
     setUser(null);
     localStorage.removeItem("sgd_token");
     localStorage.removeItem("sgd_user");
-    window.location.href = "/login";
+    window.location.replace("/login?logout=1");
   };
 
   const switchRole = async (newRole: UserRole): Promise<boolean> => {
