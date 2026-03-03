@@ -26,14 +26,17 @@ async def init_db_pool():
                     raise ValueError("SUPABASE_DB_URL no configurada")
                 
                 logger.info(f"Intento {attempt + 1}/5")
+                min_pool_size = int(os.getenv("DB_POOL_MIN_SIZE", "5"))
+                max_pool_size = int(os.getenv("DB_POOL_MAX_SIZE", "40"))
+                db_command_timeout = float(os.getenv("DB_COMMAND_TIMEOUT_SECONDS", "30"))
                 
                 pool = await asyncpg.create_pool(
                     dsn=db_url,
-                    min_size=2,
-                    max_size=20,
+                    min_size=min_pool_size,
+                    max_size=max_pool_size,
                     statement_cache_size=0,
                     max_inactive_connection_lifetime=60.0,
-                    command_timeout=60.0,
+                    command_timeout=db_command_timeout,
                     ssl='require'  # Necesario para el Transaction Pooler de Supabase
                 )
                 logger.info("✅ CONEXIÓN EXITOSA - SISTEMA LISTO 🚀")

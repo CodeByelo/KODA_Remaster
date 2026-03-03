@@ -1,42 +1,43 @@
 from redis.asyncio import Redis
 from fastapi import Request, HTTPException
-import time
 from middleware.context import get_current_tenant_id
 import os
 
-# Configuración Redis
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 redis_client = Redis.from_url(REDIS_URL)
 
+
 async def rate_limiter_middleware(request: Request):
     """
-    Middleware de Rate Limiting que limita por tenant_id.
-    Standard: 100 requests por segundo por empresa.
+    Rate limiting por ventana de 1 segundo.
+    - Con tenant en contexto: limite por tenant.
+    - Sin tenant: limite por IP para endpoints publicos.
     """
     tenant_id = get_current_tenant_id()
-    if not tenant_id:
-        return # Si no hay tenant_id (public endpoints), no limitamos aquí o limitamos por IP
-    
-    key = f"rate_limit:{tenant_id}"
-    limit = 100 # Req/seg
-    window = 1 # segundo
-    
-    current_time = int(time.time())
-    
-    # Pipeline para asegurar atomicidad
+    client_ip = request.client.host if request.client else "unknown"
+
+    if tenant_id:
+        key = f"rate_limit:tenant:{tenant_id}"
+        limit = 120
+    else:
+        key = f"rate_limit:ip:{client_ip}"
+        limit = 40
+
+    window = 1
+
     async with redis_client.pipeline(transaction=True) as pipe:
         try:
             await pipe.incr(key)
             await pipe.expire(key, window)
             results = await pipe.execute()
-            count = results[0]
-            
+            count = int(results[0] or 0)
             if count > limit:
                 raise HTTPException(
-                    status_code=429, 
-                    detail="Demasiadas solicitudes. Límite excedido para su organización."
+                    status_code=429,
+                    detail="Demasiadas solicitudes. Intente nuevamente en unos segundos.",
                 )
-        except Exception as e:
-            if isinstance(e, HTTPException): raise e
-            # Log error pero permitir request si Redis falla (fail-open)
-            print(f"Redis Rate Limiter Error: {e}")
+        except Exception as error:
+            if isinstance(error, HTTPException):
+                raise error
+            # Fail-open para no tumbar el servicio si Redis falla.
+            print(f"Redis Rate Limiter Error: {error}")

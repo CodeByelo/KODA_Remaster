@@ -2204,6 +2204,7 @@ const ChartsModule: React.FC<{
       aprobado: 0,
       pendiente: 0,
       "en-proceso": 0,
+      recibido: 0,
       rechazado: 0,
       omitido: 0,
     };
@@ -2987,9 +2988,9 @@ export default function Dashboard() {
     userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
 
   const effectiveOrgStructure = useMemo(() => {
-    const base = orgStructure.length > 0
+    const base: OrgCategory[] = orgStructure.length > 0
       ? orgStructure
-      : JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+      : (JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE)) as OrgCategory[]);
 
     if (canViewAllGerencias) return base;
 
@@ -2997,11 +2998,11 @@ export default function Dashboard() {
     if (!myDept) return [];
 
     return base
-      .map((group) => ({
+      .map((group: OrgCategory) => ({
         ...group,
-        items: (group.items || []).filter((item) => normalizeDept(item) === myDept),
+        items: (group.items || []).filter((item: string) => normalizeDept(item) === myDept),
       }))
-      .filter((group) => group.items.length > 0);
+      .filter((group: OrgCategory) => group.items.length > 0);
   }, [orgStructure, canViewAllGerencias, normalizeDept, user?.gerencia_depto]);
 
   if (!mounted) return null;
@@ -3513,11 +3514,16 @@ export default function Dashboard() {
                     className="flex items-center gap-1 border-l pl-3 border-slate-700 ml-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <select
-                      value={userRole}
-                      onChange={(e) => switchRole(e.target.value as UserRole)}
-                      className={`bg-transparent text-[10px] font-bold border rounded px-1 outline-none transition-colors ${darkMode ? "border-zinc-700 text-zinc-400 focus:border-red-500" : "border-slate-300 text-slate-600 focus:border-red-600"}`}
-                    >
+                      <select
+                        value={userRole}
+                      onChange={async (e) => {
+                        const ok = await switchRole(e.target.value as UserRole);
+                        if (!ok) {
+                          alert("SwitchRole deshabilitado en este entorno por seguridad. Usa staging/dev con NEXT_PUBLIC_ENABLE_ROLE_SIMULATION=true.");
+                        }
+                      }}
+                        className={`bg-transparent text-[10px] font-bold border rounded px-1 outline-none transition-colors ${darkMode ? "border-zinc-700 text-zinc-400 focus:border-red-500" : "border-slate-300 text-slate-600 focus:border-red-600"}`}
+                      >
                       <option value="Usuario">USR</option>
                       <option value="Administrativo">ADM</option>
                       <option value="Gerente">GER</option>

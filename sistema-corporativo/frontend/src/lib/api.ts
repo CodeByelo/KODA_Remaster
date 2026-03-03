@@ -253,6 +253,18 @@ export async function unlockUser(userId: string): Promise<{ status: string }> {
     return handleResponse<{ status: string }>(res);
 }
 
+export async function updateUserAccountStatus(
+    userId: string,
+    status: "ACTIVO" | "INACTIVO" | "BLOQUEADO",
+): Promise<{ status: string; user_id?: string; username?: string; new_status?: string }> {
+    const res = await fetch(`${BASE_URL}/users/${userId}/status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status }),
+    });
+    return handleResponse<{ status: string; user_id?: string; username?: string; new_status?: string }>(res);
+}
+
 export async function updateUserPermissions(
     userId: string,
     permisos: string[],

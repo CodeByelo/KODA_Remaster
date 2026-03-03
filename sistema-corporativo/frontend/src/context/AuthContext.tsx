@@ -50,6 +50,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const roleSimulationEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_ROLE_SIMULATION === "true" &&
+    process.env.NODE_ENV !== "production";
 
   const getEffectivePermissions = (
     role: UserRole,
@@ -207,6 +210,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const switchRole = async (newRole: UserRole): Promise<boolean> => {
+    if (!roleSimulationEnabled) return false;
     if (!user) return false;
     if (user.role !== "Desarrollador") return false;
 

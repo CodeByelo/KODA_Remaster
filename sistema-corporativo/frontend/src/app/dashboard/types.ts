@@ -23,7 +23,7 @@ export interface Document {
     receptor_gerencia_nombre_usuario?: string;
     uploadDate: string;
     uploadTime: string;
-    signatureStatus: 'pendiente' | 'aprobado' | 'rechazado' | 'omitido' | 'en-proceso';
+    signatureStatus: 'pendiente' | 'aprobado' | 'rechazado' | 'omitido' | 'en-proceso' | 'recibido';
     department: string;
     targetDepartment: string;
     receptor_gerencia_id?: number;

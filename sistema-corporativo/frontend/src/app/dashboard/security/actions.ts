@@ -4,6 +4,7 @@ import {
     getAllUsers,
     getSecurityLogs,
     getUserSecurityLogs,
+    updateUserAccountStatus,
     resetUserPassword,
     unlockUser,
     updateUserRole,
@@ -61,6 +62,15 @@ export async function updateUserStatus(userId: string, newStatus: string) {
         if (newStatus === "ACTIVO") {
             await unlockUser(userId);
         }
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo actualizar estado" };
+    }
+}
+
+export async function setUserStatus(userId: string, newStatus: "ACTIVO" | "INACTIVO" | "BLOQUEADO") {
+    try {
+        await updateUserAccountStatus(userId, newStatus);
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error?.message || "No se pudo actualizar estado" };

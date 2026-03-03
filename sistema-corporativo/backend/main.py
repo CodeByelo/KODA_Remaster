@@ -12,7 +12,7 @@ print(f"\n🔍 Buscando .env en: {env_path}")
 print(f"📁 Existe: {env_path.exists()}\n")
 
 load_dotenv(dotenv_path=env_path)
-DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "JJDKoda**")
+DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "")
 
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +37,11 @@ from auth.supabase_auth import get_current_user
 from pydantic import BaseModel
 
 import json
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
+DEFAULT_JWT_SECRET = "tu_clave_secreta_muy_segura_cambiala_en_produccion"
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))  # 10MB por archivo
+MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "5"))
+ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
 
 # ===================================================================
 # CONFIGURACIÓN DE LOGGING ESTRUCTURADO JSON ENTERPRISE
@@ -45,6 +50,9 @@ from middleware.context import (
     get_current_tenant_id, 
     get_current_user_id, 
     get_current_trace_id, 
+    tenant_id_var,
+    user_id_var,
+    extract_user_from_token,
 )
 import time
 import uuid
@@ -85,8 +93,17 @@ async def add_observability_context(request: Request, call_next):
     start_time = time.time()
     trace_id = str(uuid.uuid4())
     token = trace_id_var.set(trace_id)
+    user_token = None
+    tenant_token = None
     
     try:
+        request_user_id, request_tenant_id = await extract_user_from_token(request)
+        if request_user_id:
+            user_token = user_id_var.set(request_user_id)
+        if request_tenant_id:
+            tenant_token = tenant_id_var.set(request_tenant_id)
+
+        await rate_limiter_middleware(request)
         response = await call_next(request)
         duration_ms = int((time.time() - start_time) * 1000)
         
@@ -96,7 +113,23 @@ async def add_observability_context(request: Request, call_next):
         )
         return response
     finally:
+        if tenant_token is not None:
+            tenant_id_var.reset(tenant_token)
+        if user_token is not None:
+            user_id_var.reset(user_token)
         trace_id_var.reset(token)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if os.getenv("NODE_ENV", "").lower() == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
 
 # ===================================================================
 # CONFIGURACIÓN DE SEGURIDAD
@@ -144,6 +177,12 @@ print()
 
 @app.on_event("startup")
 async def startup():
+    jwt_secret = os.getenv("JWT_SECRET", DEFAULT_JWT_SECRET)
+    if (not jwt_secret) or (jwt_secret == DEFAULT_JWT_SECRET) or (len(jwt_secret) < 32):
+        raise RuntimeError("JWT_SECRET inseguro o no configurado correctamente (minimo 32 caracteres y no default)")
+    if (not DEV_ROLE_MASTER_PASSWORD) or (DEV_ROLE_MASTER_PASSWORD == "JJDKoda**") or (len(DEV_ROLE_MASTER_PASSWORD) < 12):
+        raise RuntimeError("DEV_ROLE_MASTER_PASSWORD inseguro o no configurado (minimo 12 caracteres y no default)")
+
     await init_db_pool()
     try:
         if async_db.pool is None:
@@ -214,12 +253,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     
     response_content = {
         "detail": "Internal Server Error",
-        "message": str(exc),
-        "type": type(exc).__name__
     }
     
     # En desarrollo, enviamos el trace al frontend para diagnóstico rápido
-    if os.getenv("DEBUG", "false").lower() == "true":
+    if DEBUG_MODE:
+        response_content["message"] = str(exc)
+        response_content["type"] = type(exc).__name__
         response_content["trace"] = error_trace
 
     response = JSONResponse(
@@ -373,10 +412,12 @@ async def login_compat(
             await _ensure_security_events_table(conn)
             await conn.execute(
                 """
-                INSERT INTO security_events (username, evento, detalles, estado, page, ip_origen)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen)
+                VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8)
                 """,
-                username_input,
+                user["tenant_id"] if user else None,
+                user["id"] if user else None,
+                user["username"] if user else username_input,
                 "LOGIN_FALLIDO" if not is_locked else "USUARIO_BLOQUEADO",
                 f"Intento fallido #{failed_count}" if not is_locked else "Bloqueado tras 3 intentos fallidos",
                 "warning" if not is_locked else "danger",
@@ -480,6 +521,14 @@ async def validate_auth_session(
 
     if not profile:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
+
+    lock_row = await conn.fetchrow(
+        "SELECT locked_until FROM login_lockouts WHERE username = LOWER($1)",
+        profile["username"],
+    )
+    if lock_row and lock_row["locked_until"] and lock_row["locked_until"] > datetime.now(timezone.utc):
+        raise HTTPException(status_code=403, detail="Usuario bloqueado")
+
     if profile["estado"] is False:
         raise HTTPException(status_code=403, detail="Usuario inactivo")
 
@@ -792,6 +841,24 @@ async def switch_organization(
             "role": role_row['role'] if role_row else 'member'
         }
     )
+    try:
+        await _ensure_security_events_table(conn)
+        username = await conn.fetchval(
+            "SELECT username FROM profiles WHERE id = $1::uuid",
+            user_id,
+        )
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'ORGANIZACION_CAMBIADA', $4, 'info', '/dashboard')
+            """,
+            org_id.organization_id,
+            user_id,
+            username or current_user.get("username") or "anon",
+            f"Cambio de organizacion a {org_id.organization_id}",
+        )
+    except Exception:
+        pass
     
     logger.info(f"User switched to organization {org_id.organization_id}")
     
@@ -909,7 +976,6 @@ async def list_documentos(
         raise HTTPException(status_code=500, detail=str(e))
 
 from fastapi import UploadFile, File as FastAPIFile, Form
-import shutil
 
 @app.post("/documentos", dependencies=[Depends(get_tenant_context)])
 async def create_documento(
@@ -1026,15 +1092,36 @@ async def create_documento(
         # ========== 4. PROCESAR MÚLTIPLES ARCHIVOS ==========
         file_urls = []
         if archivos:
+            if len(archivos) > MAX_UPLOAD_FILES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cantidad maxima de archivos excedida. Limite: {MAX_UPLOAD_FILES}",
+                )
             folder = Path("uploads")
             folder.mkdir(exist_ok=True)
             for archivo in archivos:
                 if archivo and archivo.filename:
-                    ext = Path(archivo.filename).suffix
+                    ext = Path(archivo.filename).suffix.lower()
+                    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+                        raise HTTPException(status_code=400, detail=f"Extension no permitida: {ext}")
                     file_id = f"{uuid.uuid4()}{ext}"
                     filepath = folder / file_id
+                    written = 0
                     with filepath.open("wb") as buffer:
-                        shutil.copyfileobj(archivo.file, buffer)
+                        while True:
+                            chunk = await archivo.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            written += len(chunk)
+                            if written > MAX_UPLOAD_BYTES:
+                                buffer.close()
+                                filepath.unlink(missing_ok=True)
+                                raise HTTPException(
+                                    status_code=413,
+                                    detail=f"Archivo excede limite permitido ({MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
+                                )
+                            buffer.write(chunk)
+                    await archivo.close()
                     file_urls.append(f"/uploads/{file_id}")
 
         # Guardamos la primera URL en la tabla principal para compatibilidad legacy
@@ -1332,6 +1419,21 @@ async def update_user_permissions(
         user_id,
         permisos,
     )
+    try:
+        await _ensure_security_events_table(conn)
+        target_username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'PERMISOS_ACTUALIZADOS', $4, 'info', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Permisos actualizados para usuario {target_username or user_id}. Total permisos={len(permisos)}",
+        )
+    except Exception:
+        pass
     return {"status": "success", "user_id": str(user_id), "permisos": permisos}
 
 @app.put("/users/{user_id}/role")
@@ -1503,6 +1605,77 @@ async def unlock_user(
     return {"status": "success", "user_id": str(user_id), "username": username}
 
 
+@app.patch("/users/{user_id}/status")
+async def update_user_status(
+    user_id: uuid.UUID,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    if not await _is_privileged_user(conn, current_user):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    status = str(payload.get("status") or "").strip().upper()
+    if status not in {"ACTIVO", "INACTIVO", "BLOQUEADO"}:
+        raise HTTPException(status_code=400, detail="status invalido")
+
+    row = await conn.fetchrow("SELECT id, username FROM profiles WHERE id = $1", user_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    current_user_id = current_user.get("sub")
+    if current_user_id and str(current_user_id) == str(user_id) and status in {"INACTIVO", "BLOQUEADO"}:
+        raise HTTPException(status_code=400, detail="No puedes desactivarte o bloquearte a ti mismo")
+
+    username = str(row["username"] or "").strip().lower()
+
+    if status == "ACTIVO":
+        await conn.execute("UPDATE profiles SET estado = TRUE WHERE id = $1", user_id)
+        await conn.execute("DELETE FROM login_lockouts WHERE username = $1", username)
+        event = "USUARIO_ACTIVADO"
+        detail = f"Usuario {username} marcado como ACTIVO"
+        level = "success"
+    elif status == "INACTIVO":
+        await conn.execute("UPDATE profiles SET estado = FALSE WHERE id = $1", user_id)
+        await conn.execute("DELETE FROM login_lockouts WHERE username = $1", username)
+        event = "USUARIO_INACTIVADO"
+        detail = f"Usuario {username} marcado como INACTIVO"
+        level = "warning"
+    else:
+        await conn.execute("UPDATE profiles SET estado = FALSE WHERE id = $1", user_id)
+        await conn.execute(
+            """
+            INSERT INTO login_lockouts (username, failed_count, locked_until)
+            VALUES ($1, 3, NOW() + INTERVAL '3650 days')
+            ON CONFLICT (username)
+            DO UPDATE SET failed_count = EXCLUDED.failed_count, locked_until = EXCLUDED.locked_until
+            """,
+            username,
+        )
+        event = "USUARIO_BLOQUEADO_MANUAL"
+        detail = f"Usuario {username} bloqueado manualmente por administrador"
+        level = "danger"
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, '/dashboard/security/user')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            event,
+            detail,
+            level,
+        )
+    except Exception:
+        pass
+
+    return {"status": "success", "user_id": str(user_id), "username": username, "new_status": status}
+
+
 @app.get("/announcement")
 async def get_announcement(
     current_user: dict = Depends(get_current_user),
@@ -1574,6 +1747,20 @@ async def save_announcement(
         FROM dashboard_announcement
         WHERE id = 1
     """)
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'ANUNCIO_ACTUALIZADO', $4, 'info', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Anuncio actualizado: titulo='{data['title']}' | status='{data['status']}' | urgencia='{data['urgency']}'",
+        )
+    except Exception:
+        pass
     return {"status": "success", "announcement": dict(saved) if saved else data}
 
 
@@ -1712,6 +1899,21 @@ async def save_org_structure(
                 [n.lower() for n in ordered_unique_names],
             )
 
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'ESTRUCTURA_ORG_ACTUALIZADA', $4, 'info', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Estructura organizativa actualizada: modulos={len(normalized_structure)} | gerencias={len(ordered_unique_names)}",
+        )
+    except Exception:
+        pass
+
     return {"status": "success", "org_structure": normalized_structure}
 
 
@@ -1767,6 +1969,21 @@ async def save_org_management_details(
         org_id,
         json.dumps(normalized),
     )
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'DETALLES_GERENCIA_ACTUALIZADOS', $4, 'info', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Detalles de gerencia actualizados: entradas={len(normalized)}",
+        )
+    except Exception:
+        pass
 
     return {"status": "success", "management_details": normalized}
 
@@ -2308,6 +2525,22 @@ async def upsert_knowledge(
         ON CONFLICT (question)
         DO UPDATE SET answer = EXCLUDED.answer, updated_by = EXCLUDED.updated_by, updated_at = NOW()
     """, question, answer, payload.updatedBy or current_user.get("role") or "unknown")
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'BOT_KNOWLEDGE_UPSERT', $4, 'info', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Knowledge entrenado/actualizado: question='{question[:120]}'",
+        )
+    except Exception:
+        pass
+
     rows = await conn.fetch("SELECT id, question, answer, updated_by, updated_at FROM bot_knowledge ORDER BY updated_at DESC")
     return {"knowledge": [dict(r) for r in rows]}
 
@@ -2321,7 +2554,24 @@ async def delete_knowledge(
     await _ensure_knowledge_table(conn)
     if not _is_privileged_role(current_user.get("role")):
         raise HTTPException(status_code=403, detail="No autorizado")
+    question = await conn.fetchval("SELECT question FROM bot_knowledge WHERE id = $1", knowledge_id)
     await conn.execute("DELETE FROM bot_knowledge WHERE id = $1", knowledge_id)
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'BOT_KNOWLEDGE_DELETE', $4, 'warning', '/dashboard?tab=seguridad')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Knowledge eliminado id={knowledge_id} question='{str(question or '')[:120]}'",
+        )
+    except Exception:
+        pass
+
     rows = await conn.fetch("SELECT id, question, answer, updated_by, updated_at FROM bot_knowledge ORDER BY updated_at DESC")
     return {"knowledge": [dict(r) for r in rows]}
 

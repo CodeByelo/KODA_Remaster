@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Shield, Zap, Lock, User, CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 // import { login } from '../../lib/api'; // Eliminado: Usaremos useAuth
@@ -340,6 +340,15 @@ const LoginCorpoelecForm = () => {
   const [loginError, setLoginError] = useState(null);
   const formRef = useRef(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const safeNextPath = useCallback(() => {
+    const next = searchParams.get('next');
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      return next;
+    }
+    return '/dashboard';
+  }, [searchParams]);
 
   // ✅ USAR HOOK DE AUTH
   const { login: authLogin, isAuthenticated } = useAuth();
@@ -347,19 +356,19 @@ const LoginCorpoelecForm = () => {
   // ✅ Redirección automática si ya está autenticado
   useEffect(() => {
     if (isAuthenticated && !loginSuccess) {
-      router.push('/dashboard');
+      router.push(safeNextPath());
     }
-  }, [isAuthenticated, loginSuccess, router]);
+  }, [isAuthenticated, loginSuccess, router, safeNextPath]);
 
   // ✅ Redirección después de login exitoso (con delay para efecto visual)
   useEffect(() => {
     if (loginSuccess) {
       const timer = setTimeout(() => {
-        router.push('/dashboard');
+        router.push(safeNextPath());
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [loginSuccess, router]);
+  }, [loginSuccess, router, safeNextPath]);
 
   const { type: passwordType, toggle: togglePassword } = usePasswordToggle();
 

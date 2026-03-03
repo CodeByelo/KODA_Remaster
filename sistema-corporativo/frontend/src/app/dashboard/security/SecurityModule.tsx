@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
 import {
@@ -83,23 +83,38 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         setIsClient(true);
     }, []);
 
-    useEffect(() => {
-        async function fetchData() {
-            setLoading(true);
-            try {
-                const [logsData, usersData] = await Promise.all([
-                    getSecurityLogs(),
-                    getAllUsers(),
-                ]);
-                setLogs(logsData as any[]);
-                setUsers(usersData);
-            } catch (error) {
-                console.error("Error fetching security data:", error);
-            }
-            setLoading(false);
+    const fetchSecurityData = useCallback(async (withLoading: boolean = false) => {
+        if (withLoading) setLoading(true);
+        try {
+            const [logsData, usersData] = await Promise.all([
+                getSecurityLogs(),
+                getAllUsers(),
+            ]);
+            setLogs(logsData as any[]);
+            setUsers(usersData);
+        } catch (error) {
+            console.error("Error fetching security data:", error);
+        } finally {
+            if (withLoading) setLoading(false);
         }
-        fetchData();
-    }, [activeTab]);
+    }, []);
+
+    useEffect(() => {
+        fetchSecurityData(true);
+    }, [activeTab, fetchSecurityData]);
+
+    useEffect(() => {
+        const shouldPollSecurity = activeTab === 'logs' || activeTab === 'users';
+        if (!shouldPollSecurity) return;
+
+        const intervalId = window.setInterval(() => {
+            fetchSecurityData(false);
+        }, 15000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [activeTab, fetchSecurityData]);
 
     const theme = {
         bg: darkMode ? 'bg-zinc-900' : 'bg-white',
@@ -887,8 +902,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { user: any, onClose: () => void, darkMode: boolean, currentUserPerms: string[] }) {
     const [userPerms, setUserPerms] = useState<string[]>(user.permissions || user.permisos || []);
     const [saved, setSaved] = useState(false);
-    const [devRoleAuthorized, setDevRoleAuthorized] = useState(false);
-    const DEV_ROLE_MASTER_PASSWORD = "JJDKoda**";
+    const [devRoleMasterPassword, setDevRoleMasterPassword] = useState<string | null>(null);
 
     // Jerarquía: Los permisos disponibles para asignar son solo aquellos que el admin posee
     const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => currentUserPerms.includes(p));
@@ -916,12 +930,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
     const authorizeDeveloperRole = () => {
         const pwd = window.prompt("Clave maestra requerida para asignar rol Desarrollador:");
         if (!pwd) return;
-        if (pwd !== DEV_ROLE_MASTER_PASSWORD) {
-            alert("Clave maestra incorrecta.");
-            setDevRoleAuthorized(false);
-            return;
-        }
-        setDevRoleAuthorized(true);
+        setDevRoleMasterPassword(pwd);
         setSelectedRole('Desarrollador');
     };
 
@@ -934,7 +943,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'Desarrollador') rolId = 4;
             if (selectedRole === 'Gerente') rolId = 5;
 
-            if (selectedRole === 'Desarrollador' && !devRoleAuthorized) {
+            if (selectedRole === 'Desarrollador' && !devRoleMasterPassword) {
                 alert("Para asignar Desarrollador debes validar la contraseña maestra.");
                 return;
             }
@@ -955,7 +964,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             }
 
             await Promise.all([
-                updateUserRole(user.id, rolId, selectedRole === 'Desarrollador' ? DEV_ROLE_MASTER_PASSWORD : undefined),
+                updateUserRole(user.id, rolId, selectedRole === 'Desarrollador' ? (devRoleMasterPassword || undefined) : undefined),
                 updateUserPermissions(String(user.id), effectivePerms),
             ]);
             setUserPerms(effectivePerms);
@@ -997,7 +1006,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                     onClick={() => {
                                         setSelectedRole(role);
                                         if (role !== 'Desarrollador') {
-                                            setDevRoleAuthorized(false);
+                                            setDevRoleMasterPassword(null);
                                         }
                                     }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedRole === role
@@ -1018,8 +1027,8 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                 Asignar Desarrollador (Clave)
                             </button>
                             {selectedRole === 'Desarrollador' && (
-                                <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${devRoleAuthorized ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
-                                    {devRoleAuthorized ? 'DEV Autorizado' : 'DEV sin validar'}
+                                <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${devRoleMasterPassword ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                                    {devRoleMasterPassword ? 'DEV listo para aplicar' : 'DEV sin clave'}
                                 </span>
                             )}
                         </div>

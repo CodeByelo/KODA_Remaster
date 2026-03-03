@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, Shield, Clock, Activity, FileText, Lock, Calendar } from 'lucide-react';
-import { changeUserRole, deleteUser, getUserDetails, getUserLogs, resetUserPasswordAction, unlockUserAccount } from '../../actions';
+import { changeUserRole, deleteUser, getUserDetails, getUserLogs, resetUserPasswordAction, setUserStatus } from '../../actions';
 
 export default function UserHistoryPage() {
     const router = useRouter();
@@ -14,7 +14,6 @@ export default function UserHistoryPage() {
 
     const [mounted, setMounted] = useState(false);
     const userId = params?.id;
-    const DEV_ROLE_MASTER_PASSWORD = "JJDKoda**";
 
     const roleLabelFromBackend = (role: string | undefined) => {
         const r = String(role || "").toLowerCase();
@@ -51,6 +50,16 @@ export default function UserHistoryPage() {
         fetchData();
     }, [userId]);
 
+    const refreshUserFromServer = async () => {
+        if (!userId) return;
+        try {
+            const nextUser = await getUserDetails(String(userId));
+            if (nextUser) setUser(nextUser);
+        } catch (error) {
+            console.error("Error refrescando usuario:", error);
+        }
+    };
+
     const handleDelete = async () => {
         if (!window.confirm("¿Está seguro de que desea eliminar permanentemente esta cuenta? Esta acción no se puede deshacer.")) {
             return;
@@ -86,10 +95,6 @@ export default function UserHistoryPage() {
     const handleAssignDeveloper = async () => {
         const pwd = window.prompt("Clave maestra requerida para asignar rol Desarrollador:");
         if (!pwd) return;
-        if (pwd !== DEV_ROLE_MASTER_PASSWORD) {
-            alert("Clave maestra incorrecta.");
-            return;
-        }
         const res = await changeUserRole(String(userId), "Desarrollador", pwd);
         if (!res.success) {
             alert("No se pudo asignar rol Desarrollador: " + res.error);
@@ -103,14 +108,23 @@ export default function UserHistoryPage() {
         alert("Rol Desarrollador asignado.");
     };
 
-    const handleUnlock = async () => {
-        const res = await unlockUserAccount(String(userId));
-        if (!res.success) {
-            alert("No se pudo desbloquear: " + res.error);
+    const handleSetStatus = async (status: "ACTIVO" | "INACTIVO" | "BLOQUEADO") => {
+        const labels: Record<string, string> = {
+            ACTIVO: "activar",
+            INACTIVO: "inactivar",
+            BLOQUEADO: "bloquear",
+        };
+        if (!window.confirm(`¿Confirma ${labels[status]} este usuario?`)) {
             return;
         }
-        setUser((prev: any) => ({ ...prev, is_locked: false, estado: true, failed_count: 0 }));
-        alert("Cuenta desbloqueada.");
+
+        const res = await setUserStatus(String(userId), status);
+        if (!res.success) {
+            alert("No se pudo cambiar el estado: " + res.error);
+            return;
+        }
+        await refreshUserFromServer();
+        alert(`Estado actualizado: ${status}`);
     };
 
     const handleResetPassword = async () => {
@@ -200,21 +214,37 @@ export default function UserHistoryPage() {
                         </div>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    {!(user?.estado === true && !user?.is_locked) && (
+                        <button
+                            onClick={() => handleSetStatus("ACTIVO")}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98]"
+                        >
+                            Activar
+                        </button>
+                    )}
+                    {user?.estado !== false || user?.is_locked ? (
+                        <button
+                            onClick={() => handleSetStatus("INACTIVO")}
+                            className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98]"
+                        >
+                            Inactivar
+                        </button>
+                    ) : null}
+                    {!user?.is_locked && (
+                        <button
+                            onClick={() => handleSetStatus("BLOQUEADO")}
+                            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98]"
+                        >
+                            Bloquear
+                        </button>
+                    )}
                     <button
                         onClick={handleResetPassword}
                         className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium text-sm transition-colors"
                     >
                         Reset Password
                     </button>
-                    {(user?.is_locked || user?.estado === false) && (
-                        <button
-                            onClick={handleUnlock}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98]"
-                        >
-                            Desbloquear Cuenta
-                        </button>
-                    )}
 
                     <button
                         onClick={handleDelete}
