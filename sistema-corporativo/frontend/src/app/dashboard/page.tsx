@@ -2985,13 +2985,27 @@ export default function Dashboard() {
       .trim();
   }, []);
 
+  const dedupeDeptItems = useCallback((items: string[]) => {
+    const seen = new Set<string>();
+    return (items || []).filter((item) => {
+      const key = normalizeDept(item);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [normalizeDept]);
+
   const canViewAllGerencias =
     userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
 
   const effectiveOrgStructure = useMemo(() => {
-    const base: OrgCategory[] = orgStructure.length > 0
+    const source: OrgCategory[] = orgStructure.length > 0
       ? orgStructure
       : (JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE)) as OrgCategory[]);
+    const base = source.map((group) => ({
+      ...group,
+      items: dedupeDeptItems(group.items || []),
+    }));
 
     if (canViewAllGerencias) return base;
 
@@ -3001,10 +3015,10 @@ export default function Dashboard() {
     return base
       .map((group: OrgCategory) => ({
         ...group,
-        items: (group.items || []).filter((item: string) => normalizeDept(item) === myDept),
+        items: dedupeDeptItems((group.items || []).filter((item: string) => normalizeDept(item) === myDept)),
       }))
       .filter((group: OrgCategory) => group.items.length > 0);
-  }, [orgStructure, canViewAllGerencias, normalizeDept, user?.gerencia_depto]);
+  }, [orgStructure, canViewAllGerencias, dedupeDeptItems, normalizeDept, user?.gerencia_depto]);
 
   if (!mounted) return null;
 
@@ -3104,7 +3118,7 @@ export default function Dashboard() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h1
-                  className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-zinc-950"}`}
+                  className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-700"}`}
                 >
                   ¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
                 </h1>

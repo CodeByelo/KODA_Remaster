@@ -459,8 +459,8 @@ const LoginCorpoelecForm = () => {
             <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <CheckCircle size={48} className="text-red-400" />
             </div>
-            <h2 className="text-3xl font-bold text-white mb-2">¡Bienvenido!</h2>
-            <p className="text-gray-400 mb-6">Redirigiendo al Dashboard...</p>
+            <h2 className="text-3xl font-bold text-slate-700 mb-2">¡Bienvenido!</h2>
+            <p className="text-slate-500 mb-6">Redirigiendo al Dashboard...</p>
             <div className="flex justify-center gap-2">
               <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" />
               <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />

@@ -30,39 +30,25 @@ type PromptDialogRequest = {
 type DialogRequest = AlertDialogRequest | ConfirmDialogRequest | PromptDialogRequest;
 
 let enqueueDialog: ((request: DialogRequest) => void) | null = null;
+let pendingQueue: DialogRequest[] = [];
 
-function fallbackAlert(message: string) {
-  if (typeof window !== 'undefined') window.alert(message);
-}
-
-function fallbackConfirm(message: string): boolean {
-  if (typeof window !== 'undefined') return window.confirm(message);
-  return false;
-}
-
-function fallbackPrompt(message: string, defaultValue = ''): string | null {
-  if (typeof window !== 'undefined') return window.prompt(message, defaultValue);
-  return null;
+function enqueueDialogRequest(request: DialogRequest) {
+  if (enqueueDialog) {
+    enqueueDialog(request);
+    return;
+  }
+  pendingQueue.push(request);
 }
 
 export function uiAlert(message: string, title = 'Mensaje'): Promise<void> {
   return new Promise((resolve) => {
-    if (!enqueueDialog) {
-      fallbackAlert(message);
-      resolve();
-      return;
-    }
-    enqueueDialog({ kind: 'alert', title, message, resolve: () => resolve() });
+    enqueueDialogRequest({ kind: 'alert', title, message, resolve: () => resolve() });
   });
 }
 
 export function uiConfirm(message: string, title = 'Confirmar'): Promise<boolean> {
   return new Promise((resolve) => {
-    if (!enqueueDialog) {
-      resolve(fallbackConfirm(message));
-      return;
-    }
-    enqueueDialog({ kind: 'confirm', title, message, resolve });
+    enqueueDialogRequest({ kind: 'confirm', title, message, resolve });
   });
 }
 
@@ -73,11 +59,7 @@ export function uiPrompt(
   placeholder = 'Escriba aqui...',
 ): Promise<string | null> {
   return new Promise((resolve) => {
-    if (!enqueueDialog) {
-      resolve(fallbackPrompt(message, defaultValue));
-      return;
-    }
-    enqueueDialog({ kind: 'prompt', title, message, defaultValue, placeholder, resolve });
+    enqueueDialogRequest({ kind: 'prompt', title, message, defaultValue, placeholder, resolve });
   });
 }
 
@@ -90,6 +72,10 @@ export function SystemDialogHost() {
     enqueueDialog = (request: DialogRequest) => {
       setQueue((prev) => [...prev, request]);
     };
+    if (pendingQueue.length > 0) {
+      setQueue((prev) => [...prev, ...pendingQueue]);
+      pendingQueue = [];
+    }
     return () => {
       enqueueDialog = null;
     };
@@ -125,14 +111,14 @@ export function SystemDialogHost() {
   if (!current) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-zinc-800 bg-gradient-to-r from-red-900/40 via-zinc-900 to-zinc-900">
-          <h3 className="text-lg font-bold text-zinc-100">{current.title || 'Mensaje'}</h3>
-          <p className="text-sm text-zinc-300 mt-1 whitespace-pre-wrap">{current.message}</p>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+      <div className="w-full max-w-xl rounded-2xl border border-zinc-700/90 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 shadow-[0_30px_80px_rgba(0,0,0,0.55)] overflow-hidden">
+        <div className="px-6 py-5 border-b border-zinc-800 bg-gradient-to-r from-red-900/35 via-zinc-900 to-orange-900/20">
+          <h3 className="text-xl font-semibold text-zinc-100">{current.title || 'Mensaje'}</h3>
+          <p className="text-base text-zinc-300 mt-2 whitespace-pre-wrap">{current.message}</p>
         </div>
         {current.kind === 'prompt' && (
-          <div className="px-5 py-4">
+          <div className="px-6 py-4">
             <input
               autoFocus
               type="text"
@@ -147,12 +133,12 @@ export function SystemDialogHost() {
             />
           </div>
         )}
-        <div className="px-5 py-5 flex justify-end gap-3">
+        <div className="px-6 py-5 flex justify-end gap-3">
           {current.kind !== 'alert' && (
             <button
               type="button"
               onClick={() => close(current.kind === 'confirm' ? false : null)}
-              className="px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors font-medium"
             >
               Cancelar
             </button>
@@ -164,7 +150,7 @@ export function SystemDialogHost() {
               else if (current.kind === 'prompt') close(inputValue.trim());
               else close(undefined);
             }}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-semibold"
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 text-white hover:from-red-500 hover:to-orange-500 transition-colors font-semibold"
           >
             {confirmLabel}
           </button>
