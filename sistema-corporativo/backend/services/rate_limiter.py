@@ -3,8 +3,9 @@ from fastapi import Request, HTTPException
 from middleware.context import get_current_tenant_id
 import os
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-redis_client = Redis.from_url(REDIS_URL)
+REDIS_URL = (os.getenv("REDIS_URL") or "").strip()
+redis_client = Redis.from_url(REDIS_URL) if REDIS_URL else None
+_redis_warning_logged = False
 
 
 async def rate_limiter_middleware(request: Request):
@@ -13,6 +14,9 @@ async def rate_limiter_middleware(request: Request):
     - Con tenant en contexto: limite por tenant.
     - Sin tenant: limite por IP para endpoints publicos.
     """
+    if redis_client is None:
+        return
+
     tenant_id = get_current_tenant_id()
     client_ip = request.client.host if request.client else "unknown"
 
@@ -40,4 +44,7 @@ async def rate_limiter_middleware(request: Request):
             if isinstance(error, HTTPException):
                 raise error
             # Fail-open para no tumbar el servicio si Redis falla.
-            print(f"Redis Rate Limiter Error: {error}")
+            global _redis_warning_logged
+            if not _redis_warning_logged:
+                print(f"Redis Rate Limiter Error (fail-open): {error}")
+                _redis_warning_logged = True
