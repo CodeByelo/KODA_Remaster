@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, MoreVertical, UsersRound, Clock, CheckCircle, FileText, History, X } from 'lucide-react';
 import { logTicketActivity } from '../app/dashboard/security/actions';
 import { UserRole } from '../context/AuthContext';
 import { createTicket as apiCreateTicket, updateTicket as apiUpdateTicket, updateTicketStatus as apiUpdateTicketStatus, deleteTicket as apiDeleteTicket, getTicketHistory as apiGetTicketHistory, searchTicketHistory as apiSearchTicketHistory, ApiTicketHistoryEvent } from '../lib/api';
+import { uiAlert, uiConfirm } from '../lib/ui-dialog';
 
 type TicketStatus = 'ABIERTO' | 'EN-PROCESO' | 'RESUELTO' | 'ELIMINADO';
 type TicketPriority = 'ALTA' | 'MEDIA' | 'BAJA';
@@ -157,11 +158,12 @@ export default function TicketSystem({
     const deleteTicket = async (e: React.MouseEvent, id: number) => {
         e.stopPropagation();
         if (!hasPermission(PERMISSIONS_MASTER.TICKETS_DELETE) && !canDeleteByRole) {
-            alert("No tienes permiso para eliminar tickets.");
+            void uiAlert("No tienes permiso para eliminar tickets.", "Tickets");
             return;
         }
         const ticket = tickets.find(t => t.id === id);
-        if (ticket && confirm(`¿Estás seguro de que deseas eliminar el ticket "${ticket.title}"?`)) {
+        const ok = ticket ? await uiConfirm(`¿Estas seguro de que deseas eliminar el ticket "${ticket.title}"?`, "Eliminar ticket") : false;
+        if (ticket && ok) {
             await apiDeleteTicket(id);
             await refreshFromServer();
             setMenuOpenId(null);
@@ -189,12 +191,12 @@ export default function TicketSystem({
         if (!ticket) return;
 
         if (status === 'EN-PROCESO' && !canOperateTicketFlow) {
-            alert('Solo personal de Tecnologia o Administracion puede tomar tickets.');
+            void uiAlert('Solo personal de Tecnologia o Administracion puede tomar tickets.', 'Tickets');
             return;
         }
 
         if (status === 'RESUELTO' && !canOperateTicketFlow) {
-            alert('Solo personal de Tecnologia o Administracion puede resolver tickets.');
+            void uiAlert('Solo personal de Tecnologia o Administracion puede resolver tickets.', 'Tickets');
             return;
         }
 
@@ -229,7 +231,7 @@ export default function TicketSystem({
                 (editingTicket.ownerId && String(editingTicket.ownerId) === String(currentUserId)) ||
                 hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT);
             if (!canEditThisTicket) {
-                alert("No tienes permisos para editar este ticket.");
+                void uiAlert("No tienes permisos para editar este ticket.", "Tickets");
                 return;
             }
             await apiUpdateTicket(editingTicket.id, {
@@ -246,7 +248,7 @@ export default function TicketSystem({
             ).length;
 
             if (userRole === 'Usuario' && activeTickets >= 3) {
-                alert("Has alcanzado el limite maximo de 3 tickets activos.");
+                void uiAlert("Has alcanzado el limite maximo de 3 tickets activos.", "Tickets");
                 return;
             }
 
@@ -568,7 +570,7 @@ export default function TicketSystem({
                             <input
                                 value={historyQuery}
                                 onChange={(e) => setHistoryQuery(e.target.value)}
-                                placeholder="Buscar por ID o título..."
+                                placeholder="Buscar por ID o tÃ­tulo..."
                                 className={`flex-1 px-3 py-2 rounded-lg border text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
                             />
                             <button
@@ -588,7 +590,7 @@ export default function TicketSystem({
                                     <thead className={`${darkMode ? 'bg-slate-950/60' : 'bg-slate-50'}`}>
                                         <tr>
                                             <th className="px-3 py-2 text-left">Ticket</th>
-                                            <th className="px-3 py-2 text-left">Acción</th>
+                                            <th className="px-3 py-2 text-left">AcciÃ³n</th>
                                             <th className="px-3 py-2 text-left">Actor</th>
                                             <th className="px-3 py-2 text-left">Detalle</th>
                                             <th className="px-3 py-2 text-left">Fecha</th>
@@ -614,3 +616,4 @@ export default function TicketSystem({
         </div>
     );
 }
+

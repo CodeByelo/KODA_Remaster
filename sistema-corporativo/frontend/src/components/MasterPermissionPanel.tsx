@@ -5,6 +5,7 @@ import { Shield, Save, CheckCircle, Info } from 'lucide-react';
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../permissions/constants';
 import { useAuth } from '../hooks/useAuth';
 import { getAllUsers, updateUserPermissions } from '../lib/api';
+import { uiAlert } from '../lib/ui-dialog';
 
 export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean }) {
     const { user } = useAuth();
@@ -56,10 +57,10 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
 
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
-            alert(`AdminScope aplicado. Administradores actualizados: ${admins.length}`);
+            void uiAlert(`AdminScope aplicado. Administradores actualizados: ${admins.length}`, "AdminScope");
         } catch (e) {
             console.error("Error guardando AdminScope", e);
-            alert("No se pudo aplicar AdminScope global. Revisa backend/permisos.");
+            void uiAlert("No se pudo aplicar AdminScope global. Revisa backend/permisos.", "AdminScope");
         } finally {
             setSaving(false);
         }

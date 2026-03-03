@@ -88,6 +88,7 @@ import {
   saveOrgManagementDetails,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
+import { uiAlert, uiConfirm } from "../../lib/ui-dialog";
 const ResponsiveContainerCompat =
   ResponsiveContainer as unknown as React.ComponentType<any>;
 const PieChartCompat = PieChart as unknown as React.ComponentType<any>;
@@ -543,7 +544,7 @@ const DetailModal: React.FC<{
       .map((line) => line.trim())
       .filter(Boolean);
     if (next.length === 0) {
-      alert("Debe existir al menos una función para guardar.");
+      void uiAlert("Debe existir al menos una función para guardar.", "Validacion");
       return;
     }
     onSave(title, next);
@@ -1382,7 +1383,7 @@ const DocumentManager: React.FC<{
         });
       } catch (e) {
         console.error("Error updating status", e);
-        alert("Error al actualizar el estado del documento.");
+        void uiAlert("Error al actualizar el estado del documento.", "Error");
       }
     };
 
@@ -1403,7 +1404,7 @@ const DocumentManager: React.FC<{
       if (!file) return;
 
       if (file.type !== "application/pdf") {
-        alert("Error: Solo se permiten archivos en formato PDF.");
+        void uiAlert("Error: Solo se permiten archivos en formato PDF.", "Archivo invalido");
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
@@ -1429,7 +1430,7 @@ const DocumentManager: React.FC<{
 
       const recipients = sendMode === "dept" ? targetDeptIds : targetUserIds;
       if (!recipients || recipients.length === 0) {
-        alert("Por favor selecciona al menos un destinatario.");
+        void uiAlert("Por favor selecciona al menos un destinatario.", "Validacion");
         return;
       }
 
@@ -1486,10 +1487,10 @@ const DocumentManager: React.FC<{
         setTargetUserIds([]);
         setTargetDeptIds([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        alert(`Mensaje enviado con éxito.`);
+        void uiAlert("Mensaje enviado con éxito.", "Mensajeria");
       } catch (e) {
         console.error("Error sending message:", e);
-        alert("Error al enviar el mensaje.");
+        void uiAlert("Error al enviar el mensaje.", "Error");
       }
     };
 
@@ -3481,9 +3482,10 @@ export default function Dashboard() {
               />
               <div
                 className="flex items-center gap-3 cursor-pointer hover:bg-slate-100/10 p-1 rounded-md transition-colors"
-                onClick={() => {
-                  if (confirm("¿Desea cerrar sesión?")) {
-                    logout();
+                onClick={async () => {
+                  const ok = await uiConfirm("¿Desea cerrar sesión?", "Cerrar sesion");
+                  if (ok) {
+                    void logout();
                   }
                 }}
               >
@@ -3519,7 +3521,7 @@ export default function Dashboard() {
                       onChange={async (e) => {
                         const ok = await switchRole(e.target.value as UserRole);
                         if (!ok) {
-                          alert("SwitchRole deshabilitado en este entorno por seguridad. Usa staging/dev con NEXT_PUBLIC_ENABLE_ROLE_SIMULATION=true.");
+                          void uiAlert("SwitchRole deshabilitado en este entorno por seguridad. Usa staging/dev con NEXT_PUBLIC_ENABLE_ROLE_SIMULATION=true.", "Seguridad");
                         }
                       }}
                         className={`bg-transparent text-[10px] font-bold border rounded px-1 outline-none transition-colors ${darkMode ? "border-zinc-700 text-zinc-400 focus:border-red-500" : "border-slate-300 text-slate-600 focus:border-red-600"}`}

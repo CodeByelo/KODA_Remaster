@@ -15,6 +15,7 @@ import {
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../../../permissions/constants';
 import { useAuth } from '../../../hooks/useAuth';
 import { UserRole } from '../../../context/AuthContext';
+import { uiAlert, uiConfirm, uiPrompt } from '../../../lib/ui-dialog';
 
 // Mapping icons for serialization support
 const ORG_ICONS: Record<string, React.ElementType> = {
@@ -158,10 +159,11 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         }
     };
 
-    const deleteDocument = (id: number, name: string) => {
-        if (confirm(`¿Estas seguro de eliminar el documento "${name}"? Esta accion no se puede deshacer.`)) {
+    const deleteDocument = async (id: number, name: string) => {
+        const ok = await uiConfirm(`¿Estas seguro de eliminar el documento "${name}"? Esta accion no se puede deshacer.`, "Eliminar documento");
+        if (ok) {
             setDocuments(documents.filter(d => d.id !== id));
-            alert("Documento eliminado correctamente.");
+            void uiAlert("Documento eliminado correctamente.", "Documentos");
         }
     };
 
@@ -191,7 +193,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         } catch (error) {
             console.error("No se pudo guardar la estructura organizativa", error);
             const msg = error instanceof Error ? error.message : "Error desconocido";
-            alert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesion/navegador.\n\n${msg}`);
+            void uiAlert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesion/navegador.\n\n${msg}`, "Estructura organizativa");
         }
     };
 
@@ -211,7 +213,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const handleEditModule = async (groupIdx: number) => {
-        const newName = prompt("Nuevo nombre para el modulo:", orgStructure[groupIdx].category);
+        const newName = await uiPrompt("Nuevo nombre para el modulo:", orgStructure[groupIdx].category, "Editar modulo");
         if (!newName?.trim()) return;
         const newOrg = [...orgStructure];
         newOrg[groupIdx].category = newName.trim();
@@ -219,13 +221,15 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const handleDeleteModule = async (groupIdx: number) => {
-        if (!confirm("Estas seguro de eliminar este modulo y todas sus gerencias?")) return;
+        const ok = await uiConfirm("Estas seguro de eliminar este modulo y todas sus gerencias?", "Eliminar modulo");
+        if (!ok) return;
         const newOrg = orgStructure.filter((_, idx) => idx !== groupIdx);
         await persistOrgStructure(newOrg);
     };
 
     const handleDeleteDept = async (groupIdx: number, itemIdx: number) => {
-        if (confirm("¿Estas seguro de eliminar esta gerencia?")) {
+        const ok = await uiConfirm("¿Estas seguro de eliminar esta gerencia?", "Eliminar gerencia");
+        if (ok) {
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items.splice(itemIdx, 1);
             await persistOrgStructure(newOrg);
@@ -233,7 +237,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const handleEditDept = async (groupIdx: number, itemIdx: number) => {
-        const newName = prompt("Nuevo nombre para la gerencia:", orgStructure[groupIdx].items[itemIdx]);
+        const newName = await uiPrompt("Nuevo nombre para la gerencia:", orgStructure[groupIdx].items[itemIdx], "Editar gerencia");
         if (newName?.trim()) {
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items[itemIdx] = newName.trim();
@@ -474,10 +478,10 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     localStorage.removeItem("announcement_editing");
                                                     localStorage.setItem("announcement_updated_at", String(Date.now()));
                                                     window.dispatchEvent(new Event("announcement-updated"));
-                                                    alert('Anuncio guardado correctamente para todas las cuentas.');
+                                                    void uiAlert('Anuncio guardado correctamente para todas las cuentas.', 'Anuncios');
                                                 } catch (e) {
                                                     console.error("Error saving announcement", e);
-                                                    alert('No se pudo guardar el anuncio. Intenta de nuevo.');
+                                                    void uiAlert('No se pudo guardar el anuncio. Intenta de nuevo.', 'Anuncios');
                                                 }
                                             }}
                                             className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold"
@@ -687,9 +691,9 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                                     try {
                                                                                         await unlockUser(String(u.id));
                                                                                         setUsers((prev: any[]) => prev.map((usr) => String(usr.id) === String(u.id) ? { ...usr, is_locked: false, estado: true, failed_count: 0 } : usr));
-                                                                                        alert("Cuenta desbloqueada.");
+                                                                                        void uiAlert("Cuenta desbloqueada.", "Usuarios");
                                                                                     } catch (error: any) {
-                                                                                        alert(error?.message || "No se pudo desbloquear la cuenta");
+                                                                                        void uiAlert(error?.message || "No se pudo desbloquear la cuenta", "Usuarios");
                                                                                     }
                                                                                 }}
                                                                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/10 text-green-400 hover:bg-green-600/20 rounded-lg text-xs font-bold border border-green-500/20 transition-all"
@@ -931,7 +935,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
     const roles = ['Usuario', 'Administrativo', 'CEO', 'Gerente'];
 
     const authorizeDeveloperRole = () => {
-        const pwd = window.prompt("Clave maestra requerida para asignar rol Desarrollador:");
+        const pwd = await uiPrompt("Clave maestra requerida para asignar rol Desarrollador:", "", "Asignar Desarrollador");
         if (!pwd) return;
         setDevRoleMasterPassword(pwd);
         setSelectedRole('Desarrollador');
@@ -947,7 +951,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'Gerente') rolId = 5;
 
             if (selectedRole === 'Desarrollador' && !devRoleMasterPassword) {
-                alert("Para asignar Desarrollador debes validar la contrasena maestra.");
+                void uiAlert("Para asignar Desarrollador debes validar la contrasena maestra.", "Seguridad");
                 return;
             }
 
@@ -976,9 +980,9 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                 setSaved(false);
                 onClose();
             }, 1500);
-            alert(`Permisos y Rol actualizados para ${user.nombre}.`);
+            void uiAlert(`Permisos y Rol actualizados para ${user.nombre}.`, "Permisos");
         } catch (error) {
-            alert("Error al actualizar: " + error);
+            void uiAlert("Error al actualizar: " + error, "Permisos");
         }
     };
 

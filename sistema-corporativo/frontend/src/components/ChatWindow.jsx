@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Loader2, AlertCircle, MessageSquare, Plus, History, Brain, Save, Trash2, ChevronLeft } from 'lucide-react';
+import { uiAlert } from '../lib/ui-dialog';
 
 export default function ChatWindow({ isOpen, onClose, userRole }) {
     const API_URL =
@@ -162,7 +163,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
 
     const saveTraining = async () => {
         if (!canTrain) {
-            alert("Acceso denegado: solo Desarrollador o Administrativo pueden entrenar al asistente.");
+            void uiAlert("Acceso denegado: solo Desarrollador o Administrativo pueden entrenar al asistente.", "Acceso denegado");
             return;
         }
         if (!trainQuestion.trim() || !trainAnswer.trim()) return;

@@ -6,6 +6,7 @@ import { Eye, EyeOff, Shield, Zap, Lock, User, Mail, Phone, CheckCircle, AlertCi
 // import { registrarUsuario } from '../actions';
 import { register } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
+import { uiAlert } from '../../lib/ui-dialog';
 
 // ====================================================================
 // NEON CHECKBOX
@@ -592,7 +593,7 @@ const RegistroForm = () => {
 
     } catch (error) {
       console.error("Error frontend:", error);
-      alert(`❌ Error: ${error.message}`);
+      void uiAlert(`Error: ${error.message}`, "Registro");
       setIsLoading(false);
     }
   };

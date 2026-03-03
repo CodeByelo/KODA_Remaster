@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, Shield, Clock, Activity, FileText, Lock, Calendar } from 'lucide-react';
 import { changeUserRole, deleteUser, getUserDetails, getUserLogs, resetUserPasswordAction, setUserStatus } from '../../actions';
@@ -12,6 +12,26 @@ export default function UserHistoryPage() {
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [notice, setNotice] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
+    const [dialog, setDialog] = useState<{
+        open: boolean;
+        type: "confirm" | "prompt";
+        title: string;
+        message: string;
+        inputType?: "text" | "password";
+        inputValue?: string;
+        confirmText?: string;
+        cancelText?: string;
+    }>({
+        open: false,
+        type: "confirm",
+        title: "",
+        message: "",
+        inputType: "text",
+        inputValue: "",
+        confirmText: "Aceptar",
+        cancelText: "Cancelar",
+    });
+    const dialogResolverRef = useRef<((value: boolean | string | null) => void) | null>(null);
 
     const [mounted, setMounted] = useState(false);
     const userId = params?.id;
@@ -19,6 +39,54 @@ export default function UserHistoryPage() {
     const showNotice = (type: "success" | "error" | "info", message: string) => {
         setNotice({ type, message });
         window.setTimeout(() => setNotice(null), 3200);
+    };
+
+    const askConfirm = (
+        title: string,
+        message: string,
+        confirmText: string = "Aceptar",
+        cancelText: string = "Cancelar",
+    ) =>
+        new Promise<boolean>((resolve) => {
+            dialogResolverRef.current = (value) => resolve(Boolean(value));
+            setDialog({
+                open: true,
+                type: "confirm",
+                title,
+                message,
+                inputType: "text",
+                inputValue: "",
+                confirmText,
+                cancelText,
+            });
+        });
+
+    const askPrompt = (
+        title: string,
+        message: string,
+        inputType: "text" | "password" = "text",
+        confirmText: string = "Confirmar",
+        cancelText: string = "Cancelar",
+    ) =>
+        new Promise<string | null>((resolve) => {
+            dialogResolverRef.current = (value) => resolve(typeof value === "string" ? value : null);
+            setDialog({
+                open: true,
+                type: "prompt",
+                title,
+                message,
+                inputType,
+                inputValue: "",
+                confirmText,
+                cancelText,
+            });
+        });
+
+    const closeDialog = (result: boolean | string | null) => {
+        const resolver = dialogResolverRef.current;
+        dialogResolverRef.current = null;
+        setDialog((prev) => ({ ...prev, open: false }));
+        if (resolver) resolver(result);
     };
 
     const roleLabelFromBackend = (role: string | undefined) => {
@@ -67,7 +135,13 @@ export default function UserHistoryPage() {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("¿Esta seguro de que desea eliminar permanentemente esta cuenta? Esta accion no se puede deshacer.")) {
+        const confirmed = await askConfirm(
+            "Eliminar cuenta",
+            "¿Esta seguro de que desea eliminar permanentemente esta cuenta? Esta accion no se puede deshacer.",
+            "Eliminar",
+            "Cancelar",
+        );
+        if (!confirmed) {
             return;
         }
 
@@ -99,7 +173,13 @@ export default function UserHistoryPage() {
     };
 
     const handleAssignDeveloper = async () => {
-        const pwd = window.prompt("Clave maestra requerida para asignar rol Desarrollador:");
+        const pwd = await askPrompt(
+            "Asignar rol Desarrollador",
+            "Clave maestra requerida para asignar rol Desarrollador:",
+            "password",
+            "Validar",
+            "Cancelar",
+        );
         if (!pwd) return;
         const res = await changeUserRole(String(userId), "Desarrollador", pwd);
         if (!res.success) {
@@ -120,7 +200,13 @@ export default function UserHistoryPage() {
             INACTIVO: "inactivar",
             BLOQUEADO: "bloquear",
         };
-        if (!window.confirm(`¿Confirma ${labels[status]} este usuario?`)) {
+        const confirmed = await askConfirm(
+            "Confirmar estado",
+            `¿Confirma ${labels[status]} este usuario?`,
+            "Confirmar",
+            "Cancelar",
+        );
+        if (!confirmed) {
             return;
         }
 
@@ -134,7 +220,13 @@ export default function UserHistoryPage() {
     };
 
     const handleResetPassword = async () => {
-        const newPassword = window.prompt("Ingrese nueva clave (minimo 8 caracteres):");
+        const newPassword = await askPrompt(
+            "Restablecer clave",
+            "Ingrese nueva clave (minimo 8 caracteres):",
+            "password",
+            "Actualizar",
+            "Cancelar",
+        );
         if (!newPassword) return;
         const res = await resetUserPasswordAction(String(userId), newPassword);
         if (!res.success) {
@@ -163,6 +255,48 @@ export default function UserHistoryPage() {
 
     return (
         <div className="p-6 space-y-6 bg-zinc-950 min-h-screen font-sans text-zinc-200">
+            {dialog.open && (
+                <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-lg rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl overflow-hidden">
+                        <div className="px-5 py-4 border-b border-zinc-800 bg-gradient-to-r from-red-900/40 via-zinc-900 to-zinc-900">
+                            <h3 className="text-lg font-bold text-zinc-100">{dialog.title}</h3>
+                            <p className="text-sm text-zinc-300 mt-1">{dialog.message}</p>
+                        </div>
+                        <div className="px-5 py-4">
+                            {dialog.type === "prompt" && (
+                                <input
+                                    autoFocus
+                                    type={dialog.inputType || "text"}
+                                    value={dialog.inputValue || ""}
+                                    onChange={(e) =>
+                                        setDialog((prev) => ({ ...prev, inputValue: e.target.value }))
+                                    }
+                                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                    placeholder="Escriba aqui..."
+                                />
+                            )}
+                        </div>
+                        <div className="px-5 pb-5 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => closeDialog(null)}
+                                className="px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors"
+                            >
+                                {dialog.cancelText || "Cancelar"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    closeDialog(dialog.type === "prompt" ? (dialog.inputValue || "").trim() : true)
+                                }
+                                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-semibold"
+                            >
+                                {dialog.confirmText || "Aceptar"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {notice && (
                 <div className="fixed top-5 right-5 z-[120] max-w-md">
                     <div
