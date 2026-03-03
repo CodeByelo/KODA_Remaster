@@ -1,7 +1,6 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
 import {
     getAllUsers,
@@ -38,7 +37,6 @@ interface SecurityModuleProps {
 }
 
 export default function SecurityModule({ darkMode, announcement, setAnnouncement, documents, setDocuments, userRole, orgStructure, setOrgStructure }: SecurityModuleProps) {
-    const router = useRouter();
     const [activeTab, setActiveTab] = useState('docLogs');
     const [logs, setLogs] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
@@ -46,7 +44,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
     const [selectedUserForPerms, setSelectedUserForPerms] = useState<any | null>(null);
     const { hasPermission, user: currentUserObj } = useAuth();
-    const [isClient, setIsClient] = useState(false); // Nuevo estado para hidrataciÃ³n
+    const [isClient, setIsClient] = useState(false); // Nuevo estado para hidratacion
 
     // Search states
     const [logSearch, setLogSearch] = useState('');
@@ -129,14 +127,14 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         td: darkMode ? 'text-slate-300' : 'text-slate-700'
     };
 
-    // FunciÃ³n auxiliar para contar eventos de hoy (solo en cliente)
+    // Funcion auxiliar para contar eventos de hoy (solo en cliente)
     const getEventsToday = () => {
         if (!isClient) return 0;
         const today = new Date().toLocaleDateString();
         return logs.filter(l => new Date(l.fecha_hora).toLocaleDateString() === today).length;
     };
 
-    // FunciÃ³n auxiliar para contar alertas (solo en cliente)
+    // Funcion auxiliar para contar alertas (solo en cliente)
     const getSecurityAlerts = () => {
         if (!isClient) return 0;
         return logs.filter(l => l.estado === 'danger').length;
@@ -144,7 +142,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 
     const handleExport = () => {
         if (activeTab === 'docLogs') {
-            const headers = ['Tipo', 'ID', 'TÃ­tulo', 'Fecha', 'Hora', 'Enviado Por', 'Recibido Por'];
+            const headers = ['Tipo', 'ID', 'Titulo', 'Fecha', 'Hora', 'Enviado Por', 'Recibido Por'];
             const csvRows = [
                 headers.join(','),
                 ...documents.map(l => [l.category, l.idDoc, l.name, l.uploadDate, l.uploadTime, l.uploadedBy, l.receivedBy].join(','))
@@ -161,7 +159,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const deleteDocument = (id: number, name: string) => {
-        if (confirm(`Â¿EstÃ¡s seguro de eliminar el documento "${name}"? Esta acciÃ³n no se puede deshacer.`)) {
+        if (confirm(`¿Estas seguro de eliminar el documento "${name}"? Esta accion no se puede deshacer.`)) {
             setDocuments(documents.filter(d => d.id !== id));
             alert("Documento eliminado correctamente.");
         }
@@ -193,7 +191,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         } catch (error) {
             console.error("No se pudo guardar la estructura organizativa", error);
             const msg = error instanceof Error ? error.message : "Error desconocido";
-            alert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesiÃ³n/navegador.\n\n${msg}`);
+            alert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesion/navegador.\n\n${msg}`);
         }
     };
 
@@ -227,7 +225,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const handleDeleteDept = async (groupIdx: number, itemIdx: number) => {
-        if (confirm("Â¿EstÃ¡s seguro de eliminar esta gerencia?")) {
+        if (confirm("¿Estas seguro de eliminar esta gerencia?")) {
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items.splice(itemIdx, 1);
             await persistOrgStructure(newOrg);
@@ -245,12 +243,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 
     const goToUserAudit = (userId: string | number) => {
         const target = `/dashboard/security/user/${encodeURIComponent(String(userId))}`;
-        router.push(target);
-        window.setTimeout(() => {
-            if (window.location.pathname === '/dashboard') {
-                window.location.assign(target);
-            }
-        }, 250);
+        window.location.href = target;
     };
 
     return (
@@ -322,7 +315,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             onClick={() => setActiveTab('anuncios')}
                             className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'anuncios' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                         >
-                            GESTIÃ“N DE ANUNCIOS
+                            GESTION DE ANUNCIOS
                         </button>
                     )}
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_VIEW_LOGS) && (
@@ -338,7 +331,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             onClick={() => setActiveTab('users')}
                             className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
                         >
-                            GESTIÃ“N DE USUARIOS
+                            GESTION DE USUARIOS
                         </button>
                     )}
                     {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
@@ -367,7 +360,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     </div>
                 ) : (
                     <>
-                        {/* TAB: GESTIÃ“N DE ANUNCIOS */}
+                        {/* TAB: GESTION DE ANUNCIOS */}
                         {activeTab === 'anuncios' && (
                             <div className="animate-in fade-in duration-500">
                                 <div className={`p-4 border-b flex justify-between items-center ${darkMode ? 'border-zinc-800' : 'border-slate-100'}`}>
@@ -394,11 +387,11 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         setAnnouncementDraft({ ...announcementDraft, badge: e.target.value });
                                                     }}
                                                     className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
-                                                    placeholder="Ej: Comunicado del DÃ­a"
+                                                    placeholder="Ej: Comunicado del Dia"
                                                 />
                                             </div>
                                             <div>
-                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>TÃ­tulo del Anuncio</label>
+                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Titulo del Anuncio</label>
                                                 <input
                                                     type="text"
                                                     value={announcementDraft.title}
@@ -411,7 +404,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 />
                                             </div>
                                             <div>
-                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Contenido / DescripciÃ³n</label>
+                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Contenido / Descripcion</label>
                                                 <textarea
                                                     rows={4}
                                                     value={announcementDraft.description}
@@ -525,7 +518,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                     <table className="w-full text-sm text-left">
                                         <thead className={`uppercase ${theme.th}`}>
                                             <tr>
-                                                <th className="px-6 py-3 font-semibold">CategorÃ­a / ID</th>
+                                                <th className="px-6 py-3 font-semibold">Categoria / ID</th>
                                                 <th className="px-6 py-3 font-semibold">Nombre Documento</th>
                                                 <th className="px-6 py-3 font-semibold">Fecha</th>
                                                 <th className="px-6 py-3 font-semibold">Hora</th>
@@ -714,9 +707,9 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                             ? 'text-zinc-200 border-zinc-600 hover:bg-zinc-700/40 hover:border-zinc-500'
                                                                             : 'text-slate-700 border-slate-300 hover:bg-slate-100'
                                                                     }`}
-                                                                    title="Ver AuditorÃ­a"
+                                                                    title="Ver Auditoria"
                                                                 >
-                                                                    <Activity size={12} /> VER AUDITORÃA
+                                                                    <Activity size={12} /> VER AUDITORIA
                                                                 </button>
                                                             </div>
                                                         </td>
@@ -765,7 +758,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                 </div>
                                 <div className={`p-6 rounded-xl border ${theme.card}`}>
                                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                        <Plus size={20} className="text-red-600" /> AÃ‘ADIR NUEVA GERENCIA
+                                        <Plus size={20} className="text-red-600" /> ANADIR NUEVA GERENCIA
                                     </h3>
                                     <div className="flex flex-wrap gap-4 items-end">
                                         <div className="flex-1 min-w-[300px]">
@@ -774,11 +767,11 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 value={newDeptName}
                                                 onChange={(e) => setNewDeptName(e.target.value)}
                                                 className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 ${theme.input} outline-none`}
-                                                placeholder="Ej: Gerencia Nacional de LogÃ­stica"
+                                                placeholder="Ej: Gerencia Nacional de Logistica"
                                             />
                                         </div>
                                         <div className="w-64">
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">CategorÃ­a JerÃ¡rquica</label>
+                                            <label className="block text-xs font-bold text-slate-500 mb-1">Categoria Jerarquica</label>
                                             <select
                                                 value={newGroupIdx}
                                                 onChange={(e) => setNewGroupIdx(parseInt(e.target.value))}
@@ -843,7 +836,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     </div>
                                                 ))}
                                                 {group.items.length === 0 && (
-                                                    <p className="text-xs text-center py-4 text-slate-500 italic">No hay gerencias en esta categorÃ­a</p>
+                                                    <p className="text-xs text-center py-4 text-slate-500 italic">No hay gerencias en esta categoria</p>
                                                 )}
                                             </div>
                                         </div>
@@ -914,7 +907,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
     const [saved, setSaved] = useState(false);
     const [devRoleMasterPassword, setDevRoleMasterPassword] = useState<string | null>(null);
 
-    // JerarquÃ­a: Los permisos disponibles para asignar son solo aquellos que el admin posee
+    // Jerarquia: Los permisos disponibles para asignar son solo aquellos que el admin posee
     const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => currentUserPerms.includes(p));
 
     const togglePermission = (perm: string) => {
@@ -954,7 +947,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'Gerente') rolId = 5;
 
             if (selectedRole === 'Desarrollador' && !devRoleMasterPassword) {
-                alert("Para asignar Desarrollador debes validar la contraseÃ±a maestra.");
+                alert("Para asignar Desarrollador debes validar la contrasena maestra.");
                 return;
             }
 
@@ -998,7 +991,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                             <Lock size={18} />
                         </div>
                         <div>
-                            <h3 className="font-bold">GestiÃ³n de Permisos Granulares</h3>
+                    <h3 className="font-bold">Gestion de Permisos Granulares</h3>
                             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">{user.nombre} {user.apellido} ({user.rol || 'Usuario'})</p>
                         </div>
                     </div>
@@ -1006,7 +999,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                 </div>
 
                 <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar space-y-6">
-                    {/* SECCIÃ“N DE ROL */}
+                    {/* SECCION DE ROL */}
                     <div className={`p-4 rounded-xl border ${darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-100'}`}>
                         <h4 className={`text-xs font-bold uppercase mb-3 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Rol del Usuario</h4>
                         <div className="flex flex-wrap gap-2">

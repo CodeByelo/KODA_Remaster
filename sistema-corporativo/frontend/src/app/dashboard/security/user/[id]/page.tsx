@@ -61,7 +61,7 @@ export default function UserHistoryPage() {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm("Â¿EstÃ¡ seguro de que desea eliminar permanentemente esta cuenta? Esta acciÃ³n no se puede deshacer.")) {
+        if (!window.confirm("¿Esta seguro de que desea eliminar permanentemente esta cuenta? Esta accion no se puede deshacer.")) {
             return;
         }
 
@@ -74,7 +74,7 @@ export default function UserHistoryPage() {
                 alert("Error al eliminar usuario: " + res.error);
             }
         } catch (error) {
-            alert("Error crÃ­tico al eliminar usuario.");
+            alert("Error critico al eliminar usuario.");
         }
     };
 
@@ -114,7 +114,7 @@ export default function UserHistoryPage() {
             INACTIVO: "inactivar",
             BLOQUEADO: "bloquear",
         };
-        if (!window.confirm(`Â¿Confirma ${labels[status]} este usuario?`)) {
+        if (!window.confirm(`¿Confirma ${labels[status]} este usuario?`)) {
             return;
         }
 
@@ -167,7 +167,7 @@ export default function UserHistoryPage() {
                 </button>
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-100">Historial de Usuario</h1>
-                    <p className="text-zinc-400 text-sm">Detalles y auditorÃ­a de actividad</p>
+                    <p className="text-zinc-400 text-sm">Detalles y auditoria de actividad</p>
                 </div>
             </div>
 
@@ -262,7 +262,7 @@ export default function UserHistoryPage() {
                     <p className="text-2xl font-bold text-zinc-100 mt-1">{logs.length}</p>
                 </div>
                 <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 shadow-sm">
-                    <p className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Ãšltima Actividad</p>
+                    <p className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Ultima Actividad</p>
                     <p className="text-sm font-medium text-zinc-100 mt-1 truncate">
                         {logs.length > 0 ? new Date(logs[0].fecha_hora).toLocaleDateString() : 'N/A'}
                     </p>
@@ -290,7 +290,7 @@ export default function UserHistoryPage() {
                 <div className="p-4 border-b border-zinc-800 bg-zinc-900/80">
                     <h3 className="font-bold text-zinc-100 flex items-center gap-2">
                         <Clock size={18} className="text-zinc-500" />
-                        LÃ­nea de Tiempo de Actividad
+                        Linea de Tiempo de Actividad
                     </h3>
                 </div>
                 <div className="overflow-x-auto">
