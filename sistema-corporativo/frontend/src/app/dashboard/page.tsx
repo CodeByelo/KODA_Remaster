@@ -828,8 +828,7 @@ const PriorityMatrix: React.FC<{
     const controlDocs = documents.filter(
       (doc) => String(doc.prioridad || "").toLowerCase() === "control",
     );
-    const source = controlDocs.length > 0 ? controlDocs : documents;
-    return source.map((doc) => ({
+    return controlDocs.map((doc) => ({
         id: doc.id,
         title: doc.name,
         correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
