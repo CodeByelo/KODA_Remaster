@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 const FALLBACK_URL = "https://corpoelect-backend.onrender.com";
 const PRIMARY_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === "production" ? FALLBACK_URL : "http://127.0.0.1:8000");
 
-function backendHeaders(request: Request, contentTypeJson = false): HeadersInit {
-  const auth = request.headers.get("authorization");
+async function backendHeaders(request: Request, contentTypeJson = false): Promise<HeadersInit> {
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  const auth = request.headers.get("authorization") || (session ? `Bearer ${session}` : null);
   return {
     ...(contentTypeJson ? { "Content-Type": "application/json" } : {}),
     ...(auth ? { Authorization: auth } : {}),
@@ -44,7 +47,7 @@ export async function GET(request: Request) {
   try {
     return await proxyRequest("/security/logs", {
       method: "GET",
-      headers: backendHeaders(request),
+      headers: await backendHeaders(request),
     });
   } catch (error) {
     console.error("Security logs GET proxy error:", error);
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
     const payload = await request.json();
     return await proxyRequest("/security/logs", {
       method: "POST",
-      headers: backendHeaders(request, true),
+      headers: await backendHeaders(request, true),
       body: JSON.stringify(payload),
     });
   } catch (error) {

@@ -33,10 +33,10 @@ export function RoleGuard({
                     ? `${window.location.pathname}${window.location.search || ""}`
                     : "";
             if (redirectTo === "/login" && nextPath.startsWith("/")) {
-                router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+                router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
                 return;
             }
-            router.push(redirectTo);
+            router.replace(redirectTo);
         }
     }, [isLoading, isAuthenticated, redirectTo, router]);
 

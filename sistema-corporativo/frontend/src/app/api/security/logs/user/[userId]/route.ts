@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 const FALLBACK_URL = "https://corpoelect-backend.onrender.com";
 const PRIMARY_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === "production" ? FALLBACK_URL : "http://127.0.0.1:8000");
 
-function backendHeaders(request: Request): HeadersInit {
-  const auth = request.headers.get("authorization");
+async function backendHeaders(request: Request): Promise<HeadersInit> {
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  const auth = request.headers.get("authorization") || (session ? `Bearer ${session}` : null);
   return {
     ...(auth ? { Authorization: auth } : {}),
   };
@@ -33,7 +36,7 @@ export async function GET(
       try {
         const response = await fetch(`${base}/security/logs/user/${userId}`, {
           method: "GET",
-          headers: backendHeaders(request),
+          headers: await backendHeaders(request),
         });
         const text = await response.text();
         return NextResponse.json(parseResponse(text), { status: response.status });

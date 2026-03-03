@@ -111,6 +111,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const token = localStorage.getItem("sgd_token");
       const storedUser = localStorage.getItem("sgd_user");
 
+      // Fuente de verdad: cookie HttpOnly validada en servidor.
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.authenticated && data?.user) {
+            const recoveredUser = buildUserFromBackend(data.user);
+            setUser(recoveredUser);
+            localStorage.setItem("sgd_user", JSON.stringify(recoveredUser));
+            return;
+          }
+        }
+
+        // Sesion invalida en servidor: limpiar cliente para evitar loops y rebotes.
+        if (response.status === 401 || response.status === 403) {
+          setUser(null);
+          localStorage.removeItem("sgd_user");
+          localStorage.removeItem("sgd_token");
+          return;
+        }
+      } catch (error) {
+        // Si falla red/backend, fallback temporal al estado local para no romper UX.
+        console.error("Session hydration error:", error);
+      }
+
       if (token && storedUser) {
         try {
           const parsedUser = JSON.parse(storedUser) as User;
@@ -128,23 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
-      // Fallback: recuperar usuario desde cookie de sesion (HttpOnly) para evitar
-      // redirecciones falsas al login cuando localStorage se pierde.
-      try {
-        const response = await fetch("/api/auth/me", {
-          method: "GET",
-          cache: "no-store",
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        if (!data?.authenticated || !data?.user) return;
-
-        const recoveredUser = buildUserFromBackend(data.user);
-        setUser(recoveredUser);
-        localStorage.setItem("sgd_user", JSON.stringify(recoveredUser));
-      } catch (error) {
-        console.error("Session hydration error:", error);
-      }
+      setUser(null);
     };
 
     hydrateSession().finally(() => {

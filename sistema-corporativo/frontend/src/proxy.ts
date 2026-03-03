@@ -84,8 +84,13 @@ export async function proxy(request: NextRequest) {
 
     // Si ya tiene sesion valida, no permitir volver a login por URL directa.
     if (isAuthPage && validation.status === "valid") {
-        const dashboardUrl = addNonce(new URL('/dashboard', request.url));
-        return withNoCache(NextResponse.redirect(dashboardUrl));
+        const requestedNext = request.nextUrl.searchParams.get('next') || '';
+        const safeNext =
+            requestedNext.startsWith('/') && !requestedNext.startsWith('//')
+                ? requestedNext
+                : '/dashboard';
+        const targetUrl = addNonce(new URL(safeNext, request.url));
+        return withNoCache(NextResponse.redirect(targetUrl));
     }
 
     return withNoCache(NextResponse.next());

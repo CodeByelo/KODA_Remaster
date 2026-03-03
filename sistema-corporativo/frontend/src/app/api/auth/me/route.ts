@@ -25,7 +25,12 @@ export async function GET() {
     });
 
     const raw = await response.text();
-    const payload = raw ? JSON.parse(raw) : {};
+    let payload: any = {};
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      payload = { detail: raw || "Respuesta invalida" };
+    }
 
     if (!response.ok) {
       return NextResponse.json(
@@ -43,4 +48,3 @@ export async function GET() {
     );
   }
 }
-

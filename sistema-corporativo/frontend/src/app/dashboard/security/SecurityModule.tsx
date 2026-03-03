@@ -701,8 +701,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                     href={`/dashboard/security/user/${encodeURIComponent(String(u.id))}`}
                                                                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
                                                                         darkMode
-                                                                            ? 'text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/15'
-                                                                            : 'text-cyan-700 border-cyan-300 hover:bg-cyan-50'
+                                                                            ? 'text-zinc-200 border-zinc-600 hover:bg-zinc-700/40 hover:border-zinc-500'
+                                                                            : 'text-slate-700 border-slate-300 hover:bg-slate-100'
                                                                     }`}
                                                                     title="Ver Auditoría"
                                                                 >
