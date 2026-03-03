@@ -934,7 +934,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
     const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Gerente'
     const roles = ['Usuario', 'Administrativo', 'CEO', 'Gerente'];
 
-    const authorizeDeveloperRole = () => {
+    const authorizeDeveloperRole = async () => {
         const pwd = await uiPrompt("Clave maestra requerida para asignar rol Desarrollador:", "", "Asignar Desarrollador");
         if (!pwd) return;
         setDevRoleMasterPassword(pwd);
