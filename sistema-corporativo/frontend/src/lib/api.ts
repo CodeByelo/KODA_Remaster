@@ -195,6 +195,14 @@ export async function markAsRead(documentId: number): Promise<ApiDocument> {
     return handleResponse<ApiDocument>(res);
 }
 
+export async function deleteDocumento(documentId: string | number): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/documentos/${documentId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
 // ==========================================
 // USUARIOS
 // ==========================================

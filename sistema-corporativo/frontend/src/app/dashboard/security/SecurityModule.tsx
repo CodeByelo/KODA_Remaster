@@ -11,6 +11,7 @@ import {
     unlockUser,
     updateUserPermissions,
     updateUserRole,
+    deleteDocumento,
 } from '../../../lib/api';
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../../../permissions/constants';
 import { useAuth } from '../../../hooks/useAuth';
@@ -195,11 +196,17 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         }
     };
 
-    const deleteDocument = async (id: number, name: string) => {
+    const deleteDocument = async (id: string | number, name: string) => {
         const ok = await uiConfirm(`¿Estas seguro de eliminar el documento "${name}"? Esta accion no se puede deshacer.`, "Eliminar documento");
         if (ok) {
-            setDocuments(documents.filter(d => d.id !== id));
-            void uiAlert("Documento eliminado correctamente.", "Documentos");
+            try {
+                await deleteDocumento(id);
+                setDocuments((documents || []).filter((d: any) => String(d.id) !== String(id)));
+                void uiAlert("Documento eliminado correctamente.", "Documentos");
+            } catch (error: any) {
+                console.error("No se pudo eliminar el documento", error);
+                void uiAlert(error?.message || "No se pudo eliminar el documento en servidor.", "Documentos");
+            }
         }
     };
 

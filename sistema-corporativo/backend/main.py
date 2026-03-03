@@ -1347,6 +1347,86 @@ async def update_doc_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/documentos/{id}")
+async def delete_documento(
+    id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    try:
+        if not await _is_privileged_user(conn, current_user):
+            raise HTTPException(status_code=403, detail="No autorizado para eliminar documentos")
+
+        tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not tenant_id and user_id:
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+
+        doc = await conn.fetchrow(
+            """
+            SELECT id, COALESCE(titulo, title, 'Sin Asunto') as titulo, correlativo, url_archivo
+            FROM documentos
+            WHERE id = $1
+              AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR tenant_id IS NULL)
+            """,
+            id,
+            tenant_id,
+        )
+        if not doc:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+        adjuntos = await conn.fetch(
+            "SELECT url_archivo FROM documento_adjuntos WHERE documento_id = $1",
+            id,
+        )
+        file_urls = [doc.get("url_archivo")] + [r.get("url_archivo") for r in adjuntos]
+
+        await conn.execute("DELETE FROM documento_adjuntos WHERE documento_id = $1", id)
+        await conn.execute("DELETE FROM documentos WHERE id = $1", id)
+
+        for url in file_urls:
+            try:
+                if not url:
+                    continue
+                if not str(url).startswith("/uploads/"):
+                    continue
+                filename = Path(str(url)).name
+                if not filename:
+                    continue
+                path = Path("uploads") / filename
+                if path.exists():
+                    path.unlink()
+            except Exception:
+                pass
+
+        try:
+            await _ensure_security_events_table(conn)
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'DOCUMENTO_ELIMINADO', $4, 'warning', '/dashboard?tab=seguridad')
+                """,
+                tenant_id,
+                user_id,
+                username or "admin",
+                f"Documento eliminado: {doc.get('correlativo') or doc.get('id')} | titulo='{doc.get('titulo')}'",
+            )
+        except Exception:
+            pass
+
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/gerencias")
 async def list_gerencias(
     current_user: dict = Depends(get_current_user),
