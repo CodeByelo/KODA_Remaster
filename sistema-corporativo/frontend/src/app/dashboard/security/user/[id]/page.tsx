@@ -193,12 +193,12 @@ export default function UserHistoryPage() {
                             <select
                                 value={roleLabelFromBackend(user.role)}
                                 onChange={(e) => handleRoleChange(e.target.value)}
-                                className="bg-transparent border-none text-sm font-medium outline-none text-zinc-300 cursor-pointer"
+                                className="ml-1 min-w-[170px] rounded-lg border border-red-500/40 bg-zinc-900/95 px-3 py-2 text-sm font-semibold text-red-100 outline-none transition-colors hover:border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-500/30 cursor-pointer"
                             >
-                                <option>Usuario</option>
-                                <option>Administrador</option>
-                                <option>CEO</option>
-                                <option>Gerente</option>
+                                <option className="bg-zinc-900 text-red-100">Usuario</option>
+                                <option className="bg-zinc-900 text-red-100">Administrador</option>
+                                <option className="bg-zinc-900 text-red-100">CEO</option>
+                                <option className="bg-zinc-900 text-red-100">Gerente</option>
                             </select>
                             <button
                                 onClick={handleAssignDeveloper}

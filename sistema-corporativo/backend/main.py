@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+import ipaddress
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
@@ -31,6 +32,41 @@ from database.async_db import get_db_connection, init_db_pool
 import database.async_db as async_db
 from middleware.tenant import get_tenant_context, trace_id_var
 from services.rate_limiter import rate_limiter_middleware
+
+
+def _extract_client_ip(request: Request) -> Optional[str]:
+    """
+    Obtiene IP real del cliente considerando proxies (Render/Vercel/Cloudflare).
+    Prioridad:
+    - CF-Connecting-IP
+    - X-Real-IP
+    - X-Forwarded-For (primer valor no vacio)
+    - request.client.host
+    """
+    candidates = [
+        request.headers.get("cf-connecting-ip"),
+        request.headers.get("x-real-ip"),
+    ]
+
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        candidates.extend([part.strip() for part in xff.split(",") if part.strip()])
+
+    if request.client and request.client.host:
+        candidates.append(request.client.host)
+
+    for raw in candidates:
+        if not raw:
+            continue
+        ip = raw
+        if ":" in ip and "." not in ip:
+            ip = ip.split("%")[0]
+        try:
+            ipaddress.ip_address(ip)
+            return ip
+        except ValueError:
+            continue
+    return None
 from src import schemas
 from routers import auth_router, users_router
 from auth.supabase_auth import get_current_user
@@ -374,9 +410,7 @@ async def login_compat(
             },
         )
 
-    forwarded_for = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
-    real_ip = request.headers.get("x-real-ip") or request.headers.get("X-Real-IP")
-    client_ip = (forwarded_for.split(",")[0].strip() if forwarded_for else (real_ip or (request.client.host if request.client else None)))
+    client_ip = _extract_client_ip(request)
 
     query = """
         SELECT p.id, p.username, p.password_hash, p.nombre, p.apellido, p.email, p.rol_id, r.nombre_rol, p.tenant_id,
@@ -1999,7 +2033,7 @@ async def create_security_log(
     user_id = current_user.get("sub")
     tenant_id = current_user.get("tenant_id")
     username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id) if user_id else "anon"
-    ip = request.client.host if request.client else None
+    ip = _extract_client_ip(request)
 
     row = await conn.fetchrow(
         """
