@@ -4,14 +4,30 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 type DialogKind = 'alert' | 'confirm' | 'prompt';
 
-type DialogRequest = {
-  kind: DialogKind;
+type AlertDialogRequest = {
+  kind: 'alert';
+  title?: string;
+  message: string;
+  resolve: () => void;
+};
+
+type ConfirmDialogRequest = {
+  kind: 'confirm';
+  title?: string;
+  message: string;
+  resolve: (value: boolean) => void;
+};
+
+type PromptDialogRequest = {
+  kind: 'prompt';
   title?: string;
   message: string;
   defaultValue?: string;
   placeholder?: string;
-  resolve: (value: unknown) => void;
+  resolve: (value: string | null) => void;
 };
+
+type DialogRequest = AlertDialogRequest | ConfirmDialogRequest | PromptDialogRequest;
 
 let enqueueDialog: ((request: DialogRequest) => void) | null = null;
 
@@ -87,9 +103,15 @@ export function SystemDialogHost() {
     }
   }, [current]);
 
-  const close = (result: unknown) => {
+  const close = (result?: boolean | string | null) => {
     if (!current) return;
-    current.resolve(result);
+    if (current.kind === 'alert') {
+      current.resolve();
+    } else if (current.kind === 'confirm') {
+      current.resolve(Boolean(result));
+    } else {
+      current.resolve(typeof result === 'string' ? result : null);
+    }
     setQueue((prev) => prev.slice(1));
   };
 
@@ -151,4 +173,3 @@ export function SystemDialogHost() {
     </div>
   );
 }
-
