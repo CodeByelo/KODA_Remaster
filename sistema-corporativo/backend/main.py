@@ -1118,8 +1118,9 @@ async def create_documento(
         """, siglas, str(year), tenant_id)
         
         manual_part = (correlativo_user or "").strip()
+        # Si el usuario define correlativo manual, se respeta EXACTAMENTE tal cual lo escribio.
         if manual_part:
-            auto_correlativo = f"{siglas}-{manual_part}-{year}"
+            auto_correlativo = manual_part
         else:
             auto_correlativo = f"{siglas}-{str((count or 0) + 1).zfill(3)}-{year}"
         

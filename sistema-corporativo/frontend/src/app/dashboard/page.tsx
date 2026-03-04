@@ -824,6 +824,118 @@ const PriorityMatrix: React.FC<{
     return Number.isNaN(ts) ? 0 : ts;
   };
 
+  const parseFlexibleDate = (value: string) => {
+    if (!value || value === "N/A") return null;
+    const normalized = String(value).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
+      const [dd, mm, yyyy] = normalized.split("/");
+      const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(normalized);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const DeadlineClock = ({
+    sentDate,
+    deadlineDate,
+  }: {
+    sentDate: string;
+    deadlineDate: string;
+  }) => {
+    const sent = parseFlexibleDate(sentDate);
+    const deadline = parseFlexibleDate(deadlineDate);
+    const now = Date.now();
+    const deadlineMs = deadline?.getTime() ?? null;
+
+    const full = sent && deadline ? deadline.getTime() - sent.getTime() : 0;
+    const elapsed = sent ? Math.max(0, now - sent.getTime()) : 0;
+    const progress =
+      full > 0 ? Math.min(1, Math.max(0, elapsed / full)) : 0;
+    const radius = 15;
+    const circumference = 2 * Math.PI * radius;
+    const dashOffset = circumference * (1 - progress);
+
+    const isOverdue = deadlineMs !== null && now > deadlineMs;
+    const isNearDue =
+      deadlineMs !== null &&
+      !isOverdue &&
+      deadlineMs - now <= 2 * 24 * 60 * 60 * 1000;
+
+    const remainingDays =
+      deadlineMs !== null && !isOverdue
+        ? Math.max(
+            0,
+            Math.ceil((deadlineMs - now) / (24 * 60 * 60 * 1000)),
+          )
+        : 0;
+
+    const ringColor = isOverdue
+      ? "#ef4444"
+      : isNearDue
+        ? "#f59e0b"
+        : "#22c55e";
+    const statusLabel = !deadline
+      ? "Sin fecha"
+      : isOverdue
+        ? "Vencido"
+        : isNearDue
+          ? `Vence en ${remainingDays}d`
+          : `En plazo (${remainingDays}d)`;
+    const textClass = isOverdue
+      ? darkMode
+        ? "text-red-400"
+        : "text-red-700"
+      : isNearDue
+        ? darkMode
+          ? "text-amber-400"
+          : "text-amber-700"
+        : darkMode
+          ? "text-emerald-400"
+          : "text-emerald-700";
+
+    return (
+      <div className="flex items-center gap-2">
+        <svg viewBox="0 0 40 40" className="w-8 h-8 shrink-0" aria-hidden="true">
+          <circle
+            cx="20"
+            cy="20"
+            r={radius}
+            stroke={darkMode ? "#334155" : "#cbd5e1"}
+            strokeWidth="3"
+            fill="none"
+          />
+          <circle
+            cx="20"
+            cy="20"
+            r={radius}
+            stroke={ringColor}
+            strokeWidth="3"
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            transform="rotate(-90 20 20)"
+          />
+          <circle cx="20" cy="20" r="1.8" fill={ringColor} />
+          <g>
+            <line x1="20" y1="20" x2="20" y2="9" stroke={ringColor} strokeWidth="1.8" strokeLinecap="round" />
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 20 20"
+              to="360 20 20"
+              dur="8s"
+              repeatCount="indefinite"
+            />
+          </g>
+          <line x1="20" y1="20" x2="27" y2="20" stroke={ringColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
+        </svg>
+        <span className={`text-[11px] font-semibold ${textClass}`}>{statusLabel}</span>
+      </div>
+    );
+  };
+
   const mappedTracking = useMemo(() => {
     const controlDocs = documents.filter(
       (doc) => String(doc.prioridad || "").toLowerCase() === "control",
@@ -834,7 +946,13 @@ const PriorityMatrix: React.FC<{
         correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
         sentBy: doc.uploadedBy || "Desconocido",
         receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
-        date: doc.uploadDate || "N/A",
+        fechaEnvio: doc.uploadDate || "N/A",
+        fechaMaximaEntrega: doc.fecha_caducidad
+          ? (() => {
+              const d = new Date(doc.fecha_caducidad);
+              return Number.isNaN(d.getTime()) ? String(doc.fecha_caducidad) : d.toLocaleDateString("es-ES");
+            })()
+          : "N/A",
         status: String(doc.signatureStatus || "pendiente").toLowerCase(),
         contenido: doc.contenido || "",
         fileUrl: doc.fileUrl,
@@ -860,7 +978,7 @@ const PriorityMatrix: React.FC<{
         const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
         return matchesStatus && matchesSender && matchesSearch;
       })
-      .sort((a, b) => parseDate(b.date) - parseDate(a.date));
+      .sort((a, b) => parseDate(b.fechaEnvio) - parseDate(a.fechaEnvio));
   }, [mappedTracking, trackingSearch, trackingStatus, trackingSender]);
 
   return (
@@ -969,7 +1087,19 @@ const PriorityMatrix: React.FC<{
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
                   }`}
               >
-                Fecha
+                Fecha de envio
+              </th>
+              <th
+                className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
+                  }`}
+              >
+                Fecha maxima de entrega
+              </th>
+              <th
+                className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
+                  }`}
+              >
+                Tiempo limite
               </th>
               <th
                 className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"
@@ -1017,7 +1147,18 @@ const PriorityMatrix: React.FC<{
                   <td
                     className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
                   >
-                    {item.date}
+                    {item.fechaEnvio}
+                  </td>
+                  <td
+                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                  >
+                    {item.fechaMaximaEntrega}
+                  </td>
+                  <td className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <DeadlineClock
+                      sentDate={item.fechaEnvio}
+                      deadlineDate={item.fechaMaximaEntrega}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -1044,7 +1185,7 @@ const PriorityMatrix: React.FC<{
               ))}
             {filteredTracking.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-500 italic">
+                <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-500 italic">
                   No hay documentos para los filtros seleccionados.
                 </td>
               </tr>
@@ -1077,7 +1218,10 @@ const PriorityMatrix: React.FC<{
                   <span className="font-semibold">Recibido por:</span> {selectedTrackingDoc.receivedBy}
                 </div>
                 <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
-                  <span className="font-semibold">Fecha:</span> {selectedTrackingDoc.date}
+                  <span className="font-semibold">Fecha de envio:</span> {selectedTrackingDoc.fechaEnvio}
+                </div>
+                <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
+                  <span className="font-semibold">Fecha maxima de entrega:</span> {selectedTrackingDoc.fechaMaximaEntrega}
                 </div>
                 <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
                   <span className="font-semibold">Estado:</span> {selectedTrackingDoc.status}
@@ -1166,6 +1310,16 @@ const DocumentManager: React.FC<{
     const [correlativo, setCorrelativo] = useState("");
     const [priorityEnabled, setPriorityEnabled] = useState(false);
     const [priorityDays, setPriorityDays] = useState<number>(3);
+    const now = useMemo(() => new Date(), []);
+    const fechaEnvioPreview = useMemo(() => {
+      return now.toLocaleDateString("es-ES");
+    }, [now]);
+    const fechaMaximaEntregaPreview = useMemo(() => {
+      if (!priorityEnabled || priorityDays <= 0) return "No aplica";
+      const due = new Date(now);
+      due.setDate(due.getDate() + priorityDays);
+      return due.toLocaleDateString("es-ES");
+    }, [now, priorityEnabled, priorityDays]);
 
     // Messaging Specific States
     const [targetUserIds, setTargetUserIds] = useState<string[]>([]);
@@ -1694,6 +1848,10 @@ const DocumentManager: React.FC<{
                         onChange={(e) => setPriorityDays(Math.max(1, Number(e.target.value || 1)))}
                         className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                       />
+                      <div className={`mt-3 rounded-lg border px-3 py-2 text-xs space-y-1 ${darkMode ? "border-slate-700 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                        <p><span className="font-semibold">Fecha de envio:</span> {fechaEnvioPreview}</p>
+                        <p><span className="font-semibold">Fecha maxima de entrega:</span> {fechaMaximaEntregaPreview}</p>
+                      </div>
                     </div>
                   )}
                 </div>
