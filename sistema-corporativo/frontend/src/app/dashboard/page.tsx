@@ -1563,6 +1563,7 @@ const DocumentManager: React.FC<{
       setSelectedFiles([]);
       setDocName("");
       setCorrelativo("");
+      setDocCategory("Informe");
       setPriorityEnabled(false);
       setPriorityDays(3);
       setMessageContent("");
@@ -1652,6 +1653,7 @@ const DocumentManager: React.FC<{
         setShowUploadModal(false);
         setSelectedFiles([]);
         setDocName("");
+        setDocCategory("Informe");
         setMessageContent("");
         setCorrelativo("");
         setPriorityEnabled(false);
@@ -1828,6 +1830,23 @@ const DocumentManager: React.FC<{
                     placeholder="Ej: Solicitud de Vacaciones"
                     className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                   />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
+                    Formato de documento
+                  </label>
+                  <select
+                    value={docCategory}
+                    onChange={(e) => setDocCategory(e.target.value)}
+                    className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
+                  >
+                    <option value="Informe">Informe</option>
+                    <option value="Memorando">Memorando</option>
+                    <option value="Circular">Circular</option>
+                    <option value="Solicitud">Solicitud</option>
+                    <option value="Otros">Otros</option>
+                  </select>
                 </div>
 
                 <div>
@@ -2661,10 +2680,20 @@ export default function Dashboard() {
         const fileUrl = d.url_archivo || d.fileUrl
           ? `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${d.url_archivo || d.fileUrl}`
           : undefined;
+        const rawCorrelativo =
+          d.correlativo ??
+          d.idDoc ??
+          d.iddoc ??
+          d.numero_documento ??
+          d.numeroDocumento;
+        const correlativoValue =
+          rawCorrelativo !== null && rawCorrelativo !== undefined && String(rawCorrelativo).trim() !== ""
+            ? String(rawCorrelativo).trim()
+            : "N/A";
 
         return {
           id: d.id,
-          idDoc: d.correlativo || d.idDoc || `DOC-${d.id?.substring(0, 8)}`,
+          idDoc: correlativoValue,
           name: d.titulo || d.title || d.name || "Sin Título",
           category: d.tipo_documento || d.category || "Otros",
           type: "pdf" as const,
@@ -2686,7 +2715,7 @@ export default function Dashboard() {
           signatureStatus: d.estado || d.signatureStatus || "en-proceso",
           department: d.department || "N/A",
           targetDepartment: d.targetDepartment || d.receptor_gerencia_nombre || "Sin Asignar",
-          correlativo: d.correlativo || d.idDoc || "N/A",
+          correlativo: correlativoValue,
           fileUrl: d.fileUrl || (d.archivos && d.archivos.length > 0 ? d.archivos[0] : undefined),
           archivos: (d.archivos || []).map((url: string) =>
             url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${url}`

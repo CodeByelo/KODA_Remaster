@@ -941,7 +941,8 @@ async def list_documentos(
             SELECT 
                 d.id, 
                 COALESCE(d.titulo, d.title, 'Sin Asunto') as name, 
-                d.correlativo as idDoc,
+                d.correlativo as correlativo,
+                d.correlativo as "idDoc",
                 d.tipo_documento as category,
                 d.estado as signatureStatus,
                 d.prioridad,
