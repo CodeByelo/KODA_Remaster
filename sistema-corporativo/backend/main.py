@@ -1658,10 +1658,27 @@ async def delete_user_account(
     if current_user_id and str(current_user_id) == str(user_id):
         raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
 
-    row = await conn.fetchrow("SELECT username FROM profiles WHERE id = $1", user_id)
+    row = await conn.fetchrow(
+        """
+        SELECT p.username, COALESCE(r.nombre_rol, 'Usuario') AS role
+        FROM profiles p
+        LEFT JOIN roles r ON p.rol_id = r.id
+        WHERE p.id = $1
+        """,
+        user_id,
+    )
     if not row:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     username = row["username"]
+    target_role = _normalize_text(row["role"])
+    actor_role = _normalize_text(current_user.get("role"))
+
+    # Regla de proteccion: solo un Desarrollador puede eliminar cuentas Desarrollador.
+    if target_role in {"desarrollador", "developer", "dev"} and actor_role not in {"desarrollador", "developer", "dev"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Solo un usuario con rol Desarrollador puede eliminar cuentas de Desarrollador",
+        )
 
     async with conn.transaction():
         await conn.execute("DELETE FROM login_lockouts WHERE username = LOWER($1)", username)
