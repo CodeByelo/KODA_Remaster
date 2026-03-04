@@ -1,8 +1,11 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from database.async_db import get_db_connection
 from auth.supabase_auth import get_current_user
 
 router = APIRouter(prefix="/users", tags=["users"])
+DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "")
 
 
 def _is_privileged_role(role_name: str) -> bool:
@@ -47,11 +50,19 @@ async def update_user_role(
             raise HTTPException(status_code=400, detail="rol_id es requerido")
         if rol_id not in {1, 2, 3, 4, 5}:
             raise HTTPException(status_code=400, detail="rol_id invalido")
+
+        # Requiere clave maestra para asignar rol Desarrollador (rol_id=4)
+        if rol_id == 4:
+            master_password = str(data.get("master_password") or "")
+            if not DEV_ROLE_MASTER_PASSWORD or master_password != DEV_ROLE_MASTER_PASSWORD:
+                raise HTTPException(status_code=403, detail="Clave maestra invalida para rol Desarrollador")
             
         await conn.execute(
             "UPDATE profiles SET rol_id = $1 WHERE id = $2",
             rol_id, user_id
         )
         return {"message": "Rol actualizado correctamente"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
