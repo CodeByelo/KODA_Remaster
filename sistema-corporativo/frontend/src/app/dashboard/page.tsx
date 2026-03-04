@@ -827,9 +827,15 @@ const PriorityMatrix: React.FC<{
   const parseFlexibleDate = (value: string) => {
     if (!value || value === "N/A") return null;
     const normalized = String(value).trim();
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(normalized)) {
-      const [dd, mm, yyyy] = normalized.split("/");
-      const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    // Interpretar fechas latinas: dd/mm/yyyy o d/m/yyyy (con hora opcional)
+    const latinMatch = normalized.match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+    );
+    if (latinMatch) {
+      const [, ddRaw, mmRaw, yyyy, hh = "00", min = "00", sec = "00"] = latinMatch;
+      const dd = ddRaw.padStart(2, "0");
+      const mm = mmRaw.padStart(2, "0");
+      const d = new Date(`${yyyy}-${mm}-${dd}T${hh.padStart(2, "0")}:${min}:${sec}`);
       return Number.isNaN(d.getTime()) ? null : d;
     }
     const d = new Date(normalized);
@@ -856,11 +862,18 @@ const PriorityMatrix: React.FC<{
     const circumference = 2 * Math.PI * radius;
     const dashOffset = circumference * (1 - progress);
 
-    const isOverdue = deadlineMs !== null && now > deadlineMs;
+    const remainingMs = deadlineMs !== null ? deadlineMs - now : null;
+    const isOverdue = remainingMs !== null && remainingMs <= 0;
+    const isCritical =
+      remainingMs !== null &&
+      remainingMs > 0 &&
+      remainingMs <= 6 * 60 * 60 * 1000;
     const isNearDue =
       deadlineMs !== null &&
       !isOverdue &&
-      deadlineMs - now <= 2 * 24 * 60 * 60 * 1000;
+      !isCritical &&
+      remainingMs !== null &&
+      remainingMs <= 24 * 60 * 60 * 1000;
 
     const remainingDays =
       deadlineMs !== null && !isOverdue
@@ -869,27 +882,33 @@ const PriorityMatrix: React.FC<{
             Math.ceil((deadlineMs - now) / (24 * 60 * 60 * 1000)),
           )
         : 0;
+    const remainingHours =
+      remainingMs !== null && remainingMs > 0
+        ? Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)))
+        : 0;
 
-    const ringColor = isOverdue
+    const ringColor = isOverdue || isCritical
       ? "#ef4444"
       : isNearDue
-        ? "#f59e0b"
+        ? "#3b82f6"
         : "#22c55e";
     const statusLabel = !deadline
       ? "Sin fecha"
       : isOverdue
         ? "Vencido"
+        : isCritical
+          ? `Vence en ${remainingHours}h`
         : isNearDue
           ? `Vence en ${remainingDays}d`
           : `En plazo (${remainingDays}d)`;
-    const textClass = isOverdue
+    const textClass = isOverdue || isCritical
       ? darkMode
         ? "text-red-400"
         : "text-red-700"
       : isNearDue
         ? darkMode
-          ? "text-amber-400"
-          : "text-amber-700"
+          ? "text-blue-400"
+          : "text-blue-700"
         : darkMode
           ? "text-emerald-400"
           : "text-emerald-700";
