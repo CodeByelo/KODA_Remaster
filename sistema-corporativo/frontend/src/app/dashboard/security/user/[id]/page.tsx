@@ -36,6 +36,10 @@ export default function UserHistoryPage() {
     const [mounted, setMounted] = useState(false);
     const userId = params?.id;
 
+    const goBackToDashboard = () => {
+        router.replace('/dashboard');
+    };
+
     const showNotice = (type: "success" | "error" | "info", message: string) => {
         setNotice({ type, message });
         window.setTimeout(() => setNotice(null), 3200);
@@ -149,7 +153,7 @@ export default function UserHistoryPage() {
             const res = await deleteUser(userId);
             if (res.success) {
                 showNotice("success", "Usuario eliminado correctamente.");
-                router.push('/dashboard?tab=seguridad');
+                router.replace('/dashboard');
             } else {
                 showNotice("error", "Error al eliminar usuario: " + res.error);
             }
@@ -248,7 +252,7 @@ export default function UserHistoryPage() {
         return (
             <div className="p-8 text-center text-zinc-400 bg-zinc-950 min-h-screen">
                 Usuario no encontrado.
-                <button onClick={() => router.back()} className="block mx-auto mt-4 text-red-600 underline">Volver</button>
+                <button onClick={goBackToDashboard} className="block mx-auto mt-4 text-red-600 underline">Volver</button>
             </div>
         );
     }
@@ -315,7 +319,7 @@ export default function UserHistoryPage() {
             {/* Header / Back */}
             <div className="flex items-center gap-4 mb-6">
                 <button
-                    onClick={() => router.push('/dashboard?tab=seguridad')}
+                    onClick={goBackToDashboard}
                     className="p-2 rounded-full hover:bg-zinc-800 transition-colors text-zinc-400"
                 >
                     <ArrowLeft size={24} />

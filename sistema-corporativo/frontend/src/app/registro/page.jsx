@@ -208,42 +208,61 @@ const usePasswordToggle = () => {
   return { type: visible ? 'text' : 'password', icon: visible ? <EyeOff size={18} /> : <Eye size={18} />, toggle };
 };
 
-const PasswordStrength = ({ password }) => {
-  const getStrength = () => {
-    let score = 0;
-    if (password.length >= 6) score++;
-    if (password.length >= 10) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-    return Math.min(score, 4);
-  };
+const PASSWORD_RULES = [
+  { key: 'length', label: 'Minimo 8 caracteres', test: (value) => value.length >= 8 },
+  { key: 'uppercase', label: 'Al menos una letra mayuscula (A-Z)', test: (value) => /[A-Z]/.test(value) },
+  { key: 'lowercase', label: 'Al menos una letra minuscula (a-z)', test: (value) => /[a-z]/.test(value) },
+  { key: 'number', label: 'Al menos un numero (0-9)', test: (value) => /[0-9]/.test(value) },
+  { key: 'special', label: 'Al menos un simbolo especial (!@#$...)', test: (value) => /[^A-Za-z0-9]/.test(value) },
+];
 
-  const strength = getStrength();
-  const labels = ['Muy débil', 'Débil', 'Regular', 'Fuerte', 'Excelente'];
-  const colors = ['bg-red-800', 'bg-red-600', 'bg-orange-500', 'bg-orange-400', 'bg-red-500'];
+const evaluatePasswordRules = (password) => {
+  const status = PASSWORD_RULES.map((rule) => ({
+    ...rule,
+    ok: rule.test(password),
+  }));
+
+  return {
+    status,
+    metCount: status.filter((item) => item.ok).length,
+    missing: status.filter((item) => !item.ok).map((item) => item.label),
+  };
+};
+
+const PasswordStrength = ({ password }) => {
+  const { status, metCount, missing } = evaluatePasswordRules(password);
+  const level = Math.min(Math.max(metCount, 1), 5);
+  const labels = ['Muy debil', 'Debil', 'Regular', 'Fuerte', 'Excelente'];
+  const levelColors = ['bg-red-800', 'bg-red-600', 'bg-orange-500', 'bg-orange-400', 'bg-red-500'];
 
   if (!password) return null;
 
   return (
-    <div className="mt-2 space-y-1">
+    <div className="mt-2 space-y-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
       <div className="flex gap-1">
-        {[1, 2, 3, 4].map(level => (
+        {[1, 2, 3, 4, 5].map((segment) => (
           <div
-            key={level}
-            className={`h-1 flex-1 rounded-full ${strength >= level ? colors[strength - 1] : 'bg-gray-700'
-              }`}
+            key={segment}
+            className={`h-1 flex-1 rounded-full ${level >= segment ? levelColors[level - 1] : 'bg-gray-700'}`}
           />
         ))}
       </div>
-      <p className={`text-xs ${strength >= 3 ? 'text-orange-400' : strength >= 2 ? 'text-red-400' : 'text-red-600'
-        }`}>
-        {labels[strength - 1]}
+      <p className={`text-xs font-semibold ${level >= 4 ? 'text-orange-400' : level >= 3 ? 'text-red-400' : 'text-red-500'}`}>
+        Seguridad: {labels[level - 1]}
       </p>
+      <p className="text-xs auth-secondary-text">Tu contrasena debe tener:</p>
+      <div className="space-y-1">
+        {status.map((rule) => (
+          <div key={rule.key} className={`flex items-center gap-2 text-[11px] ${rule.ok ? 'text-emerald-400' : 'text-red-300'}`}>
+            {rule.ok ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+            <span>{rule.label}</span>
+          </div>
+        ))}
+      </div>
+      {missing.length > 0 && <p className="text-[11px] text-red-300">Te falta: {missing.join(', ')}.</p>}
     </div>
   );
 };
-
 const AnimatedInput = ({
   id, label, value, onChange, type, placeholder, icon: Icon,
   error, showError, autoComplete, required
@@ -257,15 +276,15 @@ const AnimatedInput = ({
         htmlFor={id}
         className={`absolute left-12 transition-all duration-300 z-10 ${isFocused || hasValue
           ? '-top-2 left-8 text-xs px-2 bg-transparent font-semibold uppercase tracking-wider'
-          : 'top-4 text-gray-400'
-          } ${isFocused ? 'text-red-400' : 'text-gray-400'}`}
+          : 'top-4 auth-input-label-idle'
+          } ${isFocused ? 'text-red-400' : 'auth-input-label-idle'}`}
       >
         {label}
       </label>
 
-      <div className={`relative flex items-center rounded-xl ${error ? 'bg-red-500/10' : 'bg-gray-900/50'
+      <div className={`relative flex items-center rounded-xl ${error ? 'bg-red-500/10' : 'auth-input-shell'
         } ${isFocused ? 'ring-2 ring-red-500/40' : ''}`}>
-        <div className={`pl-4 pr-2 ${isFocused ? 'text-red-400' : 'text-gray-500'}`}>
+        <div className={`pl-4 pr-2 ${isFocused ? 'text-red-400' : 'auth-input-icon'}`}>
           <Icon size={20} />
         </div>
 
@@ -279,7 +298,7 @@ const AnimatedInput = ({
           onBlur={() => setIsFocused(false)}
           autoComplete={autoComplete}
           required={required}
-          className="w-full px-4 py-4 bg-transparent text-white placeholder-gray-500/50 focus:outline-none"
+          className="w-full px-4 py-4 bg-transparent auth-input-control focus:outline-none"
         />
 
         {value && !error && (
@@ -312,15 +331,15 @@ const AnimatedSelect = ({
         htmlFor={id}
         className={`absolute left-12 transition-all duration-300 z-10 ${isFocused || hasValue
           ? '-top-2 left-8 text-xs px-2 bg-transparent font-semibold uppercase tracking-wider'
-          : 'top-4 text-gray-400'
-          } ${isFocused ? 'text-red-400' : 'text-gray-400'}`}
+          : 'top-4 auth-input-label-idle'
+          } ${isFocused ? 'text-red-400' : 'auth-input-label-idle'}`}
       >
         {label}
       </label>
 
-      <div className={`relative flex items-center rounded-xl ${error ? 'bg-red-500/10' : 'bg-gray-900/50'
+      <div className={`relative flex items-center rounded-xl ${error ? 'bg-red-500/10' : 'auth-input-shell'
         } ${isFocused ? 'ring-2 ring-red-500/40' : ''}`}>
-        <div className={`pl-4 pr-2 ${isFocused ? 'text-red-400' : 'text-gray-500'}`}>
+        <div className={`pl-4 pr-2 ${isFocused ? 'text-red-400' : 'auth-input-icon'}`}>
           <Icon size={20} />
         </div>
 
@@ -331,17 +350,17 @@ const AnimatedSelect = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           required={required}
-          className="w-full px-4 py-4 bg-transparent text-white focus:outline-none appearance-none cursor-pointer"
+          className="w-full px-4 py-4 bg-transparent auth-input-control focus:outline-none appearance-none cursor-pointer"
         >
           <option value="" disabled></option>
           {options.map((opt) => (
-            <option key={opt} value={opt} className="bg-gray-900 text-white">
+            <option key={opt} value={opt} className="bg-slate-900 text-white">
               {opt}
             </option>
           ))}
         </select>
 
-        <div className="absolute right-4 text-gray-500 pointer-events-none">
+        <div className="absolute right-4 auth-input-icon pointer-events-none">
           <ChevronRight size={16} className="rotate-90" />
         </div>
 
@@ -545,8 +564,13 @@ const RegistroForm = () => {
     if (!username.trim()) newErrors.username = 'Usuario corporativo requerido';
     else if (username.length < 4) newErrors.username = 'Mínimo 4 caracteres';
 
-    if (!password) newErrors.password = 'Contraseña requerida';
-    else if (password.length < 8) newErrors.password = 'Mínimo 8 caracteres';
+    if (!password) newErrors.password = 'Contrasena requerida';
+    else {
+      const passwordEvaluation = evaluatePasswordRules(password);
+      if (passwordEvaluation.missing.length > 0) {
+        newErrors.password = `Tu contrasena debe tener: ${passwordEvaluation.missing.join(', ')}`;
+      }
+    }
 
     if (!confirmPassword) newErrors.confirmPassword = 'Confirmar contraseña';
     else if (confirmPassword !== password) newErrors.confirmPassword = 'Las contraseñas no coinciden';
@@ -607,13 +631,20 @@ const RegistroForm = () => {
 
   if (registroSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <div className="auth-page min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <Particles />
         <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-orange-500/10" />
         <div className="relative max-w-md w-full text-center animate-scaleIn">
-          <div className="bg-gray-900/80 backdrop-blur-xl rounded-3xl border border-red-500/50 p-12 shadow-2xl">
-            <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <CheckCircle size={48} className="text-green-400" />
+          <div className="auth-glass-card relative rounded-3xl p-12 shadow-2xl">
+            <div className="absolute top-4 right-4 flex items-center gap-1 bg-red-500/20 px-3 py-1 rounded-full">
+              <Shield size={14} className="text-red-400" />
+              <span className="text-xs text-red-400 font-medium">Alfa 2026 V-1.0</span>
+            </div>
+            <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-5 border-2 border-red-500/30">
+              <img src="/logo-rojo.png" alt="Logo" className="h-14 w-14 object-contain" />
+            </div>
+            <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <CheckCircle size={48} className="text-red-400" />
             </div>
             <h2 className="text-3xl font-bold text-slate-700 mb-2">¡Registro Exitoso!</h2>
             <p className="text-slate-500 mb-6">
@@ -632,7 +663,7 @@ const RegistroForm = () => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      className="auth-page min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
         backgroundImage: "url('/logo-bg.jpg')",
         backgroundSize: 'cover',
@@ -646,8 +677,8 @@ const RegistroForm = () => {
       <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-2xl" ref={formRef}>
-        <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] overflow-hidden">
-          <div className="relative px-8 py-10 text-center border-b border-gray-700/30">
+        <div className="auth-glass-card rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] overflow-hidden">
+          <div className="relative px-8 py-10 text-center auth-divider">
             <div className="absolute top-4 right-4 flex items-center gap-1 bg-red-500/20 px-3 py-1 rounded-full">
               <Shield size={14} className="text-red-400" />
               <span className="text-xs text-red-400 font-medium">Alfa 2026 V-1.0</span>
@@ -657,10 +688,10 @@ const RegistroForm = () => {
                 <img src="/logo-rojo.png" alt="Logo" className="h-20 w-20 object-contain" />
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">
+            <h1 className="text-3xl font-bold auth-primary-text tracking-tight">
               CORPOELEC <span className="text-red-500">INDUSTRIAL</span>
             </h1>
-            <p className="text-gray-400 mt-2 text-sm flex items-center justify-center gap-2">
+            <p className="auth-secondary-text mt-2 text-sm flex items-center justify-center gap-2">
               <User size={14} />
               Registro de Nuevo Usuario Corporativo
             </p>
@@ -789,7 +820,7 @@ const RegistroForm = () => {
                 <div className="flex items-center gap-3">
                   <NeonCheckbox checked={terminosAceptados} onChange={(e) => setTerminosAceptados(e.target.checked)} />
                   <span
-                    className="text-sm text-gray-400 cursor-pointer hover:text-white transition-colors"
+                    className="text-sm auth-secondary-text cursor-pointer hover:text-red-300 transition-colors"
                     onClick={() => setTerminosAceptados(!terminosAceptados)}
                   >
                     Acepto términos y condiciones
@@ -813,8 +844,8 @@ const RegistroForm = () => {
             </form>
           </div>
 
-          <div className="px-8 py-6 border-t border-gray-700/30 bg-gray-900/30">
-            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+          <div className="px-8 py-6 auth-footer">
+            <div className="flex items-center justify-center gap-2 auth-footer-text text-sm">
               <ArrowLeft size={14} className="text-red-400" />
               <button
                 onClick={() => router.push(isPrivilegedRegistrar ? '/dashboard' : '/login')}
@@ -835,6 +866,77 @@ const RegistroForm = () => {
         .animate-float { animation: float infinite ease-in-out; }
         .animate-shake { animation: shake 0.5s ease; }
         .animate-scaleIn { animation: scaleIn 0.5s ease forwards; }
+
+        .auth-page {
+          --auth-text-primary: #0f172a;
+          --auth-text-secondary: #1f2937;
+          --auth-card-bg: rgba(255, 255, 255, 0.2);
+          --auth-card-border: rgba(255, 255, 255, 0.5);
+          --auth-footer-bg: rgba(255, 255, 255, 0.22);
+          --auth-footer-border: rgba(148, 163, 184, 0.4);
+          --auth-input-bg: rgba(255, 255, 255, 0.72);
+          --auth-input-text: #0f172a;
+          --auth-input-placeholder: rgba(15, 23, 42, 0.55);
+          --auth-input-icon: rgba(15, 23, 42, 0.55);
+        }
+
+        @media (prefers-color-scheme: dark) {
+          .auth-page {
+            --auth-text-primary: #f8fafc;
+            --auth-text-secondary: #cbd5e1;
+            --auth-card-bg: rgba(255, 255, 255, 0.1);
+            --auth-card-border: rgba(255, 255, 255, 0.2);
+            --auth-footer-bg: rgba(17, 24, 39, 0.3);
+            --auth-footer-border: rgba(55, 65, 81, 0.5);
+            --auth-input-bg: rgba(17, 24, 39, 0.55);
+            --auth-input-text: #ffffff;
+            --auth-input-placeholder: rgba(156, 163, 175, 0.55);
+            --auth-input-icon: rgba(156, 163, 175, 0.8);
+          }
+        }
+
+        .auth-glass-card {
+          background: var(--auth-card-bg);
+          border: 1px solid var(--auth-card-border);
+          backdrop-filter: blur(14px);
+        }
+
+        .auth-divider {
+          border-bottom: 1px solid var(--auth-footer-border);
+        }
+
+        .auth-footer {
+          border-top: 1px solid var(--auth-footer-border);
+          background: var(--auth-footer-bg);
+        }
+
+        .auth-primary-text,
+        .auth-page .animate-scaleIn h2 {
+          color: var(--auth-text-primary);
+        }
+
+        .auth-secondary-text,
+        .auth-footer-text,
+        .auth-page .animate-scaleIn p {
+          color: var(--auth-text-secondary);
+        }
+
+        .auth-input-shell {
+          background: var(--auth-input-bg);
+        }
+
+        .auth-input-control {
+          color: var(--auth-input-text);
+        }
+
+        .auth-input-control::placeholder {
+          color: var(--auth-input-placeholder);
+        }
+
+        .auth-input-icon,
+        .auth-input-label-idle {
+          color: var(--auth-input-icon);
+        }
 
         /* NEON CHECKBOX STYLES (Adapted to Red Theme) */
         .neon-checkbox {
@@ -1117,3 +1219,4 @@ export default function RegistroPage() {
 
   return <RegistroForm />;
 }
+

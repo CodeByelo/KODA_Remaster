@@ -626,12 +626,12 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         <table className="w-full min-w-[980px] text-sm text-left table-fixed">
                                         <thead className={`uppercase ${theme.th}`}>
                                             <tr>
-                                                <th className="px-6 py-3 font-semibold">Usuario</th>
-                                                <th className="px-6 py-3 font-semibold">Evento</th>
-                                                <th className="px-6 py-3 font-semibold">Detalles</th>
-                                                <th className="px-6 py-3 font-semibold">IP Address</th>
-                                                <th className="px-6 py-3 font-semibold">Fecha / Hora</th>
-                                                <th className="px-6 py-3 font-semibold">Estado</th>
+                                                <th className="w-[14%] px-6 py-3 font-semibold">Usuario</th>
+                                                <th className="w-[18%] px-6 py-3 font-semibold">Evento</th>
+                                                <th className="w-[30%] px-6 py-3 font-semibold">Detalles</th>
+                                                <th className="w-[14%] px-6 py-3 font-semibold">IP Address</th>
+                                                <th className="w-[16%] px-6 py-3 font-semibold">Fecha / Hora</th>
+                                                <th className="w-[8%] px-6 py-3 font-semibold">Estado</th>
                                             </tr>
                                         </thead>
                                         <tbody className={`divide-y ${darkMode ? 'divide-zinc-800' : 'divide-slate-100'}`}>
@@ -640,8 +640,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     <td className={`px-6 py-4 font-medium border-l-4 border-transparent hover:border-red-500 whitespace-nowrap ${theme.text}`}>
                                                         {log.username}
                                                     </td>
-                                                    <td className={`px-6 py-4 whitespace-nowrap ${theme.text}`}>{log.evento}</td>
-                                                    <td className={`px-6 py-4 max-w-[360px] whitespace-normal break-words ${theme.subtext}`}>{log.detalles}</td>
+                                                    <td className={`px-6 py-4 whitespace-normal break-all leading-relaxed ${theme.text}`}>{log.evento}</td>
+                                                    <td className={`px-6 py-4 whitespace-normal break-words leading-relaxed ${theme.subtext}`}>{log.detalles}</td>
                                                     <td className="px-6 py-4 font-mono text-xs opacity-70 whitespace-nowrap">{log.ip_address}</td>
                                                     <td className={`px-6 py-4 whitespace-nowrap ${theme.subtext}`}>
                                                         {isClient ? (
