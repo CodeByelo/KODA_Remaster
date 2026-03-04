@@ -250,7 +250,7 @@ const AnimatedInput = ({
           <button
             type="button"
             onClick={props.onTogglePassword}
-            className="pr-4 auth-input-icon hover:text-red-400 transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-0 bg-transparent shadow-none appearance-none"
+            className="pr-4 auth-input-icon hover:text-red-500 transition-colors focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 border-0 bg-transparent shadow-none appearance-none" style={{ border: "none", outline: "none", boxShadow: "none", background: "transparent" }}
           >
             {type === 'password' ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>
@@ -456,14 +456,12 @@ const LoginCorpoelecForm = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-orange-500/10" />
         <div className="relative max-w-md w-full text-center animate-scaleIn">
           <div className="remaster-auth-card auth-glass-card relative rounded-3xl p-12 shadow-2xl">
-            <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-5 border-2 border-red-500/30">
-              <img src="/logo-rojo.png" alt="Logo" className="h-14 w-14 object-contain" />
-            </div>
+            
             <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <CheckCircle size={48} className="text-red-400" />
             </div>
-            <h2 className="text-3xl font-bold text-slate-700 mb-2">¡Bienvenido!</h2>
-            <p className="text-slate-500 mb-6">Redirigiendo al Dashboard...</p>
+            <h2 className="text-3xl font-bold auth-primary-text mb-2">¡Bienvenido!</h2>
+            <p className="auth-secondary-text mb-6">Redirigiendo al Dashboard...</p>
             <div className="flex justify-center gap-2">
               <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" />
               <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
@@ -577,29 +575,29 @@ const LoginCorpoelecForm = () => {
 
         .auth-page {
           --auth-text-primary: #0f172a;
-          --auth-text-secondary: #1f2937;
+          --auth-text-secondary: #000000;
           --auth-card-bg: rgba(255, 255, 255, 0.2);
           --auth-card-border: rgba(255, 255, 255, 0.5);
           --auth-footer-bg: rgba(255, 255, 255, 0.22);
           --auth-footer-border: rgba(148, 163, 184, 0.4);
           --auth-input-bg: rgba(255, 255, 255, 0.72);
           --auth-input-text: #0f172a;
-          --auth-input-placeholder: rgba(15, 23, 42, 0.55);
-          --auth-input-icon: rgba(15, 23, 42, 0.55);
+          --auth-input-placeholder: #000000;
+          --auth-input-icon: #000000;
         }
 
         @media (prefers-color-scheme: dark) {
           .auth-page {
             --auth-text-primary: #f8fafc;
-            --auth-text-secondary: #cbd5e1;
+            --auth-text-secondary: #ffffff;
             --auth-card-bg: rgba(255, 255, 255, 0.1);
             --auth-card-border: rgba(255, 255, 255, 0.2);
             --auth-footer-bg: rgba(17, 24, 39, 0.3);
             --auth-footer-border: rgba(55, 65, 81, 0.5);
             --auth-input-bg: rgba(17, 24, 39, 0.55);
             --auth-input-text: #ffffff;
-            --auth-input-placeholder: rgba(156, 163, 175, 0.55);
-            --auth-input-icon: rgba(156, 163, 175, 0.8);
+            --auth-input-placeholder: #ffffff;
+            --auth-input-icon: #ffffff;
           }
         }
 
@@ -664,5 +662,7 @@ export default function LoginCorpoelec() {
 
   return <LoginCorpoelecForm />;
 }
+
+
 
 
