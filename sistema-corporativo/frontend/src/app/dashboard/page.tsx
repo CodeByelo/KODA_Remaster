@@ -1633,16 +1633,7 @@ const DocumentManager: React.FC<{
     };
 
     const handleUploadClick = () => {
-      setSelectedFiles([]);
-      setDocName("");
-      setCorrelativo("");
-      setDocCategory("Informe");
-      setPriorityEnabled(false);
-      setPriorityDays(3);
-      setMessageContent("");
-      setTargetUserIds([]);
-      setTargetDeptIds([]);
-      setShowUploadModal(true);
+      window.location.href = "/dashboard/documentos/new";
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

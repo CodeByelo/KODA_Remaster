@@ -67,6 +67,16 @@ html {
   line-height: 1.45 !important;
 }
 
+.dark .text-slate-500,
+.dark .text-zinc-500 {
+  color: #cfc8e6 !important;
+}
+
+.dark .text-slate-400,
+.dark .text-zinc-400 {
+  color: #ebe7f7 !important;
+}
+
 h1,
 h2,
 h3,

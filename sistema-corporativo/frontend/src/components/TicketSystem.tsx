@@ -317,7 +317,7 @@ export default function TicketSystem({
                 </div>
                 {hasPermission(PERMISSIONS_MASTER.TICKETS_CREATE) && (
                     <button
-                        onClick={() => { setEditingTicket(null); setShowModal(true); }}
+                        onClick={() => { window.location.href = "/dashboard/tickets/new"; }}
                         className="px-8 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold flex items-center gap-2 transition-all transform active:scale-95 shadow-lg shadow-red-900/40"
                     >
                         <Plus size={18} /> NUEVO TICKET
