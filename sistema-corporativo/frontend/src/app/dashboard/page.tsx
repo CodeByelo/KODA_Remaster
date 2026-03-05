@@ -848,11 +848,12 @@ const PriorityMatrix: React.FC<{
   const getTrackingStatus = useCallback(
     (item: { rawStatus?: string; deadlineRaw?: string; fechaMaximaEntrega?: string }) => {
       const raw = String(item.rawStatus || "").toLowerCase().trim();
-      if (raw === "finalizado") return "finalizado";
       const deadline =
         parseFlexibleDate(item.deadlineRaw || "") ||
         parseFlexibleDate(item.fechaMaximaEntrega || "");
+      // Regla: si ya venció, prevalece estado VENCIDO.
       if (deadline && Date.now() > deadline.getTime()) return "vencido";
+      if (raw === "finalizado") return "finalizado";
       return "en-proceso";
     },
     [],
@@ -883,9 +884,11 @@ const PriorityMatrix: React.FC<{
   const DeadlineClock = ({
     sentDate,
     deadlineDate,
+    status,
   }: {
     sentDate: string;
     deadlineDate: string;
+    status: "en-proceso" | "vencido" | "finalizado";
   }) => {
     const sent = parseFlexibleDate(sentDate);
     const deadline = parseFlexibleDate(deadlineDate);
@@ -901,12 +904,15 @@ const PriorityMatrix: React.FC<{
     const dashOffset = circumference * (1 - progress);
 
     const remainingMs = deadlineMs !== null ? deadlineMs - now : null;
-    const isOverdue = remainingMs !== null && remainingMs <= 0;
+    const isFinalized = status === "finalizado";
+    const isOverdue = status === "vencido" || (remainingMs !== null && remainingMs <= 0);
     const isCritical =
+      status === "en-proceso" &&
       remainingMs !== null &&
       remainingMs > 0 &&
       remainingMs <= 6 * 60 * 60 * 1000;
     const isNearDue =
+      status === "en-proceso" &&
       deadlineMs !== null &&
       !isOverdue &&
       !isCritical &&
@@ -925,31 +931,20 @@ const PriorityMatrix: React.FC<{
         ? Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)))
         : 0;
 
-    const ringColor = isOverdue || isCritical
+    const ringColor = isFinalized
+      ? "#22c55e"
+      : isOverdue || isCritical
       ? "#ef4444"
       : isNearDue
         ? "#3b82f6"
         : "#22c55e";
-    const statusLabel = !deadline
-      ? "Sin fecha"
-      : isOverdue
-        ? "Vencido"
-        : isCritical
-          ? `Vence en ${remainingHours}h`
-          : isNearDue
-            ? `Vence en ${remainingDays}d`
-            : `En plazo (${remainingDays}d)`;
-    const textClass = isOverdue || isCritical
-      ? darkMode
-        ? "text-red-400"
-        : "text-red-700"
-      : isNearDue
-        ? darkMode
-          ? "text-blue-400"
-          : "text-blue-700"
-        : darkMode
-          ? "text-emerald-400"
-          : "text-emerald-700";
+    const daysOrHours =
+      status === "en-proceso"
+        ? isCritical
+          ? `${remainingHours}h`
+          : `${remainingDays}d`
+        : "";
+    const textClass = darkMode ? "text-slate-200" : "text-slate-700";
 
     return (
       <div className="flex items-center gap-2">
@@ -977,18 +972,22 @@ const PriorityMatrix: React.FC<{
           <circle cx="20" cy="20" r="1.8" fill={ringColor} />
           <g>
             <line x1="20" y1="20" x2="20" y2="9" stroke={ringColor} strokeWidth="1.8" strokeLinecap="round" />
-            <animateTransform
-              attributeName="transform"
-              type="rotate"
-              from="0 20 20"
-              to="360 20 20"
-              dur="8s"
-              repeatCount="indefinite"
-            />
+            {status === "en-proceso" && (
+              <animateTransform
+                attributeName="transform"
+                type="rotate"
+                from="0 20 20"
+                to="360 20 20"
+                dur="8s"
+                repeatCount="indefinite"
+              />
+            )}
           </g>
           <line x1="20" y1="20" x2="27" y2="20" stroke={ringColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
         </svg>
-        <span className={`text-[11px] font-semibold ${textClass}`}>{statusLabel}</span>
+        {daysOrHours ? (
+          <span className={`text-[11px] font-semibold ${textClass}`}>{daysOrHours}</span>
+        ) : null}
       </div>
     );
   };
@@ -1224,6 +1223,7 @@ const PriorityMatrix: React.FC<{
                   <DeadlineClock
                     sentDate={item.fechaEnvio}
                     deadlineDate={item.fechaMaximaEntrega}
+                    status={computedStatus as "en-proceso" | "vencido" | "finalizado"}
                   />
                 </td>
                 <td className="px-4 py-3">
@@ -1316,7 +1316,7 @@ const PriorityMatrix: React.FC<{
               )}
 
               <div className="flex flex-wrap gap-2">
-                {modalComputedStatus !== "finalizado" && (
+                {modalComputedStatus === "en-proceso" && (
                   <button
                     onClick={() => void handleMarkFinalized(selectedTrackingDoc.id)}
                     disabled={updatingTrackingStatus}
