@@ -2740,6 +2740,13 @@ export default function Dashboard() {
           }
         }
 
+        const signatureStatusValue =
+          d.estado ??
+          d.signatureStatus ??
+          d.signaturestatus ??
+          d.status ??
+          "en-proceso";
+
         // URL del archivo
         const fileUrl = d.url_archivo || d.fileUrl
           ? `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${d.url_archivo || d.fileUrl}`
@@ -2776,7 +2783,7 @@ export default function Dashboard() {
           remitente_gerencia_nombre: d.remitente_gerencia_nombre,
           uploadDate,
           uploadTime,
-          signatureStatus: d.estado || d.signatureStatus || "en-proceso",
+          signatureStatus: String(signatureStatusValue).toLowerCase(),
           department: d.department || "N/A",
           targetDepartment: d.targetDepartment || d.receptor_gerencia_nombre || "Sin Asignar",
           correlativo: correlativoValue,
