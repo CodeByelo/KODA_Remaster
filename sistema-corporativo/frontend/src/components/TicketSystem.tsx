@@ -28,7 +28,7 @@ export interface Ticket {
     takenAt?: string;
 }
 
-const TECH_DEPT = "Gerencia Nacional de Tecnologias de la informacion y la comunicacion";
+const TECH_DEPT = "Gerencia Nacional de Tecnologías de la Información y la Comunicación";
 
 export default function TicketSystem({
     darkMode,
@@ -162,7 +162,7 @@ export default function TicketSystem({
             return;
         }
         const ticket = tickets.find(t => t.id === id);
-        const ok = ticket ? await uiConfirm(`¿Estas seguro de que deseas eliminar el ticket "${ticket.title}"?`, "Eliminar ticket") : false;
+        const ok = ticket ? await uiConfirm(`¿Estás seguro de que deseas eliminar el ticket "${ticket.title}"?`, "Eliminar ticket") : false;
         if (ticket && ok) {
             await apiDeleteTicket(id);
             await refreshFromServer();
@@ -191,12 +191,12 @@ export default function TicketSystem({
         if (!ticket) return;
 
         if (status === 'EN-PROCESO' && !canOperateTicketFlow) {
-            void uiAlert('Solo personal de Tecnologia o Administracion puede tomar tickets.', 'Tickets');
+            void uiAlert('Solo personal de Tecnología o Administración puede tomar tickets.', 'Tickets');
             return;
         }
 
         if (status === 'RESUELTO' && !canOperateTicketFlow) {
-            void uiAlert('Solo personal de Tecnologia o Administracion puede resolver tickets.', 'Tickets');
+            void uiAlert('Solo personal de Tecnología o Administración puede resolver tickets.', 'Tickets');
             return;
         }
 
@@ -248,7 +248,7 @@ export default function TicketSystem({
             ).length;
 
             if (userRole === 'Usuario' && activeTickets >= 3) {
-                void uiAlert("Has alcanzado el limite maximo de 3 tickets activos.", "Tickets");
+                void uiAlert("Has alcanzado el límite máximo de 3 tickets activos.", "Tickets");
                 return;
             }
 
@@ -288,7 +288,7 @@ export default function TicketSystem({
                         <input
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Buscar por titulo..."
+                            placeholder="Buscar por título..."
                             className="bg-transparent border-none outline-none text-sm w-48 transition-all focus:w-64"
                         />
                     </div>
@@ -394,7 +394,7 @@ export default function TicketSystem({
                                     <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-800/30">
                                         <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-bold font-mono uppercase tracking-tighter w-full overflow-hidden">
                                             <UsersRound size={11} className="text-slate-400 shrink-0" />
-                                            <span className="truncate">SOPORTE TECNICO</span>
+                                            <span className="truncate">SOPORTE TÉCNICO</span>
                                         </div>
                                         <div className="flex items-center gap-3 w-full">
                                             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
@@ -410,7 +410,7 @@ export default function TicketSystem({
                                         {ticket.takenBy && (
                                             <div className="w-full mt-1 p-2 rounded bg-blue-500/5 border border-blue-500/20">
                                                 <p className="text-[10px] text-blue-400/90 font-bold uppercase tracking-wider">
-                                                    Tecnico asignado: {ticket.takenBy}
+                                                    Técnico asignado: {ticket.takenBy}
                                                 </p>
                                                 {ticket.takenAt && (
                                                     <p className="text-[10px] text-slate-500">Tomado: {ticket.takenAt}</p>
@@ -468,8 +468,8 @@ export default function TicketSystem({
             </div>
 
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/70 backdrop-blur-md p-3 md:p-4 overflow-hidden">
-                    <div className={`glass-reflect w-full max-w-xl max-h-[92vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-2 md:p-5 overflow-hidden">
+                    <div className={`glass-reflect w-[min(1400px,98vw)] h-[95vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
                         <div className={`p-6 border-b flex justify-between items-center ${editingTicket ? 'bg-blue-600' : 'bg-red-600'}`}>
                             <h2 className="text-white font-bold flex items-center gap-2 uppercase tracking-tight">
                                 {editingTicket ? <FileText size={20} /> : <Plus size={20} />}
@@ -477,27 +477,27 @@ export default function TicketSystem({
                             </h2>
                             <button onClick={() => setShowModal(false)} className="text-white/80 hover:text-white text-2xl">&times;</button>
                         </div>
-                        <form onSubmit={handleSaveTicket} className="p-5 md:p-6 space-y-4 overflow-y-auto no-scrollbar">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Titulo de la Solicitud</label>
+                        <form onSubmit={handleSaveTicket} className="p-5 md:p-6 overflow-y-auto no-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Título de la Solicitud</label>
                                 <input
                                     required
                                     value={newTitle}
                                     onChange={(e) => setNewTitle(e.target.value)}
                                     className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Descripcion Detallada</label>
+                                </div>
+                                <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Descripción Detallada</label>
                                 <textarea
                                     required
-                                    rows={3}
+                                    rows={5}
                                     value={newDesc}
                                     onChange={(e) => setNewDesc(e.target.value)}
                                     className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
                                 />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                                </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Area Destino</label>
                                     <select
@@ -509,7 +509,7 @@ export default function TicketSystem({
                                         <option value={TECH_DEPT}>{TECH_DEPT}</option>
                                     </select>
                                     <p className="text-[9px] text-slate-500 mt-1 uppercase font-bold">
-                                        Todos los tickets se enrutan a Soporte Tecnico
+                                        Todos los tickets se enrutan a Soporte Técnico
                                     </p>
                                 </div>
                                 <div>
@@ -525,11 +525,10 @@ export default function TicketSystem({
                                         <option value="BAJA">Baja</option>
                                     </select>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Observaciones (Soporte Tecnico)</label>
+                                <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Observaciones (Soporte Técnico)</label>
                                 <textarea
-                                    rows={2}
+                                    rows={4}
                                     value={newObservations}
                                     onChange={(e) => setNewObservations(e.target.value)}
                                     disabled={!canOperateTicketFlow}
@@ -537,11 +536,12 @@ export default function TicketSystem({
                                 />
                                 {!canOperateTicketFlow && (
                                     <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">
-                                        Solo Tecnologia, Administracion o Desarrollo pueden registrar observaciones
+                                        Solo Tecnología, Administración o Desarrollo pueden registrar observaciones
                                     </p>
                                 )}
+                                </div>
                             </div>
-                            <div className="flex gap-3 pt-6">
+                            <div className="flex gap-3 pt-6 sticky bottom-0 bg-inherit">
                                 <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 rounded-lg font-bold text-xs tracking-widest border ${darkMode ? 'border-slate-800 text-slate-400 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                                     CANCELAR
                                 </button>
@@ -570,7 +570,7 @@ export default function TicketSystem({
                             <input
                                 value={historyQuery}
                                 onChange={(e) => setHistoryQuery(e.target.value)}
-                                placeholder="Buscar por ID o tÃ­tulo..."
+                                placeholder="Buscar por ID o título..."
                                 className={`flex-1 px-3 py-2 rounded-lg border text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
                             />
                             <button
@@ -590,7 +590,7 @@ export default function TicketSystem({
                                     <thead className={`${darkMode ? 'bg-slate-950/60' : 'bg-slate-50'}`}>
                                         <tr>
                                             <th className="px-3 py-2 text-left">Ticket</th>
-                                            <th className="px-3 py-2 text-left">AcciÃ³n</th>
+                                            <th className="px-3 py-2 text-left">Acción</th>
                                             <th className="px-3 py-2 text-left">Actor</th>
                                             <th className="px-3 py-2 text-left">Detalle</th>
                                             <th className="px-3 py-2 text-left">Fecha</th>

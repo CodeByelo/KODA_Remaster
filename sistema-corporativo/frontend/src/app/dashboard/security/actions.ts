@@ -7,6 +7,7 @@ import {
     updateUserAccountStatus,
     resetUserPassword,
     unlockUser,
+    updateUserProfile,
     updateUserRole,
 } from "../../../lib/api";
 
@@ -95,6 +96,23 @@ export async function changeUserRole(userId: string, roleLabel: string, masterPa
         return { success: true, user };
     } catch (error: any) {
         return { success: false, error: error?.message || "No se pudo actualizar rol" };
+    }
+}
+
+export async function editUserProfileAction(
+    userId: string,
+    payload: {
+        usuario_corp: string;
+        nombre: string;
+        apellido: string;
+        email: string;
+    },
+) {
+    try {
+        const user = await updateUserProfile(userId, payload);
+        return { success: true, user };
+    } catch (error: any) {
+        return { success: false, error: error?.message || "No se pudo actualizar perfil" };
     }
 }
 

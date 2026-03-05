@@ -1604,6 +1604,97 @@ async def update_user_role(
 
     return dict(updated)
 
+@app.put("/users/{user_id}/profile")
+async def update_user_profile(
+    user_id: uuid.UUID,
+    payload: dict,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    if not await _is_privileged_user(conn, current_user):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    username = str(
+        payload.get("usuario_corp")
+        or payload.get("username")
+        or ""
+    ).strip()
+    nombre = str(payload.get("nombre") or "").strip()
+    apellido = str(payload.get("apellido") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+
+    if not username or not nombre or not apellido or not email:
+        raise HTTPException(status_code=400, detail="nombre, apellido, email y usuario_corp son obligatorios")
+    if "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Email invalido")
+
+    exists = await conn.fetchval("SELECT 1 FROM profiles WHERE id = $1", user_id)
+    if not exists:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    duplicate = await conn.fetchval(
+        """
+        SELECT 1
+        FROM profiles
+        WHERE id <> $1
+          AND (LOWER(username) = LOWER($2) OR LOWER(email) = LOWER($3))
+        LIMIT 1
+        """,
+        user_id,
+        username,
+        email,
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="El usuario corporativo o email ya esta en uso")
+
+    await conn.execute(
+        """
+        UPDATE profiles
+        SET username = $2, nombre = $3, apellido = $4, email = $5
+        WHERE id = $1
+        """,
+        user_id,
+        username,
+        nombre,
+        apellido,
+        email,
+    )
+
+    updated = await conn.fetchrow(
+        """
+        SELECT p.id, p.username as usuario_corp, p.nombre, p.apellido, p.email,
+               p.gerencia_id, COALESCE(g.nombre, 'Sin Asignar') as gerencia_depto,
+               p.rol_id, COALESCE(r.nombre_rol, 'Usuario') as role,
+               p.estado, p.ultima_conexion, p.tenant_id, p.permisos,
+               COALESCE(ll.failed_count, 0) AS failed_count,
+               ll.locked_until,
+               CASE WHEN ll.locked_until IS NOT NULL AND ll.locked_until > NOW() THEN TRUE ELSE FALSE END AS is_locked
+        FROM profiles p
+        LEFT JOIN roles r ON p.rol_id = r.id
+        LEFT JOIN gerencias g ON p.gerencia_id = g.id
+        LEFT JOIN login_lockouts ll ON LOWER(ll.username) = LOWER(p.username)
+        WHERE p.id = $1
+        """,
+        user_id,
+    )
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'USUARIO_EDITADO', $4, 'info', '/dashboard/security/user')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Perfil actualizado para usuario {updated['usuario_corp']}",
+        )
+    except Exception:
+        pass
+
+    return dict(updated)
+
 @app.put("/users/{user_id}/reset-password")
 async def reset_user_password(
     user_id: uuid.UUID,

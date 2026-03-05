@@ -128,7 +128,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
 
-        // Sesion invalida en servidor: limpiar cliente para evitar loops y rebotes.
+        // Sesión inválida en servidor: limpiar cliente para evitar loops y rebotes.
         if (response.status === 401 || response.status === 403) {
           setUser(null);
           localStorage.removeItem("sgd_user");

@@ -1,14 +1,31 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Moolborand";
+  src:
+    local("Moolborand"),
+    url("/fonts/Moolborand.woff2") format("woff2"),
+    url("/fonts/Moolborand.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --corp-blue: #1b103b;
+  --corp-blue-soft: #24164d;
+  --corp-wine: #8c2226;
+  --corp-wine-soft: #a12a2f;
+  --font-body-custom: "Moolborand", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-title-custom: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body-custom);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,7 +39,20 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body-custom);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.logo-text,
+.auth-primary-text,
+th {
+  font-family: var(--font-title-custom);
+  font-weight: 700;
 }
 
 html,
@@ -632,9 +662,9 @@ a[href]:active,
 .remaster-shell {
   position: relative;
   background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(239, 68, 68, 0.12), transparent 60%),
-    radial-gradient(900px 520px at 92% 8%, rgba(249, 115, 22, 0.1), transparent 58%),
-    linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0.98));
+    radial-gradient(1200px 700px at 12% -10%, rgba(140, 34, 38, 0.2), transparent 60%),
+    radial-gradient(900px 520px at 92% 8%, rgba(140, 34, 38, 0.12), transparent 58%),
+    linear-gradient(180deg, rgba(27, 16, 59, 0.92), rgba(27, 16, 59, 0.98));
 }
 
 .remaster-shell::before {
@@ -714,8 +744,85 @@ a[href]:active,
 
 .remaster-auth-bg {
   background:
-    radial-gradient(600px 340px at 18% 12%, rgba(239, 68, 68, 0.16), transparent 60%),
-    radial-gradient(520px 300px at 82% 82%, rgba(249, 115, 22, 0.14), transparent 60%);
+    radial-gradient(600px 340px at 18% 12%, rgba(140, 34, 38, 0.2), transparent 60%),
+    radial-gradient(520px 300px at 82% 82%, rgba(140, 34, 38, 0.16), transparent 60%);
+}
+
+/* Institutional palette override */
+.bg-black,
+.bg-zinc-950,
+.bg-zinc-900,
+.bg-zinc-800,
+.bg-slate-950,
+.bg-slate-900,
+.bg-slate-800 {
+  background-color: var(--corp-blue) !important;
+}
+
+.bg-black\/95,
+.bg-black\/90,
+.bg-black\/80,
+.bg-black\/70,
+.bg-black\/65,
+.bg-zinc-950\/90,
+.bg-zinc-900\/50,
+.bg-zinc-900\/30,
+.bg-slate-950\/50,
+.bg-slate-900\/50,
+.bg-slate-800\/50 {
+  background-color: color-mix(in srgb, var(--corp-blue) 88%, transparent) !important;
+}
+
+.border-zinc-900,
+.border-zinc-800,
+.border-zinc-700,
+.border-slate-900,
+.border-slate-800,
+.border-slate-700 {
+  border-color: color-mix(in srgb, var(--corp-blue) 70%, #ffffff 30%) !important;
+}
+
+.bg-orange-700,
+.bg-orange-600,
+.bg-orange-500,
+.bg-amber-700,
+.bg-amber-600,
+.bg-amber-500,
+.bg-red-700,
+.bg-red-600,
+.bg-red-500 {
+  background-color: var(--corp-wine) !important;
+}
+
+.bg-orange-400,
+.bg-amber-400,
+.bg-red-400 {
+  background-color: var(--corp-wine-soft) !important;
+}
+
+.text-orange-700,
+.text-orange-600,
+.text-orange-500,
+.text-amber-700,
+.text-amber-600,
+.text-amber-500,
+.text-red-700,
+.text-red-600,
+.text-red-500,
+.text-red-400 {
+  color: var(--corp-wine) !important;
+}
+
+.border-orange-700,
+.border-orange-600,
+.border-orange-500,
+.border-amber-700,
+.border-amber-600,
+.border-amber-500,
+.border-red-700,
+.border-red-600,
+.border-red-500 {
+  border-color: var(--corp-wine) !important;
 }
 
 .remaster-auth-card {

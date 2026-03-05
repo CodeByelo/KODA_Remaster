@@ -2,8 +2,8 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, User, Shield, Clock, Activity, FileText, Lock, Calendar } from 'lucide-react';
-import { changeUserRole, deleteUser, getUserDetails, getUserLogs, resetUserPasswordAction, setUserStatus } from '../../actions';
+import { ArrowLeft, User, Shield, Clock, Activity, FileText, Lock, Calendar, Pencil } from 'lucide-react';
+import { changeUserRole, deleteUser, editUserProfileAction, getUserDetails, getUserLogs, resetUserPasswordAction, setUserStatus } from '../../actions';
 
 export default function UserHistoryPage() {
     const router = useRouter();
@@ -34,6 +34,14 @@ export default function UserHistoryPage() {
     const dialogResolverRef = useRef<((value: boolean | string | null) => void) | null>(null);
 
     const [mounted, setMounted] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editForm, setEditForm] = useState({
+        usuario_corp: "",
+        nombre: "",
+        apellido: "",
+        email: "",
+    });
     const userId = params?.id;
 
     const goBackToDashboard = () => {
@@ -118,7 +126,7 @@ export default function UserHistoryPage() {
                 setUser(userData);
                 setLogs(Array.isArray(logsData) ? logsData : []);
             } catch (error) {
-                console.error("Error cargando auditoria de usuario:", error);
+                console.error("Error cargando auditoría de usuario:", error);
                 setLogs([]);
                 setUser(null);
             } finally {
@@ -141,7 +149,7 @@ export default function UserHistoryPage() {
     const handleDelete = async () => {
         const confirmed = await askConfirm(
             "Eliminar cuenta",
-            "¿Esta seguro de que desea eliminar permanentemente esta cuenta? Esta accion no se puede deshacer.",
+            "¿Está seguro de que desea eliminar permanentemente esta cuenta? Esta acción no se puede deshacer.",
             "Eliminar",
             "Cancelar",
         );
@@ -158,7 +166,7 @@ export default function UserHistoryPage() {
                 showNotice("error", "Error al eliminar usuario: " + res.error);
             }
         } catch (error) {
-            showNotice("error", "Error critico al eliminar usuario.");
+            showNotice("error", "Error crítico al eliminar usuario.");
         }
     };
 
@@ -226,7 +234,7 @@ export default function UserHistoryPage() {
     const handleResetPassword = async () => {
         const newPassword = await askPrompt(
             "Restablecer clave",
-            "Ingrese nueva clave (minimo 8 caracteres):",
+            "Ingrese nueva clave (mínimo 8 caracteres):",
             "password",
             "Actualizar",
             "Cancelar",
@@ -238,6 +246,43 @@ export default function UserHistoryPage() {
             return;
         }
         showNotice("success", "Clave actualizada correctamente.");
+    };
+
+    const openEditModal = () => {
+        setEditForm({
+            usuario_corp: String(user?.usuario_corp || "").trim(),
+            nombre: String(user?.nombre || "").trim(),
+            apellido: String(user?.apellido || "").trim(),
+            email: String(user?.email || "").trim(),
+        });
+        setEditOpen(true);
+    };
+
+    const handleSaveEdit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!userId) return;
+        const payload = {
+            usuario_corp: editForm.usuario_corp.trim(),
+            nombre: editForm.nombre.trim(),
+            apellido: editForm.apellido.trim(),
+            email: editForm.email.trim(),
+        };
+        if (!payload.usuario_corp || !payload.nombre || !payload.apellido || !payload.email) {
+            showNotice("error", "Completa todos los campos obligatorios.");
+            return;
+        }
+        setSavingEdit(true);
+        const res = await editUserProfileAction(String(userId), payload);
+        setSavingEdit(false);
+        if (!res.success) {
+            showNotice("error", "No se pudo editar el usuario: " + res.error);
+            return;
+        }
+        if (res.user) {
+            setUser((prev: any) => ({ ...prev, ...res.user }));
+        }
+        setEditOpen(false);
+        showNotice("success", "Usuario actualizado correctamente.");
     };
 
     if (!mounted || loading) {
@@ -316,6 +361,90 @@ export default function UserHistoryPage() {
                     </div>
                 </div>
             )}
+            {editOpen && (
+                <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+                    <div className="w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+                        <div className="px-6 py-4 border-b border-zinc-800 bg-gradient-to-r from-red-900/40 via-zinc-900 to-zinc-900 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-zinc-100">Editar Usuario</h3>
+                                <p className="text-sm text-zinc-400">Actualiza perfil sin cambiar gerencia ni contraseña.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditOpen(false)}
+                                className="text-zinc-400 hover:text-zinc-100 text-2xl"
+                            >
+                                &times;
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 tracking-wider">Nombre</label>
+                                    <input
+                                        required
+                                        value={editForm.nombre}
+                                        onChange={(e) => setEditForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 tracking-wider">Apellido</label>
+                                    <input
+                                        required
+                                        value={editForm.apellido}
+                                        onChange={(e) => setEditForm((prev) => ({ ...prev, apellido: e.target.value }))}
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 tracking-wider">Usuario corporativo</label>
+                                    <input
+                                        required
+                                        value={editForm.usuario_corp}
+                                        onChange={(e) => setEditForm((prev) => ({ ...prev, usuario_corp: e.target.value }))}
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 tracking-wider">Email</label>
+                                    <input
+                                        required
+                                        type="email"
+                                        value={editForm.email}
+                                        onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-bold text-zinc-400 uppercase mb-1 tracking-wider">Gerencia (solo lectura)</label>
+                                    <input
+                                        value={String(user?.gerencia_depto || "Sin Asignar")}
+                                        disabled
+                                        className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-zinc-500 cursor-not-allowed"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditOpen(false)}
+                                    className="px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={savingEdit}
+                                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-semibold disabled:opacity-60"
+                                >
+                                    {savingEdit ? "Guardando..." : "Guardar cambios"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
             {/* Header / Back */}
             <div className="flex items-center gap-4 mb-6">
                 <button
@@ -326,7 +455,7 @@ export default function UserHistoryPage() {
                 </button>
                 <div>
                     <h1 className="text-2xl font-bold text-zinc-100">Historial de Usuario</h1>
-                    <p className="text-zinc-400 text-sm">Detalles y auditoria de actividad</p>
+                    <p className="text-zinc-400 text-sm">Detalles y auditoría de actividad</p>
                 </div>
             </div>
 
@@ -374,6 +503,13 @@ export default function UserHistoryPage() {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={openEditModal}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-2"
+                    >
+                        <Pencil size={14} />
+                        Editar Usuario
+                    </button>
                     {!(user?.estado === true && !user?.is_locked) && (
                         <button
                             onClick={() => handleSetStatus("ACTIVO")}

@@ -253,6 +253,23 @@ export async function updateUserRole(
     return handleResponse<ApiUser>(res);
 }
 
+export async function updateUserProfile(
+    userId: string | number,
+    payload: {
+        usuario_corp: string;
+        nombre: string;
+        apellido: string;
+        email: string;
+    },
+): Promise<ApiUser> {
+    const res = await fetch(`${BASE_URL}/users/${userId}/profile`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiUser>(res);
+}
+
 export async function unlockUser(userId: string): Promise<{ status: string }> {
     const res = await fetch(`/api/users/${userId}/unlock`, {
         method: "PATCH",

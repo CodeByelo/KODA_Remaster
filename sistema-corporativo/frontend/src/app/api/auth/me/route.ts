@@ -29,12 +29,12 @@ export async function GET() {
     try {
       payload = raw ? JSON.parse(raw) : {};
     } catch {
-      payload = { detail: raw || "Respuesta invalida" };
+      payload = { detail: raw || "Respuesta inválida" };
     }
 
     if (!response.ok) {
       return NextResponse.json(
-        { authenticated: false, detail: payload?.detail || "Sesion invalida" },
+        { authenticated: false, detail: payload?.detail || "Sesión inválida" },
         { status: response.status },
       );
     }
@@ -43,7 +43,7 @@ export async function GET() {
   } catch (error) {
     console.error("Auth me API error:", error);
     return NextResponse.json(
-      { authenticated: false, detail: "Error validando sesion" },
+      { authenticated: false, detail: "Error validando sesión" },
       { status: 500 },
     );
   }

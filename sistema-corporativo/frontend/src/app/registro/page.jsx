@@ -232,7 +232,7 @@ const evaluatePasswordRules = (password) => {
 const PasswordStrength = ({ password }) => {
   const { status, metCount, missing } = evaluatePasswordRules(password);
   const level = Math.min(Math.max(metCount, 1), 5);
-  const labels = ['Muy debil', 'Debil', 'Regular', 'Fuerte', 'Excelente'];
+  const labels = ['Muy débil', 'Débil', 'Regular', 'Fuerte', 'Excelente'];
   const levelColors = ['bg-red-800', 'bg-red-600', 'bg-orange-500', 'bg-orange-400', 'bg-red-500'];
 
   if (!password) return null;
@@ -250,7 +250,7 @@ const PasswordStrength = ({ password }) => {
       <p className={`text-xs font-semibold ${level >= 4 ? 'text-orange-400' : level >= 3 ? 'text-red-400' : 'text-red-500'}`}>
         Seguridad: {labels[level - 1]}
       </p>
-      <p className="text-xs auth-secondary-text">Tu contrasena debe tener:</p>
+      <p className="text-xs auth-secondary-text">Tu contraseña debe tener:</p>
       <div className="space-y-1">
         {status.map((rule) => (
           <div key={rule.key} className={`flex items-center gap-2 text-[11px] ${rule.ok ? 'text-emerald-400' : 'text-red-300'}`}>
@@ -564,11 +564,11 @@ const RegistroForm = () => {
     if (!username.trim()) newErrors.username = 'Usuario corporativo requerido';
     else if (username.length < 4) newErrors.username = 'Mínimo 4 caracteres';
 
-    if (!password) newErrors.password = 'Contrasena requerida';
+    if (!password) newErrors.password = 'Contraseña requerida';
     else {
       const passwordEvaluation = evaluatePasswordRules(password);
       if (passwordEvaluation.missing.length > 0) {
-        newErrors.password = `Tu contrasena debe tener: ${passwordEvaluation.missing.join(', ')}`;
+        newErrors.password = `Tu contraseña debe tener: ${passwordEvaluation.missing.join(', ')}`;
       }
     }
 

@@ -12,7 +12,7 @@ export async function POST() {
         const cookieStore = await cookies();
         const sessionToken = cookieStore.get('session')?.value;
 
-        // Registrar evento de logout en auditoria (best-effort).
+        // Registrar evento de logout en auditoría (best-effort).
         if (sessionToken) {
             try {
                 await fetch(`${API_BASE_URL}/security/logs`, {
@@ -23,7 +23,7 @@ export async function POST() {
                     },
                     body: JSON.stringify({
                         evento: 'LOGOUT',
-                        detalles: 'Cierre de sesion manual',
+                        detalles: 'Cierre de sesión manual',
                         estado: 'info',
                         page: '/dashboard',
                     }),

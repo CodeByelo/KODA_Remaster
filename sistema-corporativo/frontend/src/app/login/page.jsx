@@ -414,7 +414,7 @@ const LoginCorpoelecForm = () => {
     setIsLoading(true);
     setLoginError(null);
 
-    // Limpieza previa de sesion
+    // Limpieza previa de sesión
     localStorage.removeItem('sgd_token');
     localStorage.removeItem('sgd_user');
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);

@@ -157,19 +157,19 @@ const DEFAULT_ORG_STRUCTURE: OrgCategory[] = [
     icon: "Shield",
     items: [
       "Gerencia General",
-      "Auditoria Interna",
-      "Consultoria Juridica",
-      "Gerencia Nacional de Planificacion y presupuesto",
+      "Auditoría Interna",
+      "Consultoría Jurídica",
+      "Gerencia Nacional de Planificación y Presupuesto",
     ],
   },
   {
     category: "II. Gestión Administrativa",
     icon: "Briefcase",
     items: [
-      "Gerencia Nacional de Administracion",
-      "Gerencia Nacional de Gestion Humana",
-      "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
-      "Gerencia nacional de tecnologias de proyectos",
+      "Gerencia Nacional de Administración",
+      "Gerencia Nacional de Gestión Humana",
+      "Gerencia Nacional de Tecnologías de la Información y la Comunicación",
+      "Gerencia Nacional de Tecnologías de Proyectos",
     ],
   },
   {
@@ -178,16 +178,16 @@ const DEFAULT_ORG_STRUCTURE: OrgCategory[] = [
     items: [
       "Gerencia Nacional de Adecuaciones y Mejoras",
       "Gerencia Nacional de Asho",
-      "Gerencia Nacional de Atencion al Ciudadano",
-      "Gerencia de Comercializacion",
+      "Gerencia Nacional de Atención al Ciudadano",
+      "Gerencia de Comercialización",
     ],
   },
   {
     category: "IV. Energía y Comunidad",
     icon: "Users",
     items: [
-      "Gerencia Nacional de energia alternativa y eficiencia energetica",
-      "Gerencia Nacional de gestion comunical",
+      "Gerencia Nacional de Energía Alternativa y Eficiencia Energética",
+      "Gerencia Nacional de Gestión Comunal",
     ],
   },
   {
@@ -205,38 +205,38 @@ const MANAGEMENT_DETAILS: Record<string, string[]> = {
     "Aprobación de presupuesto anual.",
     "Coordinación de relaciones interinstitucionales.",
   ],
-  "Auditoria Interna": [
+  "Auditoría Interna": [
     "Evaluación de controles internos.",
     "Auditoría de procesos financieros y administrativos.",
     "Verificación del cumplimiento normativo.",
     "Investigación de irregularidades.",
-    "Elaboración de informes de Gestión de riesgos.",
+    "Elaboración de informes de gestión de riesgos.",
   ],
-  "Consultoria Juridica": [
+  "Consultoría Jurídica": [
     "Asesoría legal a la presidencia y Gerencias.",
     "Revisión y redacción de contratos y convenios.",
     "Defensa judicial y extrajudicial de la institución.",
     "Emitir dictámenes jurídicos vinculantes.",
   ],
-  "Gerencia Nacional de Planificacion y presupuesto": [
+  "Gerencia Nacional de Planificación y Presupuesto": [
     "Formulación del Plan Operativo Anual (POA).",
     "Control y seguimiento de la ejecución presupuestaria.",
-    "Evaluación de indicadores de Gestión.",
+    "Evaluación de indicadores de gestión.",
     "Proyección de escenarios financieros a mediano plazo.",
   ],
-  "Gerencia Nacional de Administracion": [
+  "Gerencia Nacional de Administración": [
     "Gestión de recursos financieros y tesorería.",
     "Administración de servicios generales.",
     "Procesamiento de pagos a proveedores.",
     "Contabilización de operaciones financieras.",
   ],
-  "Gerencia Nacional de Gestion Humana": [
+  "Gerencia Nacional de Gestión Humana": [
     "Reclutamiento y selección de personal.",
     "Gestión de nómina y beneficios laborales.",
     "Planificación de capacitación y desarrollo.",
     "Evaluación del desempeño del personal.",
   ],
-  "Gerencia Nacional de Tecnologias de la informacion y la comunicacion": [
+  "Gerencia Nacional de Tecnologías de la Información y la Comunicación": [
     "Mantenimiento de infraestructura tecnológica.",
     "Desarrollo y soporte de sistemas de información.",
     "Garantizar la seguridad de la información.",
@@ -259,7 +259,7 @@ const MANAGEMENT_DETAILS: Record<string, string[]> = {
 const getDefaultFunctions = (name: string) => [
   `Gestión operativa de ${name}.`,
   "Coordinación de personal asignado.",
-  "Reporte de indicadores de Gestión.",
+  "Reporte de indicadores de gestión.",
   "Cumplimiento de metas trimestrales asignadas.",
   "Seguimiento de planes de mejora continua.",
 ];
@@ -785,24 +785,27 @@ const PriorityMatrix: React.FC<{
   isReadOnly?: boolean;
   documents: Document[];
   hasPermission: (permission: string) => boolean;
-}> = ({ darkMode, userRole, isReadOnly, documents, hasPermission }) => {
+  refreshDocs: () => void | Promise<void>;
+}> = ({ darkMode, userRole, isReadOnly, documents, hasPermission, refreshDocs }) => {
   const [trackingSearch, setTrackingSearch] = useState("");
   const [trackingStatus, setTrackingStatus] = useState<string>("all");
   const [trackingSender, setTrackingSender] = useState<string>("all");
   const [selectedTrackingDoc, setSelectedTrackingDoc] = useState<any | null>(null);
+  const [updatingTrackingStatus, setUpdatingTrackingStatus] = useState(false);
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "aprobado":
+    const normalized = String(status || "").toLowerCase();
+    switch (normalized) {
+      case "vencido":
         return darkMode
           ? "bg-red-500/10 text-red-400"
           : "bg-red-50 text-red-700";
-      case "omitido":
+      case "finalizado":
         return darkMode
           ? "bg-green-500/10 text-green-400"
           : "bg-green-50 text-green-700";
       case "en-proceso":
-      case "pendiente":
+      case "en proceso":
         return darkMode
           ? "bg-amber-500/10 text-amber-400"
           : "bg-amber-50 text-amber-700";
@@ -842,6 +845,41 @@ const PriorityMatrix: React.FC<{
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
+  const getTrackingStatus = useCallback(
+    (item: { rawStatus?: string; deadlineRaw?: string; fechaMaximaEntrega?: string }) => {
+      const raw = String(item.rawStatus || "").toLowerCase().trim();
+      if (raw === "finalizado") return "finalizado";
+      const deadline =
+        parseFlexibleDate(item.deadlineRaw || "") ||
+        parseFlexibleDate(item.fechaMaximaEntrega || "");
+      if (deadline && Date.now() > deadline.getTime()) return "vencido";
+      return "en-proceso";
+    },
+    [],
+  );
+
+  const handleMarkFinalized = useCallback(
+    async (docId: number) => {
+      try {
+        setUpdatingTrackingStatus(true);
+        await apiUpdateStatus(docId, "finalizado");
+        setSelectedTrackingDoc((prev: any) =>
+          prev && prev.id === docId
+            ? { ...prev, rawStatus: "finalizado", status: "finalizado" }
+            : prev,
+        );
+        await refreshDocs();
+        void uiAlert("Documento marcado como FINALIZADO.", "Estado actualizado");
+      } catch (error) {
+        console.error("Error al marcar documento como finalizado:", error);
+        void uiAlert("No se pudo actualizar el estado a FINALIZADO.", "Error");
+      } finally {
+        setUpdatingTrackingStatus(false);
+      }
+    },
+    [refreshDocs],
+  );
+
   const DeadlineClock = ({
     sentDate,
     deadlineDate,
@@ -878,9 +916,9 @@ const PriorityMatrix: React.FC<{
     const remainingDays =
       deadlineMs !== null && !isOverdue
         ? Math.max(
-            0,
-            Math.ceil((deadlineMs - now) / (24 * 60 * 60 * 1000)),
-          )
+          0,
+          Math.ceil((deadlineMs - now) / (24 * 60 * 60 * 1000)),
+        )
         : 0;
     const remainingHours =
       remainingMs !== null && remainingMs > 0
@@ -898,9 +936,9 @@ const PriorityMatrix: React.FC<{
         ? "Vencido"
         : isCritical
           ? `Vence en ${remainingHours}h`
-        : isNearDue
-          ? `Vence en ${remainingDays}d`
-          : `En plazo (${remainingDays}d)`;
+          : isNearDue
+            ? `Vence en ${remainingDays}d`
+            : `En plazo (${remainingDays}d)`;
     const textClass = isOverdue || isCritical
       ? darkMode
         ? "text-red-400"
@@ -960,23 +998,25 @@ const PriorityMatrix: React.FC<{
       (doc) => String(doc.prioridad || "").toLowerCase() === "control",
     );
     return controlDocs.map((doc) => ({
-        id: doc.id,
-        title: doc.name,
-        correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
-        sentBy: doc.uploadedBy || "Desconocido",
-        receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
-        fechaEnvio: doc.uploadDate || "N/A",
-        fechaMaximaEntrega: doc.fecha_caducidad
-          ? (() => {
-              const d = new Date(doc.fecha_caducidad);
-              return Number.isNaN(d.getTime()) ? String(doc.fecha_caducidad) : d.toLocaleDateString("es-ES");
-            })()
-          : "N/A",
-        status: String(doc.signatureStatus || "pendiente").toLowerCase(),
-        contenido: doc.contenido || "",
-        fileUrl: doc.fileUrl,
-        archivos: doc.archivos || [],
-      }));
+      id: doc.id,
+      title: doc.name,
+      correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
+      sentBy: doc.uploadedBy || "Desconocido",
+      receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
+      fechaEnvio: doc.uploadDate || "N/A",
+      fechaMaximaEntrega: doc.fecha_caducidad
+        ? (() => {
+          const d = new Date(doc.fecha_caducidad);
+          return Number.isNaN(d.getTime()) ? String(doc.fecha_caducidad) : d.toLocaleDateString("es-ES");
+        })()
+        : "N/A",
+      deadlineRaw: doc.fecha_caducidad || "",
+      rawStatus: String(doc.signatureStatus || "en-proceso").toLowerCase(),
+      status: String(doc.signatureStatus || "en-proceso").toLowerCase(),
+      contenido: doc.contenido || "",
+      fileUrl: doc.fileUrl,
+      archivos: doc.archivos || [],
+    }));
   }, [documents]);
 
   const senderOptions = useMemo(
@@ -991,14 +1031,15 @@ const PriorityMatrix: React.FC<{
     const normalizedSearch = trackingSearch.trim().toLowerCase();
     return mappedTracking
       .filter((item) => {
-        const matchesStatus = trackingStatus === "all" || item.status === trackingStatus;
+        const computedStatus = getTrackingStatus(item);
+        const matchesStatus = trackingStatus === "all" || computedStatus === trackingStatus;
         const matchesSender = trackingSender === "all" || item.sentBy === trackingSender;
         const haystack = `${item.title} ${item.correlativo} ${item.sentBy} ${item.receivedBy}`.toLowerCase();
         const matchesSearch = !normalizedSearch || haystack.includes(normalizedSearch);
         return matchesStatus && matchesSender && matchesSearch;
       })
       .sort((a, b) => parseDate(b.fechaEnvio) - parseDate(a.fechaEnvio));
-  }, [mappedTracking, trackingSearch, trackingStatus, trackingSender]);
+  }, [mappedTracking, trackingSearch, trackingStatus, trackingSender, getTrackingStatus]);
 
   return (
     <div className="space-y-4 pt-2">
@@ -1031,11 +1072,9 @@ const PriorityMatrix: React.FC<{
             className={`w-full px-3 py-2 rounded-md border text-sm outline-none ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
           >
             <option value="all">Todos</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="en-proceso">En proceso</option>
-            <option value="aprobado">Aprobado</option>
-            <option value="rechazado">Rechazado</option>
-            <option value="omitido">Omitido</option>
+            <option value="vencido">Vencido</option>
+            <option value="en-proceso">En Proceso</option>
+            <option value="finalizado">Finalizado</option>
           </select>
         </div>
         <div className="w-64">
@@ -1135,73 +1174,82 @@ const PriorityMatrix: React.FC<{
             </tr>
           </thead>
           <tbody>
-            {filteredTracking.map((item) => (
-                <tr
-                  key={item.id}
-                  className={`border-t transition-colors ${darkMode
-                    ? "border-slate-800 hover:bg-slate-800/50"
-                    : "border-slate-200 hover:bg-slate-50"
-                    }`}
+            {filteredTracking.map((item) => {
+              const computedStatus = getTrackingStatus(item);
+              const statusLabel =
+                computedStatus === "en-proceso"
+                  ? "EN PROCESO"
+                  : computedStatus === "vencido"
+                    ? "VENCIDO"
+                    : "FINALIZADO";
+              return (
+              <tr
+                key={item.id}
+                className={`border-t transition-colors ${darkMode
+                  ? "border-slate-800 hover:bg-slate-800/50"
+                  : "border-slate-200 hover:bg-slate-50"
+                  }`}
+              >
+                <td
+                  className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
                 >
-                  <td
-                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                  <div className="font-medium">{item.title}</div>
+                </td>
+                <td
+                  className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                >
+                  <span className="font-mono text-xs">{item.correlativo}</span>
+                </td>
+                <td
+                  className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                >
+                  {item.sentBy}
+                </td>
+                <td
+                  className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                >
+                  {item.receivedBy}
+                </td>
+                <td
+                  className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                >
+                  {item.fechaEnvio}
+                </td>
+                <td
+                  className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                >
+                  {item.fechaMaximaEntrega}
+                </td>
+                <td className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                  <DeadlineClock
+                    sentDate={item.fechaEnvio}
+                    deadlineDate={item.fechaMaximaEntrega}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(
+                      computedStatus,
+                    )}`}
                   >
-                    <div className="font-medium">{item.title}</div>
-                  </td>
-                  <td
-                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
+                    {statusLabel}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={() => setSelectedTrackingDoc(item)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold border ${darkMode
+                      ? "border-slate-700 text-slate-300 hover:bg-slate-800"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                      }`}
                   >
-                    <span className="font-mono text-xs">{item.correlativo}</span>
-                  </td>
-                  <td
-                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {item.sentBy}
-                  </td>
-                  <td
-                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {item.receivedBy}
-                  </td>
-                  <td
-                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {item.fechaEnvio}
-                  </td>
-                  <td
-                    className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}
-                  >
-                    {item.fechaMaximaEntrega}
-                  </td>
-                  <td className={`px-4 py-3 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                    <DeadlineClock
-                      sentDate={item.fechaEnvio}
-                      deadlineDate={item.fechaMaximaEntrega}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(
-                        item.status,
-                      )}`}
-                    >
-                      {item.status.replace("-", " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => setSelectedTrackingDoc(item)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold border ${darkMode
-                        ? "border-slate-700 text-slate-300 hover:bg-slate-800"
-                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                        }`}
-                    >
-                      <Eye size={13} />
-                      Ver
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <Eye size={13} />
+                    Ver
+                  </button>
+                </td>
+              </tr>
+            );
+            })}
             {filteredTracking.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-500 italic">
@@ -1214,6 +1262,15 @@ const PriorityMatrix: React.FC<{
       </div>
 
       {selectedTrackingDoc && (
+        (() => {
+          const modalComputedStatus = getTrackingStatus(selectedTrackingDoc);
+          const modalStatusLabel =
+            modalComputedStatus === "en-proceso"
+              ? "EN PROCESO"
+              : modalComputedStatus === "vencido"
+                ? "VENCIDO"
+                : "FINALIZADO";
+          return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
           <div className={`w-full max-w-2xl rounded-xl border shadow-2xl ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
             <div className={`p-4 border-b flex items-center justify-between ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
@@ -1243,7 +1300,10 @@ const PriorityMatrix: React.FC<{
                   <span className="font-semibold">Fecha maxima de entrega:</span> {selectedTrackingDoc.fechaMaximaEntrega}
                 </div>
                 <div className={darkMode ? "text-slate-300" : "text-slate-700"}>
-                  <span className="font-semibold">Estado:</span> {selectedTrackingDoc.status}
+                  <span className="font-semibold">Estado:</span>{" "}
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-bold ${getStatusColor(modalComputedStatus)}`}>
+                    {modalStatusLabel}
+                  </span>
                 </div>
               </div>
 
@@ -1256,6 +1316,17 @@ const PriorityMatrix: React.FC<{
               )}
 
               <div className="flex flex-wrap gap-2">
+                {modalComputedStatus !== "finalizado" && (
+                  <button
+                    onClick={() => void handleMarkFinalized(selectedTrackingDoc.id)}
+                    disabled={updatingTrackingStatus}
+                    className={`px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${darkMode
+                      ? "border-green-700 text-green-300 hover:bg-green-900/20 disabled:opacity-50"
+                      : "border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50"}`}
+                  >
+                    {updatingTrackingStatus ? "Guardando..." : "FINALIZADO"}
+                  </button>
+                )}
                 {selectedTrackingDoc.fileUrl && (
                   <a
                     href={selectedTrackingDoc.fileUrl}
@@ -1281,6 +1352,8 @@ const PriorityMatrix: React.FC<{
             </div>
           </div>
         </div>
+      );
+        })()
       )}
     </div>
   );
@@ -1391,11 +1464,11 @@ const DocumentManager: React.FC<{
       const raw = (user?.gerencia_depto || userDept || "").trim();
       const siglas = raw
         ? raw
-            .split(/\s+/)
-            .map((w) => w[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 6)
+          .split(/\s+/)
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 6)
         : "GER";
       const year = new Date().getFullYear();
       const manual = correlativo.trim() || "___";
@@ -1438,7 +1511,7 @@ const DocumentManager: React.FC<{
           : "Auditar Mensajes";
 
     const MY_DEPT =
-      "Gerencia Nacional de Tecnologias de la informacion y la comunicacion";
+      "Gerencia Nacional de Tecnologías de la Información y la Comunicación";
 
     const filteredDocs = documents.filter((doc) => {
       const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
@@ -1577,7 +1650,7 @@ const DocumentManager: React.FC<{
       if (!file) return;
 
       if (file.type !== "application/pdf") {
-        void uiAlert("Error: Solo se permiten archivos en formato PDF.", "Archivo invalido");
+        void uiAlert("Error: Solo se permiten archivos en formato PDF.", "Archivo inválido");
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
@@ -1688,14 +1761,14 @@ const DocumentManager: React.FC<{
             prev.map(d =>
               d.id === doc.id
                 ? {
-                    ...d,
-                    leido: true,
-                    signatureStatus: ["en-proceso", "pendiente"].includes(
-                      String(d.signatureStatus || "").toLowerCase(),
-                    )
-                      ? "recibido"
-                      : d.signatureStatus,
-                  }
+                  ...d,
+                  leido: true,
+                  signatureStatus: ["en-proceso", "pendiente"].includes(
+                    String(d.signatureStatus || "").toLowerCase(),
+                  )
+                    ? "recibido"
+                    : d.signatureStatus,
+                }
                 : d,
             ),
           );
@@ -1790,8 +1863,8 @@ const DocumentManager: React.FC<{
 
         {/* Nuevo Mensaje Modal (ex-Upload) */}
         {showUploadModal && (
-          <div className="fixed inset-0 z-[60] flex items-start md:items-center justify-center bg-black/70 backdrop-blur-md p-3 md:p-4 animate-in fade-in duration-300 overflow-hidden">
-            <div className={`w-full max-w-xl max-h-[92vh] rounded-2xl border shadow-2xl flex flex-col glass-reflect ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-md p-2 md:p-5 animate-in fade-in duration-300 overflow-hidden">
+            <div className={`w-[min(1400px,98vw)] h-[95vh] rounded-2xl border shadow-2xl flex flex-col glass-reflect ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
               <div className="p-6 border-b flex justify-between items-center bg-red-700 text-white">
                 <h2 className="font-bold flex items-center gap-2 uppercase tracking-tight text-white">
                   <Mail size={20} />
@@ -2764,18 +2837,18 @@ export default function Dashboard() {
         description: t.descripcion || "",
         area:
           t.area ||
-          "Gerencia Nacional de Tecnologias de la informacion y la comunicacion",
+          "Gerencia Nacional de Tecnologías de la Información y la Comunicación",
         creatorDept: t.solicitante_gerencia || "Sin Asignar",
         priority: (String(t.prioridad || "media").toUpperCase() as Ticket["priority"]),
         status:
           String(t.estado || "abierto").toLowerCase() === "eliminado"
             ? "ELIMINADO"
-            : 
-          String(t.estado || "abierto").toLowerCase() === "resuelto"
-            ? "RESUELTO"
-            : String(t.estado || "abierto").toLowerCase() === "en-proceso"
-              ? "EN-PROCESO"
-              : "ABIERTO",
+            :
+            String(t.estado || "abierto").toLowerCase() === "resuelto"
+              ? "RESUELTO"
+              : String(t.estado || "abierto").toLowerCase() === "en-proceso"
+                ? "EN-PROCESO"
+                : "ABIERTO",
         createdAt: t.fecha_creacion
           ? new Date(t.fecha_creacion).toLocaleDateString("es-ES")
           : new Date().toLocaleDateString("es-ES"),
@@ -3237,6 +3310,7 @@ export default function Dashboard() {
             isReadOnly={isReadOnly}
             documents={documents}
             hasPermission={hasPermission}
+            refreshDocs={fetchDocuments}
           />
         ) : (
           <div className="text-center p-20 font-bold text-red-500">
@@ -3325,7 +3399,7 @@ export default function Dashboard() {
                 <h1
                   className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-700"}`}
                 >
-                  ¡Bienvenido de nuevo, {user?.nombre || "Usuario"}!
+                  ¡Bienvenido, {user?.nombre || "Usuario"}!
                 </h1>
                 <p
                   className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-700"}`}
@@ -3526,9 +3600,12 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
                   <img
-                    src="/logo-rojo.png"
+                    src={darkMode ? "/logo-oscuro.png" : "/logo-claro.png"}
                     alt="Corpoelec"
                     className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/logo-rojo.png";
+                    }}
                   />
                 </div>
                 {!collapsed && (
@@ -3684,7 +3761,7 @@ export default function Dashboard() {
               <h2
                 className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-800"}`}
               >
-                Sistema de Gestión Institucional{" "}
+                Sistema de Gestión Documentos{" "}
                 <span className="mx-2 text-slate-500">|</span>{" "}
                 <span className="text-slate-500 font-normal">
                   Alfa 2026 V-1.0
@@ -3702,7 +3779,7 @@ export default function Dashboard() {
               <div
                 className="flex items-center gap-3 cursor-pointer hover:bg-slate-100/10 p-1 rounded-md transition-colors"
                 onClick={async () => {
-                  const ok = await uiConfirm("¿Desea cerrar sesión?", "Cerrar sesion");
+                  const ok = await uiConfirm("¿Desea cerrar sesión?", "Cerrar sesión");
                   if (ok) {
                     void logout();
                   }
@@ -3731,28 +3808,28 @@ export default function Dashboard() {
                 {/* ROLE SWITCHER dropdown - visible for admins and persona-switchers */}
                 {hasPermission(PERMISSIONS_MASTER.SYS_SWITCH_ROLE) &&
                   userRole === "Desarrollador" && (
-                  <div
-                    className="flex items-center gap-1 border-l pl-3 border-slate-700 ml-1"
-                    onClick={(e) => e.stopPropagation()}
-                  >
+                    <div
+                      className="flex items-center gap-1 border-l pl-3 border-slate-700 ml-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <select
                         value={userRole}
-                      onChange={async (e) => {
-                        const ok = await switchRole(e.target.value as UserRole);
-                        if (!ok) {
-                          void uiAlert("SwitchRole deshabilitado en este entorno por seguridad. Usa staging/dev con NEXT_PUBLIC_ENABLE_ROLE_SIMULATION=true.", "Seguridad");
-                        }
-                      }}
+                        onChange={async (e) => {
+                          const ok = await switchRole(e.target.value as UserRole);
+                          if (!ok) {
+                            void uiAlert("SwitchRole deshabilitado en este entorno por seguridad. Usa staging/dev con NEXT_PUBLIC_ENABLE_ROLE_SIMULATION=true.", "Seguridad");
+                          }
+                        }}
                         className={`bg-transparent text-[10px] font-bold border rounded px-1 outline-none transition-colors ${darkMode ? "border-zinc-700 text-zinc-400 focus:border-red-500" : "border-slate-300 text-slate-600 focus:border-red-600"}`}
                       >
-                      <option value="Usuario">USR</option>
-                      <option value="Administrativo">ADM</option>
-                      <option value="Gerente">GER</option>
-                      <option value="CEO">CEO</option>
-                      <option value="Desarrollador">DEV</option>
-                    </select>
-                  </div>
-                )}
+                        <option value="Usuario">USR</option>
+                        <option value="Administrativo">ADM</option>
+                        <option value="Gerente">GER</option>
+                        <option value="CEO">CEO</option>
+                        <option value="Desarrollador">DEV</option>
+                      </select>
+                    </div>
+                  )}
                 <div
                   className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-offset-2 ring-offset-transparent ring-slate-200/20 ${userRole === "CEO" ? "bg-red-800" : userRole === "Administrativo" ? "bg-amber-600" : "bg-blue-600"}`}
                 >
@@ -3837,8 +3914,3 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
-
-
-
-
-

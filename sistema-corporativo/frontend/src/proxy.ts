@@ -82,7 +82,7 @@ export async function proxy(request: NextRequest) {
         }
     }
 
-    // Si ya tiene sesion valida, no permitir volver a login por URL directa.
+    // Si ya tiene sesión válida, no permitir volver a login por URL directa.
     if (isAuthPage && validation.status === "valid") {
         const requestedNext = request.nextUrl.searchParams.get('next') || '';
         const safeNext =

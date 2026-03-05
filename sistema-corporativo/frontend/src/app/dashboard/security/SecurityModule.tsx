@@ -197,7 +197,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const deleteDocument = async (id: string | number, name: string) => {
-        const ok = await uiConfirm(`¿Estas seguro de eliminar el documento "${name}"? Esta accion no se puede deshacer.`, "Eliminar documento");
+        const ok = await uiConfirm(`¿Estás seguro de eliminar el documento "${name}"? Esta acción no se puede deshacer.`, "Eliminar documento");
         if (ok) {
             try {
                 await deleteDocumento(id);
@@ -236,7 +236,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         } catch (error) {
             console.error("No se pudo guardar la estructura organizativa", error);
             const msg = error instanceof Error ? error.message : "Error desconocido";
-            void uiAlert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesion/navegador.\n\n${msg}`, "Estructura organizativa");
+            void uiAlert(`No se pudo guardar en servidor. Se mantuvo solo en esta sesión/navegador.\n\n${msg}`, "Estructura organizativa");
         }
     };
 
@@ -256,7 +256,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const handleEditModule = async (groupIdx: number) => {
-        const newName = await uiPrompt("Nuevo nombre para el modulo:", orgStructure[groupIdx].category, "Editar modulo");
+        const newName = await uiPrompt("Nuevo nombre para el módulo:", orgStructure[groupIdx].category, "Editar módulo");
         if (!newName?.trim()) return;
         const newOrg = [...orgStructure];
         newOrg[groupIdx].category = newName.trim();
@@ -264,14 +264,14 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     };
 
     const handleDeleteModule = async (groupIdx: number) => {
-        const ok = await uiConfirm("Estas seguro de eliminar este modulo y todas sus gerencias?", "Eliminar modulo");
+        const ok = await uiConfirm("¿Estás seguro de eliminar este módulo y todas sus gerencias?", "Eliminar módulo");
         if (!ok) return;
         const newOrg = orgStructure.filter((_, idx) => idx !== groupIdx);
         await persistOrgStructure(newOrg);
     };
 
     const handleDeleteDept = async (groupIdx: number, itemIdx: number) => {
-        const ok = await uiConfirm("¿Estas seguro de eliminar esta gerencia?", "Eliminar gerencia");
+        const ok = await uiConfirm("¿Estás seguro de eliminar esta gerencia?", "Eliminar gerencia");
         if (ok) {
             const newOrg = [...orgStructure];
             newOrg[groupIdx].items.splice(itemIdx, 1);
@@ -883,14 +883,14 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 <button
                                                     onClick={() => handleEditModule(groupIdx)}
                                                     className={`p-1.5 rounded-md hover:bg-blue-500/20 hover:text-blue-400 transition-colors ${theme.subtext}`}
-                                                    title="Editar modulo"
+                                                    title="Editar módulo"
                                                 >
                                                     <Edit2 size={12} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteModule(groupIdx)}
                                                     className={`p-1.5 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors ${theme.subtext}`}
-                                                    title="Eliminar modulo"
+                                                    title="Eliminar módulo"
                                                 >
                                                     <Trash2 size={12} />
                                                 </button>
@@ -1027,7 +1027,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             if (selectedRole === 'Gerente') rolId = 5;
 
             if (selectedRole === 'Desarrollador' && !devRoleMasterPassword) {
-                void uiAlert("Para asignar Desarrollador debes validar la contrasena maestra.", "Seguridad");
+                void uiAlert("Para asignar Desarrollador debes validar la contraseña maestra.", "Seguridad");
                 return;
             }
 
