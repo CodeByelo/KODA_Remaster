@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Tag, User, Clock, CalendarDays, History } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, FileText, Tag, User, Clock, CalendarDays, History, CheckCircle } from 'lucide-react';
 import { CombinedDataItem, SortField, SortDirection } from '../utils/departmentUtils';
 
 interface DetailTableProps {
