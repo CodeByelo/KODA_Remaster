@@ -137,6 +137,27 @@ interface AnnouncementData {
   description: string;
   status: string;
   urgency: string;
+  color?: string;
+}
+
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{6})$/;
+
+function normalizeHexColor(value?: string, fallback = "#dc2626"): string {
+  const candidate = String(value || "").trim();
+  return HEX_COLOR_RE.test(candidate) ? candidate : fallback;
+}
+
+function shiftHexColor(hex: string, amount: number): string {
+  const clean = normalizeHexColor(hex).slice(1);
+  const num = Number.parseInt(clean, 16);
+  const r = (num >> 16) & 0xff;
+  const g = (num >> 8) & 0xff;
+  const b = num & 0xff;
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  const nextR = clamp(r + amount);
+  const nextG = clamp(g + amount);
+  const nextB = clamp(b + amount);
+  return `#${nextR.toString(16).padStart(2, "0")}${nextG.toString(16).padStart(2, "0")}${nextB.toString(16).padStart(2, "0")}`;
 }
 
 // ==========================================
@@ -2458,26 +2479,65 @@ const ChartsModule: React.FC<{
     null,
   );
 
-  // Dynamic data for Documents Status (Existing chart)
+  const parseFlexibleDate = (value?: string) => {
+    if (!value) return null;
+    const raw = String(value).trim();
+    const latin = raw.match(
+      /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+    );
+    if (latin) {
+      const [, dRaw, mRaw, y, hh = "00", mm = "00", ss = "00"] = latin;
+      const d = dRaw.padStart(2, "0");
+      const m = mRaw.padStart(2, "0");
+      const date = new Date(`${y}-${m}-${d}T${hh.padStart(2, "0")}:${mm}:${ss}`);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const normalizeDocStatus = (value?: string) =>
+    String(value || "")
+      .toLowerCase()
+      .trim()
+      .replaceAll("_", "-")
+      .replaceAll(" ", "-");
+
+  const getCurrentDocStatus = (doc: Document) => {
+    const raw = normalizeDocStatus(doc.signatureStatus);
+    if (raw === "finalizado" || raw === "vencido") return raw;
+    const deadline = parseFlexibleDate(doc.fecha_caducidad);
+    if (deadline && Date.now() > deadline.getTime()) return "vencido";
+    return raw || "en-proceso";
+  };
+
+  // Dynamic data for Documents Status (actual/real state)
   const docStatusData = useMemo(() => {
-    const counts = {
-      aprobado: 0,
+    const counts: Record<string, number> = {
       pendiente: 0,
       "en-proceso": 0,
-      recibido: 0,
+      finalizado: 0,
+      vencido: 0,
+      aprobado: 0,
       rechazado: 0,
+      recibido: 0,
       omitido: 0,
     };
     documents.forEach((doc) => {
-      if (counts.hasOwnProperty(doc.signatureStatus)) {
-        counts[doc.signatureStatus]++;
+      const status = getCurrentDocStatus(doc);
+      if (Object.prototype.hasOwnProperty.call(counts, status)) {
+        counts[status]++;
       }
     });
     return [
-      { name: "Aprobados", value: counts.aprobado, color: "#10b981" },
-      { name: "Pendientes", value: counts.pendiente, color: "#f59e0b" },
       { name: "En Proceso", value: counts["en-proceso"], color: "#3b82f6" },
+      { name: "Vencidos", value: counts.vencido, color: "#ef4444" },
+      { name: "Finalizados", value: counts.finalizado, color: "#10b981" },
+      { name: "Pendientes", value: counts.pendiente, color: "#f59e0b" },
+      { name: "Recibidos", value: counts.recibido, color: "#14b8a6" },
+      { name: "Aprobados", value: counts.aprobado, color: "#22c55e" },
       { name: "Rechazados", value: counts.rechazado, color: "#ef4444" },
+      { name: "Omitidos", value: counts.omitido, color: "#64748b" },
     ].filter((d) => d.value > 0);
   }, [documents]);
 
@@ -2496,10 +2556,36 @@ const ChartsModule: React.FC<{
     ].filter((t) => t.value > 0);
   }, [tickets]);
 
-  // Get all departments list
+  // Get all departments list (estructura + actividad real)
   const allDepartments = useMemo(() => {
-    return orgStructure.flatMap((group) => group.items);
-  }, [orgStructure]);
+    const normalize = (value: string) =>
+      String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    const map = new Map<string, string>();
+    const collect = (name?: string) => {
+      const raw = String(name || "").trim();
+      if (!raw) return;
+      const key = normalize(raw);
+      if (!map.has(key)) map.set(key, raw);
+    };
+
+    orgStructure.forEach((group) => (group.items || []).forEach((item) => collect(item)));
+    documents.forEach((doc) => {
+      collect(doc.department);
+      collect(doc.targetDepartment);
+      collect(doc.remitente_gerencia_nombre);
+      collect(doc.receptor_gerencia_nombre);
+      collect(doc.receptor_gerencia_nombre_usuario);
+    });
+    tickets.forEach((ticket) => {
+      collect(ticket.area);
+      collect(ticket.creatorDept);
+    });
+    return Array.from(map.values()).sort((a, b) => a.localeCompare(b, "es"));
+  }, [orgStructure, documents, tickets]);
 
   const handleDeptSelect = (dept: string) => {
     setSelectedDetailDept(dept);
@@ -2746,6 +2832,11 @@ export default function Dashboard() {
           d.signaturestatus ??
           d.status ??
           "en-proceso";
+        const normalizedSignatureStatus = String(signatureStatusValue)
+          .toLowerCase()
+          .trim()
+          .replaceAll("_", "-")
+          .replaceAll(" ", "-");
 
         // URL del archivo
         const fileUrl = d.url_archivo || d.fileUrl
@@ -2783,9 +2874,17 @@ export default function Dashboard() {
           remitente_gerencia_nombre: d.remitente_gerencia_nombre,
           uploadDate,
           uploadTime,
-          signatureStatus: String(signatureStatusValue).toLowerCase(),
-          department: d.department || "N/A",
-          targetDepartment: d.targetDepartment || d.receptor_gerencia_nombre || "Sin Asignar",
+          signatureStatus: normalizedSignatureStatus,
+          department:
+            d.department ||
+            d.remitente_gerencia_nombre ||
+            d.receptor_gerencia_nombre_usuario ||
+            "Sin Asignar",
+          targetDepartment:
+            d.targetDepartment ||
+            d.receptor_gerencia_nombre ||
+            d.receptor_gerencia_nombre_usuario ||
+            "Sin Asignar",
           correlativo: correlativoValue,
           fileUrl: d.fileUrl || (d.archivos && d.archivos.length > 0 ? d.archivos[0] : undefined),
           archivos: (d.archivos || []).map((url: string) =>
@@ -3050,6 +3149,7 @@ export default function Dashboard() {
       "Se les informa a todas las Gerencias que a partir de las 14:00h se iniciará la migración de los protocolos de firma digital. Por favor, aseguren sus trámites pendientes.",
     status: "Activo",
     urgency: "Alta",
+    color: "#dc2626",
   });
 
   // Persistencia de anuncios
@@ -3298,6 +3398,11 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
+  const announcementBaseColor = normalizeHexColor(announcement?.color, "#dc2626");
+  const announcementStartColor = shiftHexColor(announcementBaseColor, -12);
+  const announcementEndColor = shiftHexColor(announcementBaseColor, 20);
+  const announcementBadgeColor = shiftHexColor(announcementBaseColor, -18);
+
   const renderContent = () => {
     switch (activeTab) {
       case "prioridades":
@@ -3421,10 +3526,18 @@ export default function Dashboard() {
             </div>
 
             {/* ANNOUNCEMENT BANNER */}
-            <div className="remaster-hero remaster-card relative overflow-hidden rounded-2xl bg-gradient-to-r from-red-700 via-red-600 to-orange-600 p-8 shadow-xl shadow-red-900/20">
+            <div
+              className="remaster-hero remaster-card relative overflow-hidden rounded-2xl p-8 shadow-xl shadow-red-900/20"
+              style={{
+                backgroundImage: `linear-gradient(90deg, ${announcementStartColor}, ${announcementBaseColor}, ${announcementEndColor})`,
+              }}
+            >
               <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="space-y-2">
-                  <span className="inline-block px-3 py-1 rounded-full bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+                  <span
+                    className="inline-block px-3 py-1 rounded-full text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"
+                    style={{ backgroundColor: announcementBadgeColor }}
+                  >
                     {announcement.badge}
                   </span>
                   <h2 className="text-2xl font-bold text-white">

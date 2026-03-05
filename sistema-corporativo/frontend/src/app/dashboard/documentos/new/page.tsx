@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Upload, Save } from 'lucide-react';
+import { ArrowLeft, Mail, Save } from 'lucide-react';
 import { getAllUsers, getGerencias, uploadDocumento } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
 
@@ -81,6 +81,7 @@ export default function NewDocumentoPage() {
       window.alert('Selecciona al menos un destinatario.');
       return;
     }
+
     setLoading(true);
     try {
       const priorityValue = priorityEnabled ? 'control' : 'media';
@@ -91,18 +92,22 @@ export default function NewDocumentoPage() {
         formData.append('tipo_documento', docCategory);
         formData.append('prioridad', priorityValue);
         formData.append('contenido', messageContent);
+
         if (manualId) formData.append('correlativo', manualId);
         if (priorityEnabled && priorityDays > 0) {
           formData.append('tiempo_maximo_dias', String(priorityDays));
         }
+
         if (sendMode === 'dept') {
           formData.append('receptor_gerencia_id', recipient);
         } else {
           formData.append('receptor_id', recipient);
         }
+
         selectedFiles.forEach((f) => formData.append('archivos', f));
         return uploadDocumento(formData);
       });
+
       await Promise.all(uploads);
       window.alert('Mensaje enviado correctamente.');
       router.push('/dashboard');
@@ -116,12 +121,12 @@ export default function NewDocumentoPage() {
 
   return (
     <RoleGuard allowedRoles={['CEO', 'Administrativo', 'Usuario', 'Desarrollador', 'Gerente']} redirectTo="/login">
-      <div className="min-h-screen bg-[#1B103B] text-white p-6 md:p-10">
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10">
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.push('/dashboard')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800"
             >
               <ArrowLeft size={16} />
               Volver
@@ -132,19 +137,19 @@ export default function NewDocumentoPage() {
             </h1>
           </div>
 
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-white/15 bg-[#24164d] p-5 md:p-7 space-y-5">
+          <form onSubmit={handleSubmit} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:p-7 space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => setSendMode('user')}
-                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'user' ? 'bg-[#8C2226] border-[#8C2226]' : 'border-white/20'}`}
+                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'user' ? 'bg-red-700 border-red-700 text-white' : 'border-zinc-700 hover:bg-zinc-800'}`}
               >
                 A Usuario
               </button>
               <button
                 type="button"
                 onClick={() => setSendMode('dept')}
-                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'dept' ? 'bg-[#8C2226] border-[#8C2226]' : 'border-white/20'}`}
+                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'dept' ? 'bg-red-700 border-red-700 text-white' : 'border-zinc-700 hover:bg-zinc-800'}`}
               >
                 A Gerencia
               </button>
@@ -153,11 +158,20 @@ export default function NewDocumentoPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-1 text-sm font-semibold">Asunto</label>
-                <input value={docName} onChange={(e) => setDocName(e.target.value)} required className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20" />
+                <input
+                  value={docName}
+                  onChange={(e) => setDocName(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">Formato de documento</label>
-                <select value={docCategory} onChange={(e) => setDocCategory(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20">
+                <select
+                  value={docCategory}
+                  onChange={(e) => setDocCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                >
                   <option>Informe</option>
                   <option>Memorando</option>
                   <option>Circular</option>
@@ -170,28 +184,38 @@ export default function NewDocumentoPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-1 text-sm font-semibold">Correlativo (manual)</label>
-                <input value={correlativo} onChange={(e) => setCorrelativo(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20" />
+                <input
+                  value={correlativo}
+                  onChange={(e) => setCorrelativo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                />
               </div>
               <div>
                 <label className="block mb-1 text-sm font-semibold">Adjunto PDF (opcional)</label>
-                <input type="file" accept=".pdf" onChange={handleFileChange} className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20" />
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileChange}
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                />
               </div>
             </div>
 
-            <div className="rounded-lg border border-white/15 p-3">
+            <div className="rounded-lg border border-zinc-800 p-3">
               <label className="inline-flex items-center gap-2 text-sm font-semibold">
                 <input type="checkbox" checked={priorityEnabled} onChange={(e) => setPriorityEnabled(e.target.checked)} />
                 Control de seguimiento (prioridad)
               </label>
+
               {priorityEnabled && (
                 <div className="mt-3">
-                  <label className="block mb-1 text-sm">Tiempo máximo (días)</label>
+                  <label className="block mb-1 text-sm">Tiempo maximo (dias)</label>
                   <input
                     type="number"
                     min={1}
                     value={priorityDays}
                     onChange={(e) => setPriorityDays(Math.max(1, Number(e.target.value || 1)))}
-                    className="w-full md:w-56 px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20"
+                    className="w-full md:w-56 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
                   />
                 </div>
               )}
@@ -201,7 +225,7 @@ export default function NewDocumentoPage() {
               <label className="block mb-2 text-sm font-semibold">
                 {sendMode === 'user' ? 'Destinatarios (usuarios)' : 'Destinatarios (gerencias)'}
               </label>
-              <div className="max-h-56 overflow-y-auto rounded-lg border border-white/15 p-3 space-y-2 bg-[#1B103B]">
+              <div className="max-h-56 overflow-y-auto rounded-lg border border-zinc-800 p-3 space-y-2 bg-zinc-950">
                 {(sendMode === 'user' ? userOptions : deptOptions).map((item: any) => (
                   <label key={item.id} className="flex items-center gap-2">
                     <input
@@ -221,16 +245,30 @@ export default function NewDocumentoPage() {
                 rows={6}
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20"
+                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
               />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => router.push('/dashboard')} className="px-5 py-2 rounded-lg border border-white/20">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                className="px-5 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              >
                 Cancelar
               </button>
-              <button type="submit" disabled={loading} className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-[#8C2226] hover:bg-[#a12a2f] font-semibold disabled:opacity-60">
-                {loading ? 'Enviando...' : (<><Save size={16} /> Guardar y Enviar</>)}
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-700 hover:bg-red-800 font-semibold disabled:opacity-60 text-white"
+              >
+                {loading ? (
+                  'Enviando...'
+                ) : (
+                  <>
+                    <Save size={16} /> Guardar y Enviar
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -239,4 +277,3 @@ export default function NewDocumentoPage() {
     </RoleGuard>
   );
 }
-

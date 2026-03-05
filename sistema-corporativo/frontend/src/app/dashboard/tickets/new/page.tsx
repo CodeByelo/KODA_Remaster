@@ -7,7 +7,7 @@ import { createTicket } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
 
-const TECH_DEPT = 'Gerencia Nacional de Tecnologías de la Información y la Comunicación';
+const TECH_DEPT = 'Gerencia Nacional de Tecnologias de la Informacion y la Comunicacion';
 
 export default function NewTicketPage() {
   const router = useRouter();
@@ -26,9 +26,10 @@ export default function NewTicketPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      window.alert('Título y descripción son obligatorios.');
+      window.alert('Titulo y descripcion son obligatorios.');
       return;
     }
+
     setLoading(true);
     try {
       await createTicket({
@@ -49,12 +50,12 @@ export default function NewTicketPage() {
 
   return (
     <RoleGuard allowedRoles={['CEO', 'Administrativo', 'Usuario', 'Desarrollador', 'Gerente']} redirectTo="/login">
-      <div className="min-h-screen bg-[#1B103B] text-white p-6 md:p-10">
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10">
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.push('/dashboard')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800"
             >
               <ArrowLeft size={16} />
               Volver
@@ -65,35 +66,35 @@ export default function NewTicketPage() {
             </h1>
           </div>
 
-          <form onSubmit={submit} className="rounded-2xl border border-white/15 bg-[#24164d] p-5 md:p-7 space-y-5">
+          <form onSubmit={submit} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:p-7 space-y-5">
             <div>
-              <label className="block mb-1 text-sm font-semibold">Título de la Solicitud</label>
+              <label className="block mb-1 text-sm font-semibold">Titulo de la Solicitud</label>
               <input
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20"
+                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
               />
             </div>
 
             <div>
-              <label className="block mb-1 text-sm font-semibold">Descripción Detallada</label>
+              <label className="block mb-1 text-sm font-semibold">Descripcion Detallada</label>
               <textarea
                 required
                 rows={6}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20"
+                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 text-sm font-semibold">Área Destino</label>
+                <label className="block mb-1 text-sm font-semibold">Area Destino</label>
                 <input
                   value={TECH_DEPT}
                   disabled
-                  className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20 opacity-70"
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 opacity-80"
                 />
               </div>
               <div>
@@ -102,7 +103,7 @@ export default function NewTicketPage() {
                   value={effectivePriority}
                   onChange={(e) => setPriority(e.target.value as 'ALTA' | 'MEDIA' | 'BAJA')}
                   disabled={String(user?.role || '').toLowerCase() === 'usuario'}
-                  className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20"
+                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
                 >
                   <option value="ALTA">Alta</option>
                   <option value="MEDIA">Media</option>
@@ -117,16 +118,30 @@ export default function NewTicketPage() {
                 rows={4}
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-[#1B103B] border border-white/20"
+                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
               />
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => router.push('/dashboard')} className="px-5 py-2 rounded-lg border border-white/20">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                className="px-5 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+              >
                 Cancelar
               </button>
-              <button type="submit" disabled={loading} className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-[#8C2226] hover:bg-[#a12a2f] font-semibold disabled:opacity-60">
-                {loading ? 'Guardando...' : (<><Save size={16} /> Crear Ticket</>)}
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-700 hover:bg-red-800 font-semibold disabled:opacity-60 text-white"
+              >
+                {loading ? (
+                  'Guardando...'
+                ) : (
+                  <>
+                    <Save size={16} /> Crear Ticket
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -135,4 +150,3 @@ export default function NewTicketPage() {
     </RoleGuard>
   );
 }
-

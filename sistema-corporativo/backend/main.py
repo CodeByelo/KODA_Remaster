@@ -262,6 +262,7 @@ async def startup():
                     description TEXT NOT NULL,
                     status TEXT NOT NULL,
                     urgency TEXT NOT NULL,
+                    color TEXT NOT NULL DEFAULT '#dc2626',
                     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     CONSTRAINT dashboard_announcement_singleton CHECK (id = 1)
                 )
@@ -731,9 +732,14 @@ async def _ensure_announcement_table(conn) -> None:
             description TEXT NOT NULL,
             status TEXT NOT NULL,
             urgency TEXT NOT NULL,
+            color TEXT NOT NULL DEFAULT '#dc2626',
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             CONSTRAINT dashboard_announcement_singleton CHECK (id = 1)
         )
+    """)
+    await conn.execute("""
+        ALTER TABLE dashboard_announcement
+        ADD COLUMN IF NOT EXISTS color TEXT NOT NULL DEFAULT '#dc2626'
     """)
 
 
@@ -798,6 +804,7 @@ class AnnouncementPayload(BaseModel):
     description: str
     status: str
     urgency: str
+    color: str = "#dc2626"
 
 
 class OrgStructurePayload(BaseModel):
@@ -1907,7 +1914,7 @@ async def get_announcement(
 ):
     await _ensure_announcement_table(conn)
     row = await conn.fetchrow("""
-        SELECT badge, title, description, status, urgency
+        SELECT badge, title, description, status, urgency, COALESCE(color, '#dc2626') AS color
         FROM dashboard_announcement
         WHERE id = 1
     """)
@@ -1920,11 +1927,12 @@ async def get_announcement(
         "description": "Mensaje institucional vigente para todas las gerencias.",
         "status": "Activo",
         "urgency": "Alta",
+        "color": "#dc2626",
     }
     await conn.execute(
         """
-        INSERT INTO dashboard_announcement (id, badge, title, description, status, urgency, updated_at)
-        VALUES (1, $1, $2, $3, $4, $5, NOW())
+        INSERT INTO dashboard_announcement (id, badge, title, description, status, urgency, color, updated_at)
+        VALUES (1, $1, $2, $3, $4, $5, $6, NOW())
         ON CONFLICT (id) DO NOTHING
         """,
         default_announcement["badge"],
@@ -1932,6 +1940,7 @@ async def get_announcement(
         default_announcement["description"],
         default_announcement["status"],
         default_announcement["urgency"],
+        default_announcement["color"],
     )
     return default_announcement
 
@@ -1949,8 +1958,8 @@ async def save_announcement(
     data = payload.model_dump()
     await conn.execute(
         """
-        INSERT INTO dashboard_announcement (id, badge, title, description, status, urgency, updated_at)
-        VALUES (1, $1, $2, $3, $4, $5, NOW())
+        INSERT INTO dashboard_announcement (id, badge, title, description, status, urgency, color, updated_at)
+        VALUES (1, $1, $2, $3, $4, $5, $6, NOW())
         ON CONFLICT (id)
         DO UPDATE SET
             badge = EXCLUDED.badge,
@@ -1958,6 +1967,7 @@ async def save_announcement(
             description = EXCLUDED.description,
             status = EXCLUDED.status,
             urgency = EXCLUDED.urgency,
+            color = EXCLUDED.color,
             updated_at = NOW()
         """,
         data["badge"],
@@ -1965,9 +1975,10 @@ async def save_announcement(
         data["description"],
         data["status"],
         data["urgency"],
+        data.get("color") or "#dc2626",
     )
     saved = await conn.fetchrow("""
-        SELECT badge, title, description, status, urgency
+        SELECT badge, title, description, status, urgency, COALESCE(color, '#dc2626') AS color
         FROM dashboard_announcement
         WHERE id = 1
     """)

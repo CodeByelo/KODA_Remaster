@@ -9,6 +9,7 @@ export interface CombinedDataItem {
     id: string;
     type: 'Documento' | 'Ticket';
     ticketId?: number;
+    estado: string;
     tiempo: string;
     fechaHora: string;
     importancia: 'Alta' | 'Media' | 'Baja';
@@ -84,11 +85,22 @@ export function filterByDepartment(
             .trim();
     const target = norm(department);
 
-    const filteredDocs = documents.filter(
-        doc => norm(doc.department || '') === target || norm(doc.targetDepartment || '') === target
-    );
+    const filteredDocs = documents.filter((doc) => {
+        const deptCandidates = [
+            doc.department,
+            doc.targetDepartment,
+            doc.remitente_gerencia_nombre,
+            doc.receptor_gerencia_nombre,
+            doc.receptor_gerencia_nombre_usuario,
+        ];
+        return deptCandidates.some((candidate) => norm(String(candidate || '')) === target);
+    });
 
-    const filteredTickets = tickets.filter(ticket => norm(ticket.area || '') === target);
+    const filteredTickets = tickets.filter(
+        (ticket) =>
+            norm(ticket.area || '') === target ||
+            norm(ticket.creatorDept || '') === target
+    );
 
     return { documents: filteredDocs, tickets: filteredTickets };
 }
@@ -158,11 +170,12 @@ export function calculateImportanceDistribution(
         else if (ticket.priority === 'BAJA') baja++;
     });
 
-    // Procesar documentos (mapear estados a importancia)
+    // Procesar documentos (mapear estados actuales a importancia)
     documents.forEach(doc => {
-        if (doc.signatureStatus === 'rechazado') alta++;
-        else if (doc.signatureStatus === 'en-proceso' || doc.signatureStatus === 'pendiente') media++;
-        else if (doc.signatureStatus === 'aprobado' || doc.signatureStatus === 'omitido') baja++;
+        const currentStatus = getDocumentCurrentStatus(doc);
+        if (currentStatus === 'vencido' || currentStatus === 'rechazado') alta++;
+        else if (currentStatus === 'en-proceso' || currentStatus === 'pendiente' || currentStatus === 'recibido') media++;
+        else if (currentStatus === 'finalizado' || currentStatus === 'aprobado' || currentStatus === 'omitido') baja++;
     });
 
     return [
@@ -188,12 +201,14 @@ export function combineDocumentsAndTickets(
     // Procesar documentos
     documents.forEach(doc => {
         const rawDate = parseDocumentDate(doc.uploadDate);
+        const currentStatus = getDocumentCurrentStatus(doc);
         combined.push({
             id: `doc-${doc.id}`,
             type: 'Documento',
+            estado: statusLabel(currentStatus),
             tiempo: doc.uploadTime,
             fechaHora: `${doc.uploadDate} ${doc.uploadTime}`,
-            importancia: mapDocumentToImportance(doc.signatureStatus),
+            importancia: mapDocumentToImportance(currentStatus),
             enviadoPor: doc.uploadedBy,
             recibidoPor: doc.receivedBy,
             rawDate: rawDate || new Date()
@@ -207,6 +222,7 @@ export function combineDocumentsAndTickets(
             id: `ticket-${ticket.id}`,
             type: 'Ticket',
             ticketId: ticket.id,
+            estado: String(ticket.status || 'ABIERTO'),
             tiempo: ticket.createdAt,
             fechaHora: ticket.createdAt,
             importancia: mapTicketToImportance(ticket.priority),
@@ -284,8 +300,8 @@ function parseTicketDate(dateStr: string): Date | null {
  * Mapea estado de documento a nivel de importancia
  */
 function mapDocumentToImportance(status: string): 'Alta' | 'Media' | 'Baja' {
-    if (status === 'rechazado') return 'Alta';
-    if (status === 'en-proceso' || status === 'pendiente') return 'Media';
+    if (status === 'vencido' || status === 'rechazado') return 'Alta';
+    if (status === 'en-proceso' || status === 'pendiente' || status === 'recibido') return 'Media';
     return 'Baja';
 }
 
@@ -296,6 +312,71 @@ function mapTicketToImportance(priority: string): 'Alta' | 'Media' | 'Baja' {
     if (priority === 'ALTA') return 'Alta';
     if (priority === 'MEDIA') return 'Media';
     return 'Baja';
+}
+
+function statusLabel(status: string): string {
+    switch (status) {
+        case 'vencido':
+            return 'VENCIDO';
+        case 'finalizado':
+            return 'FINALIZADO';
+        case 'en-proceso':
+            return 'EN PROCESO';
+        case 'pendiente':
+            return 'PENDIENTE';
+        case 'recibido':
+            return 'RECIBIDO';
+        case 'aprobado':
+            return 'APROBADO';
+        case 'rechazado':
+            return 'RECHAZADO';
+        case 'omitido':
+            return 'OMITIDO';
+        default:
+            return String(status || 'N/A').toUpperCase();
+    }
+}
+
+function parseFlexibleDate(value?: string): Date | null {
+    if (!value) return null;
+    const raw = String(value).trim();
+    const latin = raw.match(
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
+    );
+    if (latin) {
+        const [, dRaw, mRaw, y, hh = '00', mm = '00', ss = '00'] = latin;
+        const d = dRaw.padStart(2, '0');
+        const m = mRaw.padStart(2, '0');
+        const parsed = new Date(`${y}-${m}-${d}T${hh.padStart(2, '0')}:${mm}:${ss}`);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizeDocStatus(status?: string): string {
+    const raw = String(status || '')
+        .toLowerCase()
+        .trim()
+        .replaceAll('_', '-')
+        .replaceAll(' ', '-');
+    if (raw === 'en-proceso') return 'en-proceso';
+    if (raw === 'finalizado') return 'finalizado';
+    if (raw === 'vencido') return 'vencido';
+    if (raw === 'pendiente') return 'pendiente';
+    if (raw === 'recibido') return 'recibido';
+    if (raw === 'aprobado') return 'aprobado';
+    if (raw === 'rechazado') return 'rechazado';
+    if (raw === 'omitido') return 'omitido';
+    return raw || 'en-proceso';
+}
+
+function getDocumentCurrentStatus(doc: Document): string {
+    const normalized = normalizeDocStatus(doc.signatureStatus);
+    if (normalized === 'finalizado' || normalized === 'vencido') return normalized;
+    const deadline = parseFlexibleDate(doc.fecha_caducidad);
+    if (deadline && Date.now() > deadline.getTime()) return 'vencido';
+    return normalized;
 }
 
 /**

@@ -59,7 +59,7 @@ export const DetailTable: React.FC<DetailTableProps> = ({
 
     const renderSkeletonRow = (key: number) => (
         <tr key={key} className={darkMode ? 'border-b border-slate-800' : 'border-b border-slate-100'}>
-            {[...Array(7)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
                 <td key={i} className="px-4 py-4">
                     <div className={`h-4 rounded animate-pulse ${darkMode ? 'bg-slate-800' : 'bg-slate-200'}`} style={{ width: i === 0 ? '80%' : '60%' }} />
                 </td>
@@ -106,6 +106,12 @@ export const DetailTable: React.FC<DetailTableProps> = ({
                                     {getSortIcon('importancia')}
                                 </div>
                             </th>
+                            <th className="px-4 py-3 font-bold">
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle size={14} />
+                                    <span>Estado</span>
+                                </div>
+                            </th>
                             <th
                                 className="px-4 py-3 font-bold cursor-pointer hover:text-red-500 transition-colors"
                                 onClick={() => onSort('enviadoPor')}
@@ -134,7 +140,7 @@ export const DetailTable: React.FC<DetailTableProps> = ({
                             [...Array(5)].map((_, i) => renderSkeletonRow(i))
                         ) : data.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-4 py-12 text-center">
+                                <td colSpan={8} className="px-4 py-12 text-center">
                                     <div className="flex flex-col items-center gap-3 opacity-50">
                                         <FileText size={48} className="stroke-1" />
                                         <p>No se encontraron registros con los filtros seleccionados</p>
@@ -169,6 +175,11 @@ export const DetailTable: React.FC<DetailTableProps> = ({
                                     </td>
                                     <td className="px-4 py-3">
                                         {getImportanceBadge(item.importancia)}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${darkMode ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                            {item.estado}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-2">

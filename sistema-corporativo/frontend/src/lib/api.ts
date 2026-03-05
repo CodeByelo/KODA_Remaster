@@ -101,6 +101,7 @@ export interface AnnouncementData {
     description: string;
     status: string;
     urgency: string;
+    color?: string;
 }
 
 export interface SecurityLog {

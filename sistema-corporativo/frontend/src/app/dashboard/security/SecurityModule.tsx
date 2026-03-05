@@ -216,6 +216,9 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const [newModuleName, setNewModuleName] = useState('');
     const [announcementDraft, setAnnouncementDraft] = useState<any>(announcement);
     const [isAnnouncementDirty, setIsAnnouncementDirty] = useState(false);
+    const safeAnnouncementColor = /^#([0-9a-fA-F]{6})$/.test(String(announcementDraft?.color || ''))
+        ? announcementDraft.color
+        : '#dc2626';
 
     useEffect(() => {
         if (!isAnnouncementDirty) {
@@ -498,13 +501,43 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     <option value="Alerta">Alerta</option>
                                                 </select>
                                             </div>
+                                            <div>
+                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Color del Banner</label>
+                                                <div className="flex items-center gap-3">
+                                                    <input
+                                                        type="color"
+                                                        value={safeAnnouncementColor}
+                                                        onChange={(e) => {
+                                                            setIsAnnouncementDirty(true);
+                                                            localStorage.setItem("announcement_editing", "1");
+                                                            setAnnouncementDraft({ ...announcementDraft, color: e.target.value });
+                                                        }}
+                                                        className="h-10 w-14 cursor-pointer rounded border border-slate-600 bg-transparent p-1"
+                                                        aria-label="Color del banner principal"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={safeAnnouncementColor}
+                                                        onChange={(e) => {
+                                                            setIsAnnouncementDirty(true);
+                                                            localStorage.setItem("announcement_editing", "1");
+                                                            setAnnouncementDraft({ ...announcementDraft, color: e.target.value });
+                                                        }}
+                                                        className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
+                                                        placeholder="#dc2626"
+                                                    />
+                                                </div>
+                                                <p className={`mt-2 text-[10px] ${theme.subtext}`}>
+                                                    Este color se aplica al banner del Dashboard para todas las cuentas.
+                                                </p>
+                                            </div>
 
                                             <div className={`p-6 rounded-xl border-2 border-dashed ${darkMode ? 'border-zinc-800 bg-zinc-950/30' : 'border-slate-200 bg-slate-50'}`}>
                                                 <p className={`text-xs font-bold uppercase mb-4 text-center ${theme.subtext}`}>Vista Previa en Vivo</p>
-                                                <div className="space-y-2 opacity-80 scale-90 origin-top">
-                                                    <span className="inline-block px-2 py-0.5 rounded-full bg-red-600 text-white text-[8px] font-bold uppercase">{announcementDraft.badge}</span>
-                                                    <h4 className="font-bold text-sm tracking-tight">{announcementDraft.title}</h4>
-                                                    <p className="text-[10px] line-clamp-2 leading-relaxed">{announcementDraft.description}</p>
+                                                <div className="space-y-2 opacity-80 scale-90 origin-top rounded-lg p-3 text-white" style={{ backgroundImage: `linear-gradient(90deg, ${safeAnnouncementColor}, ${safeAnnouncementColor}CC)` }}>
+                                                    <span className="inline-block px-2 py-0.5 rounded-full text-white text-[8px] font-bold uppercase" style={{ backgroundColor: `${safeAnnouncementColor}CC` }}>{announcementDraft.badge}</span>
+                                                    <h4 className="font-bold text-sm tracking-tight text-white">{announcementDraft.title}</h4>
+                                                    <p className="text-[10px] line-clamp-2 leading-relaxed text-white/90">{announcementDraft.description}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -513,7 +546,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         <button
                                             onClick={async () => {
                                                 try {
-                                                    await saveAnnouncement(announcementDraft);
+                                                    await saveAnnouncement({ ...announcementDraft, color: safeAnnouncementColor });
                                                     const latest = await getAnnouncement();
                                                     setAnnouncement(latest);
                                                     setAnnouncementDraft(latest);

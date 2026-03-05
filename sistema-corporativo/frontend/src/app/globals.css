@@ -27,7 +27,9 @@ body {
 
 /* Readability tuning (global) */
 html {
-  font-size: 16px;
+  font-size: clamp(15px, 0.35vw + 13px, 17px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .text-\[9px\] {

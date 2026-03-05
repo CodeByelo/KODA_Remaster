@@ -49,8 +49,8 @@ export default function BotButton({ onOpenChat }) {
                 </div>
 
                 {/* Placa de identificación - AHORA AFUERA */}
-                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-16 h-4 bg-gray-900/90 border border-red-500/50 rounded-full flex items-center justify-center pt-0.5">
-                    <span className="text-[9px] font-bold text-white tracking-wider">CORPOELEC</span>
+                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 min-w-[112px] h-7 px-3 bg-gray-900/95 border border-red-500/60 rounded-full flex items-center justify-center">
+                    <span className="text-[11px] leading-none font-bold text-white tracking-wide whitespace-nowrap">CORPOELEC</span>
                 </div>
 
                 {/* Indicador de estado (parpadea cuando está listo) */}
