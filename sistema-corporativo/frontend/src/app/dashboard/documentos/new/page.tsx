@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Save } from 'lucide-react';
 import { getAllUsers, getGerencias, uploadDocumento } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
+import { uiAlert } from '../../../../lib/ui-dialog';
 
 type SendMode = 'user' | 'dept';
 
@@ -67,7 +68,7 @@ export default function NewDocumentoPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== 'application/pdf') {
-      window.alert('Solo se permiten archivos PDF.');
+      void uiAlert('Solo se permiten archivos PDF.', 'Adjuntos');
       return;
     }
     setSelectedFiles((prev) => [...prev, file]);
@@ -78,7 +79,7 @@ export default function NewDocumentoPage() {
     e.preventDefault();
     const recipients = sendMode === 'dept' ? targetDeptIds : targetUserIds;
     if (recipients.length === 0) {
-      window.alert('Selecciona al menos un destinatario.');
+      void uiAlert('Selecciona al menos un destinatario.', 'Mensajeria');
       return;
     }
 
@@ -109,11 +110,11 @@ export default function NewDocumentoPage() {
       });
 
       await Promise.all(uploads);
-      window.alert('Mensaje enviado correctamente.');
+      void uiAlert('Mensaje enviado correctamente.', 'Mensajeria');
       router.push('/dashboard');
     } catch (error) {
       console.error('Error enviando documento:', error);
-      window.alert('No se pudo enviar el mensaje.');
+      void uiAlert('No se pudo enviar el mensaje.', 'Mensajeria');
     } finally {
       setLoading(false);
     }

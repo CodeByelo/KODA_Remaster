@@ -2506,7 +2506,12 @@ const ChartsModule: React.FC<{
   const getCurrentDocStatus = (doc: Document) => {
     const raw = normalizeDocStatus(doc.signatureStatus);
     if (raw === "finalizado" || raw === "vencido") return raw;
-    const deadline = parseFlexibleDate(doc.fecha_caducidad);
+    // Alineado con Control de seguimiento: evalua el vencimiento por fecha visible (sin hora).
+    const deadlineDateOnly =
+      doc.fecha_caducidad && !Number.isNaN(new Date(doc.fecha_caducidad).getTime())
+        ? new Date(doc.fecha_caducidad).toLocaleDateString("es-ES")
+        : doc.fecha_caducidad;
+    const deadline = parseFlexibleDate(deadlineDateOnly || undefined);
     if (deadline && Date.now() > deadline.getTime()) return "vencido";
     return raw || "en-proceso";
   };

@@ -374,7 +374,12 @@ function normalizeDocStatus(status?: string): string {
 function getDocumentCurrentStatus(doc: Document): string {
     const normalized = normalizeDocStatus(doc.signatureStatus);
     if (normalized === 'finalizado' || normalized === 'vencido') return normalized;
-    const deadline = parseFlexibleDate(doc.fecha_caducidad);
+    // Mantener misma regla de vencimiento usada en Control de seguimiento.
+    const deadlineDateOnly =
+        doc.fecha_caducidad && !Number.isNaN(new Date(doc.fecha_caducidad).getTime())
+            ? new Date(doc.fecha_caducidad).toLocaleDateString('es-ES')
+            : doc.fecha_caducidad;
+    const deadline = parseFlexibleDate(deadlineDateOnly || undefined);
     if (deadline && Date.now() > deadline.getTime()) return 'vencido';
     return normalized;
 }
