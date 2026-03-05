@@ -42,6 +42,31 @@ body {
   font-family: var(--font-body-custom);
 }
 
+/* Readability tuning (global) */
+html {
+  font-size: 17px;
+}
+
+.text-\[9px\] {
+  font-size: 0.78rem !important;
+  line-height: 1.25 !important;
+}
+
+.text-\[10px\] {
+  font-size: 0.82rem !important;
+  line-height: 1.3 !important;
+}
+
+.text-xs {
+  font-size: 0.9rem !important;
+  line-height: 1.35 !important;
+}
+
+.text-sm {
+  font-size: 1rem !important;
+  line-height: 1.45 !important;
+}
+
 h1,
 h2,
 h3,
