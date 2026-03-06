@@ -3716,7 +3716,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
                   <img
-                    src={darkMode ? "/logo-oscuro.png" : "/logo-claro.png"}
+                    src={darkMode ? "/corpoelecblanco.jpeg" : "/Corpoelecoscuro.jpeg"}
                     alt="Corpoelec"
                     className="w-full h-full object-contain"
                     onError={(e) => {
