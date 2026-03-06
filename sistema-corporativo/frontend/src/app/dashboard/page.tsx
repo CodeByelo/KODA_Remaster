@@ -3716,7 +3716,7 @@ export default function Dashboard() {
               <div className="w-full flex items-center justify-center">
                 <div className={`${collapsed ? "w-12 h-12" : "w-full h-24 px-2"} flex items-center justify-center shrink-0`}>
                   <img
-                    src={darkMode ? "/logo sin fondo (2).png" : "/logo sin fondo 22 (1).png"}
+                    src={darkMode ? "/logo_sin_fondo(2).png" : "/logo_sin_fondo22(1).png"}
                     alt="Corpoelec"
                     className={`${collapsed ? "w-full h-full" : "h-full w-auto max-w-full"} object-contain`}
                     onError={(e) => {
