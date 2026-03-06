@@ -3711,9 +3711,9 @@ export default function Dashboard() {
           <div className="flex flex-col h-full">
             {/* HEADER SIDEBAR */}
             <div
-              className={`h-16 flex items-center ${collapsed ? "justify-center" : "px-6"} border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
+              className={`h-16 flex items-center justify-center border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center">
                 <div className="w-8 h-8 flex items-center justify-center shrink-0">
                   <img
                     src={darkMode ? "/corpoelecblanco.jpeg" : "/Corpoelecoscuro.jpeg"}
@@ -3724,20 +3724,6 @@ export default function Dashboard() {
                     }}
                   />
                 </div>
-                {!collapsed && (
-                  <div className="flex flex-col leading-none">
-                    <span
-                      className={`font-bold text-sm tracking-tight ${darkMode ? "text-white" : "text-slate-900"}`}
-                    >
-                      CORPOELEC
-                    </span>
-                    <span
-                      className={`text-[10px] font-medium tracking-wider mt-0.5 ${darkMode ? "text-red-200" : "text-red-700"}`}
-                    >
-                      INDUSTRIAL
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
             {/* NAVIGATION */}
