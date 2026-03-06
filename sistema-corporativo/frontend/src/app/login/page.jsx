@@ -493,12 +493,12 @@ const LoginCorpoelecForm = () => {
           <div className="relative px-8 py-10 text-center auth-divider">
             <div className="flex justify-center mb-4 relative">
               <div
-                className="w-28 h-28 rounded-full bg-white/10 flex items-center justify-center transition-all duration-300 overflow-hidden border-2 border-red-500/30"
+                className="w-36 h-36 rounded-full bg-white/10 flex items-center justify-center transition-all duration-300 overflow-hidden border-2 border-red-500/30"
               >
                 <img
                   src="/logo-rojo.png"
                   alt="Logo"
-                  className="h-20 w-20 rounded-full object-cover"
+                  className="h-full w-full rounded-full object-cover"
                 />
               </div>
             </div>
