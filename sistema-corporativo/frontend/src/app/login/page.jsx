@@ -498,7 +498,7 @@ const LoginCorpoelecForm = () => {
                 <img
                   src="/logo-rojo.png"
                   alt="Logo"
-                  className="h-20 w-20 object-contain"
+                  className="h-20 w-20 rounded-full object-cover"
                 />
               </div>
             </div>
