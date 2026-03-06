@@ -3711,14 +3711,14 @@ export default function Dashboard() {
           <div className="flex flex-col h-full">
             {/* HEADER SIDEBAR */}
             <div
-              className={`${collapsed ? "h-20" : "h-32"} flex items-center justify-center border-b px-2 ${darkMode ? "border-slate-800" : "border-slate-200"}`}
+              className={`${collapsed ? "h-20" : "h-28"} flex items-center justify-center border-b px-3 ${darkMode ? "border-slate-800" : "border-slate-200"}`}
             >
               <div className="flex items-center">
-                <div className={`${collapsed ? "w-12 h-12" : "w-[220px] h-20"} flex items-center justify-center shrink-0`}>
+                <div className={`${collapsed ? "w-12 h-12" : "w-full h-20"} flex items-center justify-center shrink-0`}>
                   <img
-                    src={darkMode ? "/corpoelecblanco.jpeg" : "/Corpoelecoscuro.jpeg"}
+                    src={darkMode ? "/logo sin fondo (2).png" : "/logo sin fondo 22 (1).png"}
                     alt="Corpoelec"
-                    className="w-full h-full object-contain"
+                    className={`${collapsed ? "w-full h-full" : "max-w-[210px] max-h-[72px] w-auto h-auto"} object-contain`}
                     onError={(e) => {
                       e.currentTarget.src = "/logo-rojo.png";
                     }}
