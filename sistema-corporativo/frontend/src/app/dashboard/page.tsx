@@ -3711,10 +3711,10 @@ export default function Dashboard() {
           <div className="flex flex-col h-full">
             {/* HEADER SIDEBAR */}
             <div
-              className={`${collapsed ? "h-20" : "h-28"} flex items-center justify-center border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
+              className={`${collapsed ? "h-20" : "h-32"} flex items-center justify-center border-b px-2 ${darkMode ? "border-slate-800" : "border-slate-200"}`}
             >
               <div className="flex items-center">
-                <div className={`${collapsed ? "w-12 h-12" : "w-20 h-20"} flex items-center justify-center shrink-0`}>
+                <div className={`${collapsed ? "w-12 h-12" : "w-[220px] h-20"} flex items-center justify-center shrink-0`}>
                   <img
                     src={darkMode ? "/corpoelecblanco.jpeg" : "/Corpoelecoscuro.jpeg"}
                     alt="Corpoelec"
