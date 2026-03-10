@@ -12,6 +12,7 @@ const TECH_DEPT = 'Gerencia Nacional de Tecnologias de la Informacion y la Comun
 export default function NewTicketPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -22,6 +23,21 @@ export default function NewTicketPage() {
     if (String(user?.role || '').toLowerCase() === 'usuario') return 'MEDIA';
     return priority;
   }, [priority, user?.role]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedTheme = localStorage.getItem('dashboard_theme_2026');
+      setDarkMode(storedTheme !== 'light');
+    } catch (error) {
+      console.error('No se pudo leer el tema del dashboard:', error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,12 +66,12 @@ export default function NewTicketPage() {
 
   return (
     <RoleGuard allowedRoles={['CEO', 'Administrativo', 'Usuario', 'Desarrollador', 'Gerente']} redirectTo="/login">
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10">
+      <div className={`min-h-screen p-6 md:p-10 ${darkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-slate-50 text-slate-900'}`}>
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.push('/dashboard')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border ${darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-slate-300 hover:bg-slate-100'}`}
             >
               <ArrowLeft size={16} />
               Volver
@@ -66,14 +82,14 @@ export default function NewTicketPage() {
             </h1>
           </div>
 
-          <form onSubmit={submit} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:p-7 space-y-5">
+          <form onSubmit={submit} className={`rounded-2xl border p-5 md:p-7 space-y-5 ${darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-slate-200 bg-white'}`}>
             <div>
               <label className="block mb-1 text-sm font-semibold">Titulo de la Solicitud</label>
               <input
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
 
@@ -84,7 +100,7 @@ export default function NewTicketPage() {
                 rows={6}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
 
@@ -94,7 +110,7 @@ export default function NewTicketPage() {
                 <input
                   value={TECH_DEPT}
                   disabled
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 opacity-80"
+                  className={`w-full px-3 py-2 rounded-lg border opacity-80 ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                 />
               </div>
               <div>
@@ -103,7 +119,7 @@ export default function NewTicketPage() {
                   value={effectivePriority}
                   onChange={(e) => setPriority(e.target.value as 'ALTA' | 'MEDIA' | 'BAJA')}
                   disabled={String(user?.role || '').toLowerCase() === 'usuario'}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                 >
                   <option value="ALTA">Alta</option>
                   <option value="MEDIA">Media</option>
@@ -118,7 +134,7 @@ export default function NewTicketPage() {
                 rows={4}
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
 
@@ -126,7 +142,7 @@ export default function NewTicketPage() {
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
-                className="px-5 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                className={`px-5 py-2 rounded-lg border ${darkMode ? 'border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}
               >
                 Cancelar
               </button>

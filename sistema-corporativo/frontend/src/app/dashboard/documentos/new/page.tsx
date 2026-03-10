@@ -11,6 +11,7 @@ type SendMode = 'user' | 'dept';
 
 export default function NewDocumentoPage() {
   const router = useRouter();
+  const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [gerencias, setGerencias] = useState<any[]>([]);
@@ -37,6 +38,21 @@ export default function NewDocumentoPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedTheme = localStorage.getItem('dashboard_theme_2026');
+      setDarkMode(storedTheme !== 'light');
+    } catch (error) {
+      console.error('No se pudo leer el tema del dashboard:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
 
   const userOptions = useMemo(
     () =>
@@ -135,12 +151,12 @@ export default function NewDocumentoPage() {
 
   return (
     <RoleGuard allowedRoles={['CEO', 'Administrativo', 'Usuario', 'Desarrollador', 'Gerente']} redirectTo="/login">
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6 md:p-10">
+      <div className={`min-h-screen p-6 md:p-10 ${darkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-slate-50 text-slate-900'}`}>
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.push('/dashboard')}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border ${darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-slate-300 hover:bg-slate-100'}`}
             >
               <ArrowLeft size={16} />
               Volver
@@ -151,7 +167,7 @@ export default function NewDocumentoPage() {
             </h1>
           </div>
 
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:p-7 space-y-5">
+          <form onSubmit={handleSubmit} className={`rounded-2xl border p-5 md:p-7 space-y-5 ${darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-slate-200 bg-white'}`}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 type="button"
@@ -159,7 +175,7 @@ export default function NewDocumentoPage() {
                   setSendMode('user');
                   setRecipientSearch('');
                 }}
-                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'user' ? 'bg-red-700 border-red-700 text-white' : 'border-zinc-700 hover:bg-zinc-800'}`}
+                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'user' ? 'bg-red-700 border-red-700 text-white' : darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-slate-300 hover:bg-slate-100'}`}
               >
                 A Usuario
               </button>
@@ -169,7 +185,7 @@ export default function NewDocumentoPage() {
                   setSendMode('dept');
                   setRecipientSearch('');
                 }}
-                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'dept' ? 'bg-red-700 border-red-700 text-white' : 'border-zinc-700 hover:bg-zinc-800'}`}
+                className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'dept' ? 'bg-red-700 border-red-700 text-white' : darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-slate-300 hover:bg-slate-100'}`}
               >
                 A Gerencia
               </button>
@@ -182,7 +198,7 @@ export default function NewDocumentoPage() {
                   value={docName}
                   onChange={(e) => setDocName(e.target.value)}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                 />
               </div>
               <div>
@@ -190,7 +206,7 @@ export default function NewDocumentoPage() {
                 <select
                   value={docCategory}
                   onChange={(e) => setDocCategory(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                 >
                   <option>Informe</option>
                   <option>Memorando</option>
@@ -207,7 +223,7 @@ export default function NewDocumentoPage() {
                 <input
                   value={correlativo}
                   onChange={(e) => setCorrelativo(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                 />
               </div>
               <div>
@@ -216,12 +232,12 @@ export default function NewDocumentoPage() {
                   type="file"
                   accept=".pdf"
                   onChange={handleFileChange}
-                  className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900 file:text-slate-900'}`}
                 />
               </div>
             </div>
 
-            <div className="rounded-lg border border-zinc-800 p-3">
+            <div className={`rounded-lg border p-3 ${darkMode ? 'border-zinc-800' : 'border-slate-200 bg-slate-50'}`}>
               <label className="inline-flex items-center gap-2 text-sm font-semibold">
                 <input type="checkbox" checked={priorityEnabled} onChange={(e) => setPriorityEnabled(e.target.checked)} />
                 Control de seguimiento (prioridad)
@@ -235,7 +251,7 @@ export default function NewDocumentoPage() {
                     min={1}
                     value={priorityDays}
                     onChange={(e) => setPriorityDays(Math.max(1, Number(e.target.value || 1)))}
-                    className="w-full md:w-56 px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                    className={`w-full md:w-56 px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-white border-slate-300 text-slate-900'}`}
                   />
                 </div>
               )}
@@ -246,15 +262,15 @@ export default function NewDocumentoPage() {
                 {sendMode === 'user' ? 'Destinatarios (usuarios)' : 'Destinatarios (gerencias)'}
               </label>
               <div className="relative mb-3">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${darkMode ? 'text-zinc-500' : 'text-slate-500'}`} />
                 <input
                   value={recipientSearch}
                   onChange={(e) => setRecipientSearch(e.target.value)}
                   placeholder={sendMode === 'user' ? 'Buscar usuario o corporativo...' : 'Buscar gerencia...'}
-                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+                  className={`w-full pl-10 pr-3 py-2 rounded-lg border placeholder:text-zinc-500 ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-500'}`}
                 />
               </div>
-              <div className="max-h-56 overflow-y-auto rounded-lg border border-zinc-800 p-3 space-y-2 bg-zinc-950">
+              <div className={`max-h-56 overflow-y-auto rounded-lg border p-3 space-y-2 ${darkMode ? 'border-zinc-800 bg-zinc-950' : 'border-slate-200 bg-slate-50'}`}>
                 {(sendMode === 'user' ? filteredUserOptions : filteredDeptOptions).map((item: any) => (
                   <label key={item.id} className="flex items-center gap-2">
                     <input
@@ -266,7 +282,7 @@ export default function NewDocumentoPage() {
                   </label>
                 ))}
                 {(sendMode === 'user' ? filteredUserOptions : filteredDeptOptions).length === 0 && (
-                  <div className="py-4 text-sm text-zinc-400 italic">
+                  <div className={`py-4 text-sm italic ${darkMode ? 'text-zinc-400' : 'text-slate-500'}`}>
                     No se encontraron destinatarios con ese filtro.
                   </div>
                 )}
@@ -279,7 +295,7 @@ export default function NewDocumentoPage() {
                 rows={6}
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700"
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
 
@@ -287,7 +303,7 @@ export default function NewDocumentoPage() {
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
-                className="px-5 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                className={`px-5 py-2 rounded-lg border ${darkMode ? 'border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}
               >
                 Cancelar
               </button>

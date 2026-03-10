@@ -406,6 +406,7 @@ const SECURITY_LOGS = [
 ];
 
 const MANAGEMENT_DETAILS_STORAGE_KEY = "management_details_custom_2026";
+const DASHBOARD_THEME_STORAGE_KEY = "dashboard_theme_2026";
 
 // ==========================================
 // COMPONENTES REUTILIZABLES (CORPORATE STYLE)
@@ -2294,10 +2295,10 @@ const DocumentManager: React.FC<{
                           {doc.fileUrl ? <FileText size={18} className="text-red-500" /> : <Mail size={18} className="text-blue-500" />}
                         </div>
                         <div className="max-w-[200px] overflow-hidden">
-                          <div className={`text-sm truncate ${isUnread ? "font-bold text-white" : "text-slate-400"}`}>
+                          <div className={`text-sm truncate ${isUnread ? (darkMode ? "font-bold text-white" : "font-bold text-slate-900") : darkMode ? "text-slate-400" : "text-slate-700"}`}>
                             {doc.name}
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate">
+                          <div className={`text-[10px] truncate ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
                             {doc.category}
                           </div>
                         </div>
@@ -2306,32 +2307,32 @@ const DocumentManager: React.FC<{
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs font-mono text-slate-500">
+                    <td className={`px-4 py-3 text-xs font-mono ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
                       {doc.idDoc}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-slate-400">{doc.uploadDate}</div>
-                      <div className="text-[10px] text-slate-600">{doc.uploadTime}</div>
+                      <div className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-700"}`}>{doc.uploadDate}</div>
+                      <div className={`text-[10px] ${darkMode ? "text-slate-600" : "text-slate-500"}`}>{doc.uploadTime}</div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Users size={12} className="text-slate-500" />
-                        <span className="text-xs text-slate-400 truncate max-w-[150px]">
+                        <Users size={12} className={darkMode ? "text-slate-500" : "text-slate-600"} />
+                        <span className={`text-xs truncate max-w-[150px] ${darkMode ? "text-slate-400" : "text-slate-700"}`}>
                           {doc.uploadedBy || "Desconocido"}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                      <div className={`text-[10px] truncate max-w-[160px] ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
                         {doc.remitente_gerencia_nombre || "Sin Gerencia"}
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Building2 size={12} className="text-slate-500" />
-                        <span className="text-xs text-slate-400 truncate max-w-[150px]">
+                        <Building2 size={12} className={darkMode ? "text-slate-500" : "text-slate-600"} />
+                        <span className={`text-xs truncate max-w-[150px] ${darkMode ? "text-slate-400" : "text-slate-700"}`}>
                           {doc.receivedBy !== "Pendiente" ? doc.receivedBy : doc.targetDepartment}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                      <div className={`text-[10px] truncate max-w-[160px] ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
                         {doc.receptor_gerencia_nombre ||
                           doc.receptor_gerencia_nombre_usuario ||
                           doc.targetDepartment ||
@@ -3372,8 +3373,29 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const storedTheme = localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY);
+      if (storedTheme === "light") {
+        setDarkMode(false);
+        return;
+      }
+      if (storedTheme === "dark") {
+        setDarkMode(true);
+      }
+    } catch (error) {
+      console.error("No se pudo leer el tema del dashboard", error);
+    }
+  }, []);
+
+  useEffect(() => {
     if (mounted) {
       document.documentElement.classList.toggle("dark", darkMode);
+      try {
+        localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, darkMode ? "dark" : "light");
+      } catch (error) {
+        console.error("No se pudo persistir el tema del dashboard", error);
+      }
     }
   }, [darkMode, mounted]);
 
