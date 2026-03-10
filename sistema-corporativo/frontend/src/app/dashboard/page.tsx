@@ -1,5 +1,5 @@
 ﻿"use client";
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Home,
   BarChart2,
@@ -2798,6 +2798,44 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [gerencias, setGerencias] = useState<any[]>([]);
+  const seenInboxDocumentIdsRef = useRef<Set<number>>(new Set());
+  const inboxBaselineReadyRef = useRef(false);
+  const canPlayInboxSoundRef = useRef(false);
+  const inboxAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playInboxAlert = useCallback(() => {
+    if (typeof window === "undefined" || !canPlayInboxSoundRef.current) return;
+
+    try {
+      if (!inboxAudioRef.current) {
+        inboxAudioRef.current = new Audio("/notification_message.mp3");
+        inboxAudioRef.current.preload = "auto";
+      }
+
+      inboxAudioRef.current.currentTime = 0;
+      void inboxAudioRef.current.play().catch((error) => {
+        console.error("No se pudo reproducir la alerta de mensaje", error);
+      });
+    } catch (error) {
+      console.error("No se pudo reproducir la alerta de mensaje", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const unlockAudio = () => {
+      canPlayInboxSoundRef.current = true;
+    };
+
+    window.addEventListener("pointerdown", unlockAudio, { passive: true });
+    window.addEventListener("keydown", unlockAudio);
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -2905,11 +2943,30 @@ export default function Dashboard() {
       });
 
       console.log("ðŸ“„ Documentos mapeados:", mappedDocs);
+      const inboxDocs = mappedDocs.filter((doc) => {
+        const isDirectRecipient = !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
+        const isDeptRecipient = !!doc.receptor_gerencia_id && !!user?.gerencia_id && String(doc.receptor_gerencia_id) === String(user.gerencia_id);
+        const isOwnMessage = !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
+        return (isDirectRecipient || isDeptRecipient) && !isOwnMessage;
+      });
+
+      const nextInboxIds = new Set(inboxDocs.map((doc) => Number(doc.id)));
+      const previousInboxIds = seenInboxDocumentIdsRef.current;
+      const hasNewIncomingMessage =
+        inboxBaselineReadyRef.current &&
+        inboxDocs.some((doc) => !previousInboxIds.has(Number(doc.id)));
+
+      seenInboxDocumentIdsRef.current = nextInboxIds;
+      inboxBaselineReadyRef.current = true;
       setDocuments(mappedDocs as any);
+
+      if (hasNewIncomingMessage) {
+        playInboxAlert();
+      }
     } catch (e) {
       console.error("Error fetching documents", e);
     }
-  }, []);
+  }, [playInboxAlert, user?.gerencia_id, user?.id]);
 
   const fetchGerencias = useCallback(async () => {
     try {

@@ -6,11 +6,6 @@ import { X, Send, Loader2, AlertCircle, MessageSquare, Plus, History, Brain, Sav
 import { uiAlert } from '../lib/ui-dialog';
 
 export default function ChatWindow({ isOpen, onClose, userRole }) {
-    const API_URL =
-        process.env.NEXT_PUBLIC_API_URL ||
-        (process.env.NODE_ENV === 'production'
-            ? 'https://corpoelect-backend.onrender.com'
-            : 'http://127.0.0.1:8000');
     const getAuthHeaders = () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('sgd_token') : null;
         return {
@@ -44,9 +39,11 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
             .replace(/\s+/g, ' ')
             .trim();
 
+    const CHAT_API_BASE = '/api/chat';
+
     const syncKnowledgeFromServer = async () => {
         try {
-            const response = await fetch(`${API_URL}/api/chat/knowledge`, {
+            const response = await fetch(`${CHAT_API_BASE}/knowledge`, {
                 cache: 'no-store',
                 headers: getAuthHeaders(),
             });
@@ -175,7 +172,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/chat/knowledge`, {
+            const response = await fetch(`${CHAT_API_BASE}/knowledge`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
@@ -191,14 +188,13 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                 setCustomKnowledge(updatedKnowledge);
                 localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
             } else {
-                const updatedKnowledge = [...customKnowledge, newEntry];
-                setCustomKnowledge(updatedKnowledge);
-                localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
+                const errorText = await response.text().catch(() => '');
+                throw new Error(errorText || 'No se pudo guardar el conocimiento en el servidor');
             }
-        } catch {
-            const updatedKnowledge = [...customKnowledge, newEntry];
-            setCustomKnowledge(updatedKnowledge);
-            localStorage.setItem('bot_knowledge', JSON.stringify(updatedKnowledge));
+        } catch (err) {
+            console.error('Knowledge save failed:', err);
+            void uiAlert('No se pudo guardar el conocimiento del bot en el servidor. El cambio no se persistio.', 'Bot');
+            return;
         }
 
         setTrainQuestion('');
@@ -217,16 +213,21 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
 
     const deleteKnowledge = async (id) => {
         const updated = customKnowledge.filter(k => k.id !== id);
-        setCustomKnowledge(updated);
-        localStorage.setItem('bot_knowledge', JSON.stringify(updated));
         try {
-            await fetch(`${API_URL}/api/chat/knowledge/${id}`, {
+            const response = await fetch(`${CHAT_API_BASE}/knowledge/${id}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
             });
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                throw new Error(errorText || 'No se pudo eliminar el conocimiento');
+            }
+            setCustomKnowledge(updated);
+            localStorage.setItem('bot_knowledge', JSON.stringify(updated));
             await syncKnowledgeFromServer();
-        } catch {
-            // Keep local update when API delete fails.
+        } catch (err) {
+            console.error('Knowledge delete failed:', err);
+            void uiAlert('No se pudo eliminar el conocimiento del bot en el servidor.', 'Bot');
         }
     };
 
@@ -281,7 +282,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-            const response = await fetch(`${API_URL}/api/chat`, {
+            const response = await fetch(CHAT_API_BASE, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ message: input }),
