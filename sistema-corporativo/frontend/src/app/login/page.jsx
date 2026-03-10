@@ -456,7 +456,7 @@ const LoginCorpoelecForm = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-orange-500/10" />
         <div className="relative max-w-md w-full text-center animate-scaleIn">
           <div className="remaster-auth-card auth-glass-card relative rounded-3xl p-12 shadow-2xl">
-            
+
             <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <CheckCircle size={48} className="text-red-400" />
             </div>
@@ -662,7 +662,3 @@ export default function LoginCorpoelec() {
 
   return <LoginCorpoelecForm />;
 }
-
-
-
-
