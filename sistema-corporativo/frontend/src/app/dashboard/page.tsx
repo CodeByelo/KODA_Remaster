@@ -1715,15 +1715,42 @@ const DocumentManager: React.FC<{
       );
       if (!ok) return;
 
-      try {
-        await Promise.all(ids.map((id) => deleteDocumento(id)));
-        setSelectedDocIds((prev) => prev.filter((id) => !ids.includes(id)));
-        await refreshDocs();
-        void uiAlert(`${ids.length} mensaje(s) eliminado(s).`, "Mensajería");
-      } catch (error) {
-        console.error("Error deleting messages:", error);
-        void uiAlert("No se pudieron eliminar todos los mensajes seleccionados.", "Mensajería");
+      const results = await Promise.allSettled(ids.map((id) => deleteDocumento(id)));
+      const succeeded: string[] = [];
+      const failed: { id: string; reason: string }[] = [];
+
+      results.forEach((result, idx) => {
+        const id = ids[idx];
+        if (result.status === "fulfilled") {
+          succeeded.push(id);
+          return;
+        }
+        const reason =
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason || "Error desconocido");
+        failed.push({ id, reason });
+      });
+
+      if (succeeded.length > 0) {
+        setDocuments((prev) =>
+          prev.filter((doc) => !succeeded.includes(String(doc.id))),
+        );
+        setSelectedDocIds((prev) => prev.filter((id) => !succeeded.includes(id)));
       }
+
+      if (failed.length === 0) {
+        await refreshDocs();
+        void uiAlert(`${succeeded.length} mensaje(s) eliminado(s).`, "Mensajeria");
+        return;
+      }
+
+      const firstError = failed[0]?.reason || "No autorizado o ID invalido.";
+      void uiAlert(
+        `Eliminados: ${succeeded.length}. Fallidos: ${failed.length}. Detalle: ${firstError}`,
+        "Mensajeria",
+      );
+      await refreshDocs();
     };
 
     const handleDeleteSelected = async () => {
@@ -1903,9 +1930,24 @@ const DocumentManager: React.FC<{
       }
     };
 
-    const getFileIcon = (type: string) => {
-      // Only PDF icons after hardening
-      return <FileText size={18} className="text-red-500" />;
+    const getDocumentTypeIcon = (category?: string, hasFile?: boolean) => {
+      const normalized = String(category || "").toLowerCase().trim();
+      if (normalized === "informe") {
+        return <FileCheck size={18} className="text-emerald-500" />;
+      }
+      if (normalized === "memorando") {
+        return <FileText size={18} className="text-blue-500" />;
+      }
+      if (normalized === "circular") {
+        return <Flag size={18} className="text-amber-500" />;
+      }
+      if (normalized === "solicitud") {
+        return <Tag size={18} className="text-violet-500" />;
+      }
+      if (hasFile) {
+        return <File size={18} className="text-red-500" />;
+      }
+      return <Mail size={18} className="text-cyan-500" />;
     };
 
     const getSignatureStatus = (status: string | null | undefined) => {
@@ -2416,7 +2458,7 @@ const DocumentManager: React.FC<{
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-3">
                         <div className={`mt-1 p-2 rounded-lg ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
-                          {doc.fileUrl ? <FileText size={18} className="text-red-500" /> : <Mail size={18} className="text-blue-500" />}
+                          {getDocumentTypeIcon(doc.category, !!doc.fileUrl)}
                         </div>
                         <div className="max-w-[200px] overflow-hidden">
                           <div className={`text-sm truncate ${isUnread ? (darkMode ? "font-bold text-white" : "font-bold text-slate-900") : darkMode ? "text-slate-400" : "text-slate-700"}`}>
