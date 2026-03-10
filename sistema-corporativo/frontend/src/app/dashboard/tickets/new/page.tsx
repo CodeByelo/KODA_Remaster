@@ -7,7 +7,7 @@ import { createTicket } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
 
-const TECH_DEPT = 'Gerencia Nacional de Tecnologias de la Informacion y la Comunicacion';
+const TECH_DEPT = 'Gerencia Nacional de Tecnologías de la Información y la Comunicación';
 
 export default function NewTicketPage() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function NewTicketPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      window.alert('Titulo y descripcion son obligatorios.');
+      window.alert('Título y descripción son obligatorios.');
       return;
     }
 
@@ -84,7 +84,7 @@ export default function NewTicketPage() {
 
           <form onSubmit={submit} className={`rounded-2xl border p-5 md:p-7 space-y-5 ${darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-slate-200 bg-white'}`}>
             <div>
-              <label className="block mb-1 text-sm font-semibold">Titulo de la Solicitud</label>
+              <label className="block mb-1 text-sm font-semibold">Título de la Solicitud</label>
               <input
                 required
                 value={title}
@@ -94,7 +94,7 @@ export default function NewTicketPage() {
             </div>
 
             <div>
-              <label className="block mb-1 text-sm font-semibold">Descripcion Detallada</label>
+              <label className="block mb-1 text-sm font-semibold">Descripción Detallada</label>
               <textarea
                 required
                 rows={6}
@@ -106,7 +106,7 @@ export default function NewTicketPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1 text-sm font-semibold">Area Destino</label>
+                <label className="block mb-1 text-sm font-semibold">Área Destino</label>
                 <input
                   value={TECH_DEPT}
                   disabled

@@ -180,7 +180,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 
     const handleExport = () => {
         if (activeTab === 'docLogs') {
-            const headers = ['Tipo', 'ID', 'Titulo', 'Fecha', 'Hora', 'Enviado Por', 'Recibido Por'];
+            const headers = ['Tipo', 'ID', 'Título', 'Fecha', 'Hora', 'Enviado Por', 'Recibido Por'];
             const csvRows = [
                 headers.join(','),
                 ...documents.map(l => [l.category, l.idDoc, l.name, l.uploadDate, l.uploadTime, l.uploadedBy, l.receivedBy].join(','))
@@ -441,7 +441,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 />
                                             </div>
                                             <div>
-                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Titulo del Anuncio</label>
+                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Título del Anuncio</label>
                                                 <input
                                                     type="text"
                                                     value={announcementDraft.title}
@@ -454,7 +454,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 />
                                             </div>
                                             <div>
-                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Contenido / Descripcion</label>
+                                                <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Contenido / Descripción</label>
                                                 <textarea
                                                     rows={4}
                                                     value={announcementDraft.description}

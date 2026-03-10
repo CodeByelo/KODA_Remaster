@@ -108,7 +108,7 @@ export default function NewDocumentoPage() {
     e.preventDefault();
     const recipients = sendMode === 'dept' ? targetDeptIds : targetUserIds;
     if (recipients.length === 0) {
-      void uiAlert('Selecciona al menos un destinatario.', 'Mensajeria');
+      void uiAlert('Selecciona al menos un destinatario.', 'Mensajería');
       return;
     }
 
@@ -139,11 +139,11 @@ export default function NewDocumentoPage() {
       });
 
       await Promise.all(uploads);
-      void uiAlert('Mensaje enviado correctamente.', 'Mensajeria');
+      void uiAlert('Mensaje enviado correctamente.', 'Mensajería');
       router.push('/dashboard');
     } catch (error) {
       console.error('Error enviando documento:', error);
-      void uiAlert('No se pudo enviar el mensaje.', 'Mensajeria');
+      void uiAlert('No se pudo enviar el mensaje.', 'Mensajería');
     } finally {
       setLoading(false);
     }
@@ -245,7 +245,7 @@ export default function NewDocumentoPage() {
 
               {priorityEnabled && (
                 <div className="mt-3">
-                  <label className="block mb-1 text-sm">Tiempo maximo (dias)</label>
+                  <label className="block mb-1 text-sm">Tiempo máximo (días)</label>
                   <input
                     type="number"
                     min={1}
@@ -290,7 +290,7 @@ export default function NewDocumentoPage() {
             </div>
 
             <div>
-              <label className="block mb-1 text-sm font-semibold">Mensaje / contenido</label>
+              <label className="block mb-1 text-sm font-semibold">Mensaje / Contenido</label>
               <textarea
                 rows={6}
                 value={messageContent}

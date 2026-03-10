@@ -85,6 +85,10 @@ export function filterByDepartment(
             .trim();
     const target = norm(department);
 
+    if (target === 'todas las gerencias' || target === 'all' || !target) {
+        return { documents, tickets };
+    }
+
     const filteredDocs = documents.filter((doc) => {
         const deptCandidates = [
             doc.department,
@@ -373,14 +377,20 @@ function normalizeDocStatus(status?: string): string {
 
 function getDocumentCurrentStatus(doc: Document): string {
     const normalized = normalizeDocStatus(doc.signatureStatus);
-    if (normalized === 'finalizado' || normalized === 'vencido') return normalized;
-    // Mantener misma regla de vencimiento usada en Control de seguimiento.
-    const deadlineDateOnly =
-        doc.fecha_caducidad && !Number.isNaN(new Date(doc.fecha_caducidad).getTime())
-            ? new Date(doc.fecha_caducidad).toLocaleDateString('es-ES')
-            : doc.fecha_caducidad;
-    const deadline = parseFlexibleDate(deadlineDateOnly || undefined);
-    if (deadline && Date.now() > deadline.getTime()) return 'vencido';
+    if (normalized === 'finalizado') return normalized;
+    if (normalized === 'vencido') return 'vencido';
+
+    // Comparar fecha de caducidad con el día de HOY al inicio del día
+    const deadline = parseFlexibleDate(doc.fecha_caducidad || undefined);
+    if (deadline) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const deadlineDate = new Date(deadline);
+        deadlineDate.setHours(0, 0, 0, 0);
+        
+        if (today.getTime() > deadlineDate.getTime()) return 'vencido';
+    }
+    
     return normalized;
 }
 

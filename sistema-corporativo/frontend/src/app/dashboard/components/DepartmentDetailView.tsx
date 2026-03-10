@@ -56,7 +56,7 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
     const CartesianGridCompat = CartesianGrid as unknown as React.ComponentType<any>;
     // Estados de Filtros
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState<{ start: Date; end: Date } | null>(null);
+    const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
     // Estado de Tabla
     const [sortField, setSortField] = useState<SortField>('fechaHora');
@@ -69,9 +69,6 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
     const [historyLoading, setHistoryLoading] = useState(false);
     const [historyRows, setHistoryRows] = useState<ApiTicketHistoryEvent[]>([]);
     const [historyTicketId, setHistoryTicketId] = useState<number | null>(null);
-
-    // Opciones de fecha (últimos 12 meses)
-    const monthOptions = useMemo(() => getLastNMonths(12), []);
 
     // Efecto de carga simulada al cambiar filtros
     useEffect(() => {
@@ -92,19 +89,29 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
         // 1. Filtrar por departamento (siempre activo en esta vista)
         const deptFiltered = filterByDepartment(documents, tickets, departmentName);
 
-        // 2. Filtrar por fecha
+        // 2. Convertir string YYYY-MM a fechas de inicio/fin para el filtro
+        let startDate: Date | null = selectedDate;
+        let endDate: Date | null = selectedDate;
+
+        if (selectedMonth && !selectedDate) {
+            const [y, m] = selectedMonth.split('-').map(Number);
+            startDate = new Date(y, m - 1, 1);
+            endDate = new Date(y, m, 0, 23, 59, 59);
+        }
+
+        // 3. Filtrar por fecha
         const dateFiltered = filterByDateRange(
             deptFiltered.documents,
             deptFiltered.tickets,
-            selectedDate ? selectedDate : (selectedMonth ? selectedMonth.start : null),
-            selectedDate ? selectedDate : (selectedMonth ? selectedMonth.end : null)
+            startDate,
+            endDate
         );
 
-        // 3. Generar datos para gráficos
+        // 4. Generar datos para gráficos
         const importanceData = calculateImportanceDistribution(dateFiltered.documents, dateFiltered.tickets);
         const temporalData = groupByDate(dateFiltered.documents, dateFiltered.tickets);
 
-        // 4. Generar y ordenar datos de tabla
+        // 5. Generar y ordenar datos de tabla
         const rawTableData = combineDocumentsAndTickets(dateFiltered.documents, dateFiltered.tickets);
         const tableData = sortTableData(rawTableData, sortField, sortDirection);
 
@@ -173,7 +180,6 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                 onDateChange={setSelectedDate}
                 selectedMonth={selectedMonth}
                 onMonthChange={setSelectedMonth}
-                months={monthOptions}
             />
 
             {/* Seccion de Gráficos */}
@@ -249,22 +255,40 @@ export const DepartmentDetailView: React.FC<DepartmentDetailViewProps> = ({
                                             <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGridCompat strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                                     <CartesianGridCompat strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} vertical={false} />
                                     <XAxisCompat
                                         dataKey="date"
                                         stroke={darkMode ? '#94a3b8' : '#64748b'}
                                         fontSize={10}
-                                        tickFormatter={(val: string) => val.split('/')[0]} // Mostrar solo día
+                                        label={{ value: "Fechas", position: "insideBottom", offset: -5, fill: darkMode ? '#94a3b8' : '#64748b', fontSize: 10 }}
+                                        tickFormatter={(val: string) => {
+                                            // Si hay más de 10 puntos, mostrar formato corto, sino formato descriptivo
+                                            if (processedData.temporalData.length > 10) return val.split('/')[0];
+                                            return val.split('/').slice(0, 2).join('/'); // DD/MM
+                                        }}
                                     />
-                                    <YAxisCompat stroke={darkMode ? '#94a3b8' : '#64748b'} fontSize={10} />
+                                    <YAxisCompat 
+                                        stroke={darkMode ? '#94a3b8' : '#64748b'} 
+                                        fontSize={10}
+                                        label={{ value: "Volumen", angle: -90, position: "insideLeft", fill: darkMode ? '#94a3b8' : '#64748b', fontSize: 10 }}
+                                    />
                                     <TooltipCompat
                                         contentStyle={{
                                             backgroundColor: darkMode ? '#0f172a' : '#fff',
                                             borderColor: darkMode ? '#1e293b' : '#e2e8f0',
-                                            color: darkMode ? '#f1f5f9' : '#1e293b'
+                                            color: darkMode ? '#f1f5f9' : '#1e293b',
+                                            borderRadius: '8px',
+                                            fontSize: '12px'
                                         }}
+                                        itemStyle={{ padding: '2px 0' }}
                                     />
-                                    <LegendCompat />
+                                    <LegendCompat 
+                                        verticalAlign="top" 
+                                        align="right" 
+                                        height={36} 
+                                        iconType="circle"
+                                        wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
+                                    />
                                     <AreaCompat type="monotone" dataKey="documentos" name="Documentos" stroke="#3b82f6" fillOpacity={1} fill="url(#colorDocs)" />
                                     <AreaCompat type="monotone" dataKey="tickets" name="Tickets" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTickets)" />
                                 </AreaChartCompat>

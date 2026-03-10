@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Home,
@@ -909,9 +909,16 @@ const PriorityMatrix: React.FC<{
       const deadline =
         parseFlexibleDate(item.deadlineRaw || "") ||
         parseFlexibleDate(item.fechaMaximaEntrega || "");
-      // Regla: si ya venció, prevalece estado VENCIDO.
-      if (deadline && Date.now() > deadline.getTime()) return "vencido";
+      
       if (raw === "finalizado") return "finalizado";
+      
+      if (deadline) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dDate = new Date(deadline);
+        dDate.setHours(0, 0, 0, 0);
+        if (today.getTime() > dDate.getTime()) return "vencido";
+      }
       return "en-proceso";
     },
     [],
@@ -1783,7 +1790,7 @@ const DocumentManager: React.FC<{
         setTargetUserIds([]);
         setTargetDeptIds([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        void uiAlert("Mensaje enviado con éxito.", "Mensajeria");
+        void uiAlert("Mensaje enviado con éxito.", "Mensajería");
       } catch (e) {
         console.error("Error sending message:", e);
         void uiAlert("Error al enviar el mensaje.", "Error");
@@ -2510,7 +2517,11 @@ const ChartsModule: React.FC<{
   documents: Document[];
   tickets: Ticket[];
   orgStructure: OrgCategory[];
-}> = ({ darkMode, documents, tickets, orgStructure }) => {
+  userRole: string;
+  userId?: string;
+  userDept?: string;
+  hasPermission: (permission: string) => boolean;
+}> = ({ darkMode, documents, tickets, orgStructure, userRole, userId, userDept, hasPermission }) => {
   const [view, setView] = useState<"overview" | "drilldown">("overview");
   const [selectedDetailDept, setSelectedDetailDept] = useState<string | null>(
     null,
@@ -2542,14 +2553,24 @@ const ChartsModule: React.FC<{
 
   const getCurrentDocStatus = (doc: Document) => {
     const raw = normalizeDocStatus(doc.signatureStatus);
-    if (raw === "finalizado" || raw === "vencido") return raw;
-    // Alineado con Control de seguimiento: evalua el vencimiento por fecha visible (sin hora).
-    const deadlineDateOnly =
-      doc.fecha_caducidad && !Number.isNaN(new Date(doc.fecha_caducidad).getTime())
-        ? new Date(doc.fecha_caducidad).toLocaleDateString("es-ES")
-        : doc.fecha_caducidad;
-    const deadline = parseFlexibleDate(deadlineDateOnly || undefined);
-    if (deadline && Date.now() > deadline.getTime()) return "vencido";
+    if (raw === "finalizado") return raw;
+    
+    // Si ya viene marcado como vencido del backend, respetarlo
+    if (raw === "vencido") return "vencido";
+
+    // Alineado con Control de seguimiento: evalua el vencimiento por fecha visible.
+    const deadline = parseFlexibleDate(doc.fecha_caducidad || undefined);
+    
+    // Comparar con hoy (al final del día para ser justos)
+    if (deadline) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadlineDate = new Date(deadline);
+      deadlineDate.setHours(0, 0, 0, 0);
+      
+      if (today.getTime() > deadlineDate.getTime()) return "vencido";
+    }
+    
     return raw || "en-proceso";
   };
 
@@ -2583,10 +2604,32 @@ const ChartsModule: React.FC<{
     ].filter((d) => d.value > 0);
   }, [documents]);
 
+  const visibleTicketsForDashboard = useMemo(() => {
+    const normalizeText = (value: string) => String(value || "").toLowerCase().trim();
+    const isTechUser = normalizeText(userDept || "").includes("tecnolog");
+    const isAdminUser = normalizeText(userRole || "").includes("admin");
+    const isDevUser =
+      normalizeText(userRole || "").includes("desarrollador") ||
+      normalizeText(userRole || "").includes("dev");
+    const isCeoUser = normalizeText(userRole || "") === "ceo";
+    const canSeeGlobalTickets =
+      isTechUser ||
+      isAdminUser ||
+      isDevUser ||
+      isCeoUser ||
+      hasPermission(PERMISSIONS_MASTER.TICKETS_VIEW_ALL);
+
+    return tickets.filter((ticket) => {
+      if (ticket.status === "ELIMINADO") return false;
+      if (canSeeGlobalTickets) return true;
+      return !!ticket.ownerId && !!userId && String(ticket.ownerId) === String(userId);
+    });
+  }, [hasPermission, tickets, userDept, userId, userRole]);
+
   // Dynamic data for Ticket Priority (Existing chart)
   const ticketPriorityData = useMemo(() => {
     const counts = { ALTA: 0, MEDIA: 0, BAJA: 0 };
-    tickets.forEach((t) => {
+    visibleTicketsForDashboard.forEach((t) => {
       if (counts.hasOwnProperty(t.priority)) {
         counts[t.priority]++;
       }
@@ -2596,7 +2639,7 @@ const ChartsModule: React.FC<{
       { name: "Media", value: counts.MEDIA, color: "#f59e0b" },
       { name: "Baja", value: counts.BAJA, color: "#10b981" },
     ].filter((t) => t.value > 0);
-  }, [tickets]);
+  }, [visibleTicketsForDashboard]);
 
   // Get all departments list (estructura + actividad real)
   const allDepartments = useMemo(() => {
@@ -3244,6 +3287,14 @@ export default function Dashboard() {
     };
   }, [mounted, fetchTickets]);
 
+  // Refetch when switching to important tabs to ensure data is always up to date
+  useEffect(() => {
+    if (mounted && (activeTab === "graficos" || activeTab === "prioridades" || activeTab === "tickets")) {
+      void fetchTickets();
+      void fetchDocuments();
+    }
+  }, [activeTab, mounted, fetchTickets, fetchDocuments]);
+
   // Lifted state for tickets
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
@@ -3664,6 +3715,10 @@ export default function Dashboard() {
             documents={documents}
             tickets={tickets}
             orgStructure={effectiveOrgStructure}
+            userRole={userRole}
+            userId={user?.id ? String(user.id) : undefined}
+            userDept={user?.gerencia_depto || ""}
+            hasPermission={hasPermission}
           />
         ) : (
           <div className="text-center p-20 font-bold text-red-500">
@@ -3924,21 +3979,6 @@ export default function Dashboard() {
                   setActiveTab("overview");
                 }}
               />
-              {canAccessPriorities && (
-                <SidebarItem
-                  icon={Flag}
-                  label="Control de seguimiento"
-                  active={
-                    activeSection === "dashboard" && activeTab === "prioridades"
-                  }
-                  collapsed={collapsed}
-                  darkMode={darkMode}
-                  onClick={() => {
-                    setActiveSection("dashboard");
-                    setActiveTab("prioridades");
-                  }}
-                />
-              )}
               {canAccessTickets && (
                 <SidebarItem
                   icon={Tag}
@@ -3968,18 +4008,18 @@ export default function Dashboard() {
                   setActiveTab("documentos");
                 }}
               />
-              {canAccessSecurity && (
+              {canAccessPriorities && (
                 <SidebarItem
-                  icon={Shield}
-                  label="Módulo de Seguridad"
+                  icon={Flag}
+                  label="Control de seguimiento"
                   active={
-                    activeSection === "dashboard" && activeTab === "seguridad"
+                    activeSection === "dashboard" && activeTab === "prioridades"
                   }
                   collapsed={collapsed}
                   darkMode={darkMode}
                   onClick={() => {
                     setActiveSection("dashboard");
-                    setActiveTab("seguridad");
+                    setActiveTab("prioridades");
                   }}
                 />
               )}
@@ -3993,6 +4033,21 @@ export default function Dashboard() {
                   onClick={() => {
                     setActiveSection("dashboard");
                     setActiveTab("graficos");
+                  }}
+                />
+              )}
+              {canAccessSecurity && (
+                <SidebarItem
+                  icon={Shield}
+                  label="Módulo de Seguridad"
+                  active={
+                    activeSection === "dashboard" && activeTab === "seguridad"
+                  }
+                  collapsed={collapsed}
+                  darkMode={darkMode}
+                  onClick={() => {
+                    setActiveSection("dashboard");
+                    setActiveTab("seguridad");
                   }}
                 />
               )}
