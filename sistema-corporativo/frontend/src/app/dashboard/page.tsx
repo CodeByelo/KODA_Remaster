@@ -3008,7 +3008,7 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [gerencias, setGerencias] = useState<any[]>([]);
-  const previousUnreadIncomingIdsRef = useRef<Set<number>>(new Set());
+  const previousUnreadIncomingIdsRef = useRef<Set<string>>(new Set());
   const inboxBaselineReadyRef = useRef(false);
   const canPlayInboxSoundRef = useRef(false);
   const inboxAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -3237,7 +3237,7 @@ export default function Dashboard() {
       const inboxUnreadDocs = inboxDocs.filter((doc) => !doc.leido);
 
       const currentUnreadIncomingIds = new Set(
-        inboxUnreadDocs.map((doc) => Number(doc.id)),
+        inboxUnreadDocs.map((doc) => String(doc.id)),
       );
       const previousUnreadIncomingIds = previousUnreadIncomingIdsRef.current;
       const hasNewUnreadIncoming = Array.from(currentUnreadIncomingIds).some(
