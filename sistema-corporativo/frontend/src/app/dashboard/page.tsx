@@ -107,6 +107,7 @@ interface SidebarItemProps {
   active: boolean;
   collapsed: boolean;
   darkMode: boolean;
+  badgeCount?: number;
   onClick?: () => void;
 }
 interface DeptCardProps {
@@ -158,6 +159,10 @@ function shiftHexColor(hex: string, amount: number): string {
   const nextG = clamp(g + amount);
   const nextB = clamp(b + amount);
   return `#${nextR.toString(16).padStart(2, "0")}${nextG.toString(16).padStart(2, "0")}${nextB.toString(16).padStart(2, "0")}`;
+}
+
+function capitalizeDateParts(value: string): string {
+  return String(value || "").replace(/\b([a-záéíóúñ])/g, (match) => match.toUpperCase());
 }
 
 // ==========================================
@@ -430,6 +435,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
   active,
   collapsed,
   darkMode,
+  badgeCount = 0,
   onClick,
 }) => (
   <div
@@ -444,7 +450,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     tabIndex={0}
     aria-label={label}
     className={`
-      group glass-hover flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-all duration-200
+      group glass-hover flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-all duration-200 min-w-0 relative
       ${active
         ? darkMode
           ? "bg-red-900/50 text-white shadow-sm border border-red-800/50"
@@ -455,9 +461,39 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       }
     `}
   >
-    <Icon size={18} className={`${active ? "text-white" : ""}`} />
-    {!collapsed && (
-      <span className="font-medium text-sm tracking-tight">{label}</span>
+    <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3 min-w-0 flex-1"}`}>
+      <div className="relative shrink-0">
+        <Icon size={18} className={`${active ? "text-white" : ""}`} />
+        {collapsed && badgeCount > 0 && (
+          <span
+            className={`
+              absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold
+              flex items-center justify-center shadow-sm ring-2
+              ${darkMode
+                ? "bg-amber-400 text-slate-950 ring-slate-900"
+                : "bg-red-600 text-white ring-white"}
+            `}
+          >
+            {badgeCount > 99 ? "99+" : badgeCount}
+          </span>
+        )}
+      </div>
+      {!collapsed && (
+        <span className="font-medium text-sm tracking-tight truncate">{label}</span>
+      )}
+    </div>
+    {!collapsed && badgeCount > 0 && (
+      <span
+        className={`
+          ml-2 shrink-0 min-w-[26px] h-6 px-2 rounded-full text-xs font-bold
+          flex items-center justify-center shadow-sm
+          ${darkMode
+            ? "bg-amber-400/95 text-slate-950"
+            : "bg-red-600 text-white"}
+        `}
+      >
+        {badgeCount > 99 ? "99+" : badgeCount}
+      </span>
     )}
   </div>
 );
@@ -2112,14 +2148,14 @@ const DocumentManager: React.FC<{
           >
             <button
               onClick={() => setDocView("inbox")}
-              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "inbox" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "inbox" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
             >
               <Inbox size={14} />
               BANDEJA DE ENTRADA
             </button>
             <button
               onClick={() => setDocView("sent")}
-              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "sent" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
+              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "sent" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
             >
               <Send size={14} />
               ENVIADOS
@@ -2127,7 +2163,7 @@ const DocumentManager: React.FC<{
             {canUseAuditView && (
               <button
                 onClick={() => setDocView("audit")}
-                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "audit" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "audit" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
               >
                 <Shield size={14} />
                 AUDITAR MENSAJES
@@ -2810,6 +2846,7 @@ export default function Dashboard() {
       if (!inboxAudioRef.current) {
         inboxAudioRef.current = new Audio("/notification_message.mp3");
         inboxAudioRef.current.preload = "auto";
+        inboxAudioRef.current.volume = 1;
       }
 
       inboxAudioRef.current.currentTime = 0;
@@ -2824,7 +2861,24 @@ export default function Dashboard() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const unlockAudio = () => {
+    const unlockAudio = async () => {
+      try {
+        if (!inboxAudioRef.current) {
+          inboxAudioRef.current = new Audio("/notification_message.mp3");
+          inboxAudioRef.current.preload = "auto";
+          inboxAudioRef.current.volume = 1;
+        }
+
+        inboxAudioRef.current.muted = true;
+        inboxAudioRef.current.currentTime = 0;
+        await inboxAudioRef.current.play();
+        inboxAudioRef.current.pause();
+        inboxAudioRef.current.currentTime = 0;
+        inboxAudioRef.current.muted = false;
+      } catch {
+        // El navegador puede bloquear el priming; el siguiente play volvera a intentar.
+      }
+
       canPlayInboxSoundRef.current = true;
     };
 
@@ -2836,6 +2890,24 @@ export default function Dashboard() {
       window.removeEventListener("keydown", unlockAudio);
     };
   }, []);
+
+  const isIncomingDocumentForUser = useCallback((doc: Document) => {
+    const isDirectRecipient =
+      !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
+    const isDeptRecipient =
+      !!doc.receptor_gerencia_id &&
+      !!user?.gerencia_id &&
+      String(doc.receptor_gerencia_id) === String(user.gerencia_id);
+    const isOwnMessage =
+      !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
+
+    return (isDirectRecipient || isDeptRecipient) && !isOwnMessage;
+  }, [user?.gerencia_id, user?.id]);
+
+  const unreadInboxCount = useMemo(
+    () => documents.filter((doc) => isIncomingDocumentForUser(doc) && !doc.leido).length,
+    [documents, isIncomingDocumentForUser],
+  );
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -2879,7 +2951,7 @@ export default function Dashboard() {
           .toLowerCase()
           .trim()
           .replaceAll("_", "-")
-          .replaceAll(" ", "-");
+          .replaceAll(" ", "-") as Document["signatureStatus"];
 
         // URL del archivo
         const fileUrl = d.url_archivo || d.fileUrl
@@ -2906,9 +2978,9 @@ export default function Dashboard() {
           uploadedBy: d.uploadedBy || d.remitente_nombre || "Desconocido",
           receivedBy: d.receptor_nombre || d.receivedBy || "Pendiente",
           // IDs como strings para comparación
-          receptor_id: d.receptor_id ? String(d.receptor_id) : null,
-          receptor_gerencia_id: d.receptor_gerencia_id ? String(d.receptor_gerencia_id) : null,
-          remitente_id: d.remitente_id ? String(d.remitente_id) : null,
+          receptor_id: d.receptor_id ? String(d.receptor_id) : undefined,
+          receptor_gerencia_id: d.receptor_gerencia_id ? Number(d.receptor_gerencia_id) : undefined,
+          remitente_id: d.remitente_id ? String(d.remitente_id) : undefined,
           receptor_gerencia_id_usuario: d.receptor_gerencia_id_usuario
             ? Number(d.receptor_gerencia_id_usuario)
             : undefined,
@@ -2943,12 +3015,7 @@ export default function Dashboard() {
       });
 
       console.log("ðŸ“„ Documentos mapeados:", mappedDocs);
-      const inboxDocs = mappedDocs.filter((doc) => {
-        const isDirectRecipient = !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
-        const isDeptRecipient = !!doc.receptor_gerencia_id && !!user?.gerencia_id && String(doc.receptor_gerencia_id) === String(user.gerencia_id);
-        const isOwnMessage = !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
-        return (isDirectRecipient || isDeptRecipient) && !isOwnMessage;
-      });
+      const inboxDocs = mappedDocs.filter((doc) => isIncomingDocumentForUser(doc));
 
       const nextInboxIds = new Set(inboxDocs.map((doc) => Number(doc.id)));
       const previousInboxIds = seenInboxDocumentIdsRef.current;
@@ -2966,7 +3033,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error("Error fetching documents", e);
     }
-  }, [playInboxAlert, user?.gerencia_id, user?.id]);
+  }, [isIncomingDocumentForUser, playInboxAlert]);
 
   const fetchGerencias = useCallback(async () => {
     try {
@@ -3569,12 +3636,14 @@ export default function Dashboard() {
                 <p
                   className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-700"}`}
                 >
-                  {new Date().toLocaleDateString("es-ES", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {capitalizeDateParts(
+                    new Date().toLocaleDateString("es-ES", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }),
+                  )}
                 </p>
               </div>
               <div
@@ -3836,6 +3905,7 @@ export default function Dashboard() {
                 }
                 collapsed={collapsed}
                 darkMode={darkMode}
+                badgeCount={unreadInboxCount}
                 onClick={() => {
                   setActiveSection("dashboard");
                   setActiveTab("documentos");
@@ -3908,26 +3978,26 @@ export default function Dashboard() {
         </aside>
         {/* MAIN CONTENT */}
         <main
-          className={`transition-all duration-300 ${collapsed ? "ml-16" : "ml-64"} min-h-screen ${theme.bg} flex flex-col`}
+          className={`transition-all duration-300 ${collapsed ? "ml-16" : "ml-64"} min-h-screen min-w-0 ${theme.bg} flex flex-col overflow-x-hidden`}
         >
           {/* TOP HEADER */}
           <header
             className={`
-          remaster-topbar sticky top-0 z-40 h-16 px-6 flex items-center justify-between ${theme.header} border-b shrink-0
+          remaster-topbar sticky top-0 z-40 min-h-16 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3 ${theme.header} border-b shrink-0
         `}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 min-w-0">
               <h2
-                className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-800"}`}
+                className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-800"} truncate`}
               >
                 Sistema de Gestión Documentos{" "}
-                <span className="mx-2 text-slate-500">|</span>{" "}
-                <span className="text-slate-500 font-normal">
+                <span className={`mx-2 ${darkMode ? "text-slate-500" : "text-slate-600"}`}>|</span>{" "}
+                <span className={`font-normal ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
                   Alfa 2026 V-1.0
                 </span>
               </h2>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
               <ThemeToggle
                 darkMode={darkMode}
                 onToggle={() => setDarkMode(!darkMode)}
@@ -3957,7 +4027,7 @@ export default function Dashboard() {
                       </span>
                     )}
                     <p
-                      className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-500"}`}
+                      className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-700"}`}
                     >
                       {userRole.toUpperCase()}
                     </p>
@@ -3999,7 +4069,7 @@ export default function Dashboard() {
             </div>
           </header>
           {/* WORKSPACE */}
-          <div className={`remaster-workspace p-6 md:p-8 w-full max-w-[1600px] mx-auto space-y-8 flex-1 transition-all duration-300 ${isChatOpen ? "xl:pr-[430px]" : ""}`}>
+          <div className={`remaster-workspace px-4 py-6 sm:px-6 md:px-8 w-full max-w-[1600px] mx-auto space-y-8 flex-1 min-w-0 transition-all duration-300 ${isChatOpen ? "2xl:pr-[430px]" : ""}`}>
             {/* BREADCRUMB / TITLE */}
             {/* BREADCRUMB / TITLE - Hidden on overview as it has its own welcome header, and on graficos as it has internal headers */}
             {activeTab !== "overview" &&

@@ -608,6 +608,23 @@ async def _is_privileged_user(conn, current_user: dict) -> bool:
     return rol_id in {1, 2, 4}
 
 
+async def _user_has_permission(conn, current_user: dict, permission: str) -> bool:
+    if _normalize_text(current_user.get("role")) in {"desarrollador", "dev", "developer"}:
+        return True
+
+    user_id = current_user.get("sub")
+    if not user_id or not permission:
+        return False
+
+    perms = await conn.fetchval(
+        "SELECT permisos FROM profiles WHERE id = $1::uuid",
+        user_id,
+    )
+    if not isinstance(perms, list):
+        return False
+    return permission in perms
+
+
 def _normalize_text(value: Optional[str]) -> str:
     if not value:
         return ""
@@ -1951,7 +1968,7 @@ async def save_announcement(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
 ):
-    if not await _is_privileged_user(conn, current_user):
+    if not await _user_has_permission(conn, current_user, "SECURITY_ANNOUNCEMENTS"):
         raise HTTPException(status_code=403, detail="No autorizado para editar anuncios")
 
     await _ensure_announcement_table(conn)

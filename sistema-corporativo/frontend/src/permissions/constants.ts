@@ -80,7 +80,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
 
     SECURITY_VIEW_LOGS: 'Consultar Logs de Auditoría',
     SECURITY_MANAGE_USERS: 'Gestionar Usuarios y Roles',
-    SECURITY_ANNOUNCEMENTS: 'Publicar Anuncios Globales',
+    SECURITY_ANNOUNCEMENTS: 'Ver y actualizar la gestion de anuncios',
 
     // Estructura
     ORG_VIEW_FULL: 'Ver Estructura completa (Nacional)',

@@ -61,8 +61,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   ): string[] => {
     if (role === "Desarrollador") return Object.values(PERMISSIONS_MASTER);
 
-    // Prioridad absoluta: permisos persistidos del backend/usuario.
-    if (basePermissions && basePermissions.length > 0) {
+    // Si el backend devuelve una lista, incluso vacia, esa es la fuente de verdad.
+    if (Array.isArray(basePermissions)) {
       return basePermissions;
     }
 
@@ -84,10 +84,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const buildUserFromBackend = (backendUser: any): User => {
     const role = normalizeRole(String(backendUser.role || "Usuario"));
-    const persistedPerms =
-      backendUser.permissions ||
-      backendUser.permisos ||
-      [];
+    const persistedPerms = Array.isArray(backendUser.permissions)
+      ? backendUser.permissions
+      : Array.isArray(backendUser.permisos)
+        ? backendUser.permisos
+        : undefined;
     return {
       id: String(backendUser.id),
       username: backendUser.username,

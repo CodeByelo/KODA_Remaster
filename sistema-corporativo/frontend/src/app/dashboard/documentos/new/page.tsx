@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Mail, Save } from 'lucide-react';
+import { ArrowLeft, Mail, Save, Search } from 'lucide-react';
 import { getAllUsers, getGerencias, uploadDocumento } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { uiAlert } from '../../../../lib/ui-dialog';
@@ -24,6 +24,7 @@ export default function NewDocumentoPage() {
   const [priorityDays, setPriorityDays] = useState(3);
   const [targetUserIds, setTargetUserIds] = useState<string[]>([]);
   const [targetDeptIds, setTargetDeptIds] = useState<string[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -55,6 +56,18 @@ export default function NewDocumentoPage() {
         .filter((g) => g.id && g.nombre),
     [gerencias],
   );
+
+  const filteredUserOptions = useMemo(() => {
+    const query = recipientSearch.trim().toLowerCase();
+    if (!query) return userOptions;
+    return userOptions.filter((item) => item.label.toLowerCase().includes(query));
+  }, [recipientSearch, userOptions]);
+
+  const filteredDeptOptions = useMemo(() => {
+    const query = recipientSearch.trim().toLowerCase();
+    if (!query) return deptOptions;
+    return deptOptions.filter((item) => item.nombre.toLowerCase().includes(query));
+  }, [recipientSearch, deptOptions]);
 
   const toggleUser = (id: string) => {
     setTargetUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -142,14 +155,20 @@ export default function NewDocumentoPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <button
                 type="button"
-                onClick={() => setSendMode('user')}
+                onClick={() => {
+                  setSendMode('user');
+                  setRecipientSearch('');
+                }}
                 className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'user' ? 'bg-red-700 border-red-700 text-white' : 'border-zinc-700 hover:bg-zinc-800'}`}
               >
                 A Usuario
               </button>
               <button
                 type="button"
-                onClick={() => setSendMode('dept')}
+                onClick={() => {
+                  setSendMode('dept');
+                  setRecipientSearch('');
+                }}
                 className={`py-2.5 rounded-lg font-semibold border ${sendMode === 'dept' ? 'bg-red-700 border-red-700 text-white' : 'border-zinc-700 hover:bg-zinc-800'}`}
               >
                 A Gerencia
@@ -226,8 +245,17 @@ export default function NewDocumentoPage() {
               <label className="block mb-2 text-sm font-semibold">
                 {sendMode === 'user' ? 'Destinatarios (usuarios)' : 'Destinatarios (gerencias)'}
               </label>
+              <div className="relative mb-3">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  placeholder={sendMode === 'user' ? 'Buscar usuario o corporativo...' : 'Buscar gerencia...'}
+                  className="w-full pl-10 pr-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 placeholder:text-zinc-500"
+                />
+              </div>
               <div className="max-h-56 overflow-y-auto rounded-lg border border-zinc-800 p-3 space-y-2 bg-zinc-950">
-                {(sendMode === 'user' ? userOptions : deptOptions).map((item: any) => (
+                {(sendMode === 'user' ? filteredUserOptions : filteredDeptOptions).map((item: any) => (
                   <label key={item.id} className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -237,6 +265,11 @@ export default function NewDocumentoPage() {
                     <span className="text-sm">{item.label || item.nombre}</span>
                   </label>
                 ))}
+                {(sendMode === 'user' ? filteredUserOptions : filteredDeptOptions).length === 0 && (
+                  <div className="py-4 text-sm text-zinc-400 italic">
+                    No se encontraron destinatarios con ese filtro.
+                  </div>
+                )}
               </div>
             </div>
 

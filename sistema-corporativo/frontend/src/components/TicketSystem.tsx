@@ -51,6 +51,23 @@ export default function TicketSystem({
     hasPermission: (permission: string) => boolean;
     refreshTickets?: () => Promise<void> | void;
 }) {
+    const theme = {
+        panel: darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200',
+        panelMuted: darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200',
+        column: darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200',
+        card: darkMode ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/80' : 'bg-white border-slate-200 hover:border-red-200',
+        input: darkMode ? 'bg-slate-950 border-slate-800 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400',
+        text: darkMode ? 'text-white' : 'text-slate-900',
+        subtext: darkMode ? 'text-slate-400' : 'text-slate-600',
+        muted: darkMode ? 'text-slate-500' : 'text-slate-500',
+        icon: darkMode ? 'text-slate-400' : 'text-slate-500',
+        chip: darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-700',
+        empty: darkMode ? 'border-slate-800/20 text-slate-600' : 'border-slate-200 text-slate-500',
+        modalOverlay: 'bg-black/70 backdrop-blur-md',
+        modalClose: darkMode ? 'hover:bg-slate-800/40 text-slate-300' : 'hover:bg-slate-100 text-slate-600',
+        secondaryButton: darkMode ? 'border-slate-800 text-slate-400 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-50',
+    };
+
     const PERMISSIONS_MASTER = {
         TICKETS_CREATE: 'TICKETS_CREATE',
         TICKETS_EDIT: 'TICKETS_EDIT',
@@ -283,20 +300,20 @@ export default function TicketSystem({
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div className="flex flex-wrap gap-2 items-center">
-                    <div className={`flex items-center px-3 py-2 rounded-lg border ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}>
-                        <Search size={16} className="text-slate-500 mr-2" />
+                    <div className={`flex items-center px-3 py-2 rounded-lg border ${theme.panelMuted}`}>
+                        <Search size={16} className={`${theme.icon} mr-2`} />
                         <input
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Buscar por título..."
-                            className="bg-transparent border-none outline-none text-sm w-48 transition-all focus:w-64"
+                            className={`bg-transparent border-none outline-none text-sm w-48 transition-all focus:w-64 ${theme.text}`}
                         />
                     </div>
                     {canSeeGlobalFilters && (
                         <select
                             value={filterArea}
                             onChange={(e) => setFilterArea(e.target.value)}
-                            className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
+                            className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${theme.panelMuted} ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}
                         >
                             <option value="all">Todas las Gerencias</option>
                             {[...allAreas].map(area => (
@@ -307,7 +324,7 @@ export default function TicketSystem({
                     <select
                         value={filterPriority}
                         onChange={(e) => setFilterPriority(e.target.value)}
-                        className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${darkMode ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}
+                        className={`px-3 py-2 rounded-lg border text-sm focus:outline-none ${theme.panelMuted} ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}
                     >
                         <option value="all">Prioridades</option>
                         <option value="ALTA">Alta</option>
@@ -329,13 +346,13 @@ export default function TicketSystem({
                 {(['ABIERTO', 'EN-PROCESO', 'RESUELTO'] as TicketStatus[]).map((status) => (
                     <div
                         key={status}
-                        className={`glass-reflect flex flex-col rounded-xl border shadow-xl ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'}`}
+                        className={`glass-reflect flex flex-col rounded-xl border shadow-xl ${theme.column}`}
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => handleDrop(e, status)}
                     >
                         <div className={`p-4 flex justify-between items-center border-b-2 ${status === 'ABIERTO' ? 'border-blue-500' : status === 'EN-PROCESO' ? 'border-amber-500' : 'border-emerald-500'}`}>
-                            <h2 className="text-xs font-bold uppercase tracking-widest">{status === 'EN-PROCESO' ? 'EN PROCESO' : status}</h2>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${darkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600'}`}>
+                            <h2 className={`text-xs font-bold uppercase tracking-widest ${theme.text}`}>{status === 'EN-PROCESO' ? 'EN PROCESO' : status}</h2>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${theme.chip}`}>
                                 {filteredTickets.filter(t => t.status === status).length}
                             </span>
                         </div>
@@ -346,7 +363,7 @@ export default function TicketSystem({
                                     key={ticket.id}
                                     draggable={hasPermission(PERMISSIONS_MASTER.TICKETS_MOVE_KANBAN) || canOperateTicketFlow}
                                     onDragStart={(e) => handleDragStart(e, ticket.id)}
-                                    className={`group relative p-4 rounded-lg border transition-all cursor-grab active:cursor-grabbing hover:shadow-lg ${darkMode ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/80' : 'bg-white border-slate-200 hover:border-red-200'}`}
+                                    className={`group relative p-4 rounded-lg border transition-all cursor-grab active:cursor-grabbing hover:shadow-lg ${theme.card}`}
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border uppercase ${getPriorityStyles(ticket.priority)}`}>
@@ -355,7 +372,7 @@ export default function TicketSystem({
                                         <div className="relative">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === ticket.id ? null : ticket.id); }}
-                                                className={`p-1 rounded-md transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-500' : 'hover:bg-slate-100 text-slate-400'}`}
+                                                className={`p-1 rounded-md transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-500' : 'hover:bg-slate-100 text-slate-500'}`}
                                             >
                                                 <MoreVertical size={14} />
                                             </button>
@@ -391,14 +408,14 @@ export default function TicketSystem({
                                     <h3 className={`font-semibold text-sm mb-1 leading-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>{ticket.title}</h3>
                                     <p className={`text-xs mb-3 line-clamp-2 ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{ticket.description}</p>
 
-                                    <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-800/30">
-                                        <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-bold font-mono uppercase tracking-tighter w-full overflow-hidden">
-                                            <UsersRound size={11} className="text-slate-400 shrink-0" />
+                                    <div className={`flex flex-wrap gap-2 pt-3 border-t ${darkMode ? 'border-slate-800/30' : 'border-slate-200'}`}>
+                                        <div className={`flex items-center gap-1.5 text-[9px] font-bold font-mono uppercase tracking-tighter w-full overflow-hidden ${theme.muted}`}>
+                                            <UsersRound size={11} className={`${theme.icon} shrink-0`} />
                                             <span className="truncate">SOPORTE TÉCNICO</span>
                                         </div>
                                         <div className="flex items-center gap-3 w-full">
-                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                                                <Clock size={12} className="text-slate-400" />
+                                            <div className={`flex items-center gap-1.5 text-[10px] font-medium ${theme.muted}`}>
+                                                <Clock size={12} className={theme.icon} />
                                                 {ticket.createdAt}
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[10px] text-red-500/70 font-bold uppercase tracking-wider">
@@ -408,19 +425,19 @@ export default function TicketSystem({
                                         </div>
 
                                         {ticket.takenBy && (
-                                            <div className="w-full mt-1 p-2 rounded bg-blue-500/5 border border-blue-500/20">
+                                            <div className={`w-full mt-1 p-2 rounded border ${darkMode ? 'bg-blue-500/5 border-blue-500/20' : 'bg-blue-50 border-blue-200'}`}>
                                                 <p className="text-[10px] text-blue-400/90 font-bold uppercase tracking-wider">
                                                     Técnico asignado: {ticket.takenBy}
                                                 </p>
                                                 {ticket.takenAt && (
-                                                    <p className="text-[10px] text-slate-500">Tomado: {ticket.takenAt}</p>
+                                                    <p className={`text-[10px] ${theme.muted}`}>Tomado: {ticket.takenAt}</p>
                                                 )}
                                             </div>
                                         )}
 
                                         {ticket.observations && (
-                                            <div className="w-full mt-1 p-2 rounded bg-amber-500/5 border border-amber-500/10">
-                                                <p className="text-[10px] text-amber-500/80 italic leading-tight line-clamp-2">
+                                            <div className={`w-full mt-1 p-2 rounded border ${darkMode ? 'bg-amber-500/5 border-amber-500/10' : 'bg-amber-50 border-amber-200'}`}>
+                                                <p className={`text-[10px] italic leading-tight line-clamp-2 ${darkMode ? 'text-amber-500/80' : 'text-amber-700'}`}>
                                                     Obs: {ticket.observations}
                                                 </p>
                                             </div>
@@ -435,7 +452,7 @@ export default function TicketSystem({
                                     </div>
 
                                     {ticket.status !== 'RESUELTO' && (
-                                        <div className="mt-4 pt-3 border-t border-slate-800/30 flex gap-2">
+                                        <div className={`mt-4 pt-3 border-t flex gap-2 ${darkMode ? 'border-slate-800/30' : 'border-slate-200'}`}>
                                             {ticket.status === 'ABIERTO' && (hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT) || canOperateTicketFlow) && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); updateStatus(ticket.id, 'EN-PROCESO'); }}
@@ -458,8 +475,8 @@ export default function TicketSystem({
                             ))}
 
                             {filteredTickets.filter(t => t.status === status).length === 0 && (
-                                <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-slate-800/20 rounded-xl">
-                                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Sin Tickets</p>
+                                <div className={`h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-xl ${theme.empty}`}>
+                                    <p className={`text-[10px] font-bold uppercase tracking-widest ${theme.muted}`}>Sin Tickets</p>
                                 </div>
                             )}
                         </div>
@@ -468,8 +485,8 @@ export default function TicketSystem({
             </div>
 
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-2 md:p-5 overflow-hidden">
-                    <div className={`glass-reflect w-[min(1400px,98vw)] h-[95vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
+                <div className={`fixed inset-0 z-50 flex items-center justify-center ${theme.modalOverlay} p-2 md:p-5 overflow-hidden`}>
+                    <div className={`glass-reflect w-[min(1400px,98vw)] h-[95vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${theme.panel}`}>
                         <div className={`p-6 border-b flex justify-between items-center ${editingTicket ? 'bg-blue-600' : 'bg-red-600'}`}>
                             <h2 className="text-white font-bold flex items-center gap-2 uppercase tracking-tight">
                                 {editingTicket ? <FileText size={20} /> : <Plus size={20} />}
@@ -480,45 +497,45 @@ export default function TicketSystem({
                         <form onSubmit={handleSaveTicket} className="p-5 md:p-6 overflow-y-auto no-scrollbar">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Título de la Solicitud</label>
+                                <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Título de la Solicitud</label>
                                 <input
                                     required
                                     value={newTitle}
                                     onChange={(e) => setNewTitle(e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
+                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${theme.input}`}
                                 />
                                 </div>
                                 <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Descripción Detallada</label>
+                                <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Descripción Detallada</label>
                                 <textarea
                                     required
                                     rows={5}
                                     value={newDesc}
                                     onChange={(e) => setNewDesc(e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
+                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${theme.input}`}
                                 />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Area Destino</label>
+                                    <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Area Destino</label>
                                     <select
                                         disabled
                                         value={newArea}
                                         onChange={(e) => setNewArea(e.target.value)}
-                                        className={`w-full px-4 py-3 rounded-lg border outline-none cursor-not-allowed opacity-70 grayscale-[0.5] ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
+                                        className={`w-full px-4 py-3 rounded-lg border outline-none cursor-not-allowed opacity-70 grayscale-[0.5] ${theme.input}`}
                                     >
                                         <option value={TECH_DEPT}>{TECH_DEPT}</option>
                                     </select>
-                                    <p className="text-[9px] text-slate-500 mt-1 uppercase font-bold">
+                                    <p className={`text-[9px] mt-1 uppercase font-bold ${theme.muted}`}>
                                         Todos los tickets se enrutan a Soporte Técnico
                                     </p>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Prioridad</label>
+                                    <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Prioridad</label>
                                     <select
                                         disabled={!hasPermission(PERMISSIONS_MASTER.TICKETS_EDIT) && !editingTicket}
                                         value={newPriority}
                                         onChange={(e) => setNewPriority(e.target.value as TicketPriority)}
-                                        className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
+                                        className={`w-full px-4 py-3 rounded-lg border outline-none ${theme.input}`}
                                     >
                                         <option value="ALTA">Alta</option>
                                         <option value="MEDIA">Media</option>
@@ -526,23 +543,23 @@ export default function TicketSystem({
                                     </select>
                                 </div>
                                 <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 tracking-wider">Observaciones (Soporte Técnico)</label>
+                                <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Observaciones (Soporte Técnico)</label>
                                 <textarea
                                     rows={4}
                                     value={newObservations}
                                     onChange={(e) => setNewObservations(e.target.value)}
                                     disabled={!canOperateTicketFlow}
-                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'}`}
+                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${theme.input}`}
                                 />
                                 {!canOperateTicketFlow && (
-                                    <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold">
+                                    <p className={`text-[10px] mt-1 uppercase font-bold ${theme.muted}`}>
                                         Solo Tecnología, Administración o Desarrollo pueden registrar observaciones
                                     </p>
                                 )}
                                 </div>
                             </div>
                             <div className="flex gap-3 pt-6 sticky bottom-0 bg-inherit">
-                                <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 rounded-lg font-bold text-xs tracking-widest border ${darkMode ? 'border-slate-800 text-slate-400 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                                <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 rounded-lg font-bold text-xs tracking-widest border ${theme.secondaryButton}`}>
                                     CANCELAR
                                 </button>
                                 <button type="submit" className={`flex-1 py-3 rounded-lg font-bold text-xs tracking-widest text-white ${editingTicket ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>
@@ -555,23 +572,23 @@ export default function TicketSystem({
             )}
 
             {showHistoryModal && (
-                <div className="fixed inset-0 z-[70] flex items-start md:items-center justify-center bg-black/70 backdrop-blur-md p-3 md:p-4 overflow-hidden">
-                    <div className={`glass-reflect w-full max-w-3xl max-h-[92vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-                        <div className="p-4 border-b flex items-center justify-between">
-                            <div className="flex items-center gap-2 font-bold">
+                <div className={`fixed inset-0 z-[70] flex items-start md:items-center justify-center ${theme.modalOverlay} p-3 md:p-4 overflow-hidden`}>
+                    <div className={`glass-reflect w-full max-w-3xl max-h-[92vh] rounded-2xl border shadow-2xl overflow-hidden flex flex-col ${theme.panel}`}>
+                        <div className={`p-4 border-b flex items-center justify-between ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                            <div className={`flex items-center gap-2 font-bold ${theme.text}`}>
                                 <History size={18} />
                                 HISTORIAL DE TICKETS
                             </div>
-                            <button onClick={() => setShowHistoryModal(false)} className="p-1 rounded hover:bg-slate-800/40">
+                            <button onClick={() => setShowHistoryModal(false)} className={`p-1 rounded ${theme.modalClose}`}>
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="p-4 border-b flex gap-2">
+                        <div className={`p-4 border-b flex gap-2 ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                             <input
                                 value={historyQuery}
                                 onChange={(e) => setHistoryQuery(e.target.value)}
                                 placeholder="Buscar por ID o título..."
-                                className={`flex-1 px-3 py-2 rounded-lg border text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
+                                className={`flex-1 px-3 py-2 rounded-lg border text-sm outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-900'}`}
                             />
                             <button
                                 onClick={() => openTicketHistory(undefined)}
@@ -582,28 +599,28 @@ export default function TicketSystem({
                         </div>
                         <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
                             {historyLoading ? (
-                                <div className="p-6 text-sm text-slate-500">Cargando historial...</div>
+                                <div className={`p-6 text-sm ${theme.muted}`}>Cargando historial...</div>
                             ) : historyRows.length === 0 ? (
-                                <div className="p-6 text-sm text-slate-500">Sin registros para mostrar.</div>
+                                <div className={`p-6 text-sm ${theme.muted}`}>Sin registros para mostrar.</div>
                             ) : (
                                 <table className="w-full text-sm">
                                     <thead className={`${darkMode ? 'bg-slate-950/60' : 'bg-slate-50'}`}>
                                         <tr>
-                                            <th className="px-3 py-2 text-left">Ticket</th>
-                                            <th className="px-3 py-2 text-left">Acción</th>
-                                            <th className="px-3 py-2 text-left">Actor</th>
-                                            <th className="px-3 py-2 text-left">Detalle</th>
-                                            <th className="px-3 py-2 text-left">Fecha</th>
+                                            <th className={`px-3 py-2 text-left ${theme.muted}`}>Ticket</th>
+                                            <th className={`px-3 py-2 text-left ${theme.muted}`}>Acción</th>
+                                            <th className={`px-3 py-2 text-left ${theme.muted}`}>Actor</th>
+                                            <th className={`px-3 py-2 text-left ${theme.muted}`}>Detalle</th>
+                                            <th className={`px-3 py-2 text-left ${theme.muted}`}>Fecha</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {historyRows.map((row) => (
                                             <tr key={row.id} className={`border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                                                <td className="px-3 py-2">#{row.ticket_id}</td>
-                                                <td className="px-3 py-2">{row.action}</td>
-                                                <td className="px-3 py-2">{row.actor_username || 'sistema'}</td>
-                                                <td className="px-3 py-2">{row.details || row.observaciones || '-'}</td>
-                                                <td className="px-3 py-2">{new Date(row.created_at).toLocaleString('es-ES')}</td>
+                                                <td className={`px-3 py-2 ${theme.text}`}>#{row.ticket_id}</td>
+                                                <td className={`px-3 py-2 ${theme.text}`}>{row.action}</td>
+                                                <td className={`px-3 py-2 ${theme.text}`}>{row.actor_username || 'sistema'}</td>
+                                                <td className={`px-3 py-2 ${theme.text}`}>{row.details || row.observaciones || '-'}</td>
+                                                <td className={`px-3 py-2 ${theme.text}`}>{new Date(row.created_at).toLocaleString('es-ES')}</td>
                                             </tr>
                                         ))}
                                     </tbody>

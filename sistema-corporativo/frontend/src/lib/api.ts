@@ -146,6 +146,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export async function getDocumentos(): Promise<ApiDocument[]> {
     const res = await fetch(`${BASE_URL}/documentos`, {
         headers: getAuthHeaders(),
+        cache: "no-store",
     });
     return handleResponse<ApiDocument[]>(res);
 }

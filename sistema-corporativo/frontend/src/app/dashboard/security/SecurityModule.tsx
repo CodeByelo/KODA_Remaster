@@ -355,7 +355,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_VIEW_LOGS) && (
                         <button
                             onClick={() => setActiveTab('docLogs')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'docLogs' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'docLogs' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
                         >
                             LOGS DE DOCUMENTOS
                         </button>
@@ -363,7 +363,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_ANNOUNCEMENTS) && (
                         <button
                             onClick={() => setActiveTab('anuncios')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'anuncios' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'anuncios' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
                         >
                             GESTION DE ANUNCIOS
                         </button>
@@ -371,7 +371,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_VIEW_LOGS) && (
                         <button
                             onClick={() => setActiveTab('logs')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'logs' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'logs' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
                         >
                             HISTORIAL DE ACCESOS
                         </button>
@@ -379,7 +379,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_MANAGE_USERS) && (
                         <button
                             onClick={() => setActiveTab('users')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
                         >
                             GESTION DE USUARIOS
                         </button>
@@ -387,7 +387,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
                         <button
                             onClick={() => setActiveTab('orgMgmt')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'orgMgmt' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'orgMgmt' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
                         >
                             ESTRUCTURA ORGANIZATIVA
                         </button>
