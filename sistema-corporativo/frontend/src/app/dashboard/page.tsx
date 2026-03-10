@@ -2401,24 +2401,24 @@ const DocumentManager: React.FC<{
         {/* Modal de Lectura de Mensaje */}
         {showViewModal && selectedDoc && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in zoom-in duration-200">
-            <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white"}`}>
-              <div className="p-6 border-b flex justify-between items-center bg-slate-950/50">
+            <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+              <div className={`p-6 border-b flex justify-between items-center ${darkMode ? "bg-slate-950/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-red-700 flex items-center justify-center text-white font-bold">
                     {selectedDoc.uploadedBy?.[0] || "?"}
                   </div>
                   <div>
-                    <h2 className="font-bold text-white text-lg leading-tight">{selectedDoc.name}</h2>
-                    <p className="text-xs text-slate-500">De: {selectedDoc.uploadedBy} - {selectedDoc.uploadDate} {selectedDoc.uploadTime}</p>
+                    <h2 className={`font-bold text-lg leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>{selectedDoc.name}</h2>
+                    <p className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-700"}`}>De: {selectedDoc.uploadedBy} - {selectedDoc.uploadDate} {selectedDoc.uploadTime}</p>
                   </div>
                 </div>
-                <button onClick={() => setShowViewModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                <button onClick={() => setShowViewModal(false)} className={`transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"}`}>
                   <X size={24} />
                 </button>
               </div>
               <div className="p-8 space-y-6">
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
                     <Mail size={12} />
                     CONTENIDO DEL MENSAJE
                   </div>
@@ -2429,7 +2429,7 @@ const DocumentManager: React.FC<{
 
                 {((selectedDoc.archivos && selectedDoc.archivos.length > 0) || selectedDoc.fileUrl) && (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
                       <FileText size={12} />
                       ADJUNTOS ({selectedDoc.archivos?.length || (selectedDoc.fileUrl ? 1 : 0)})
                     </div>
@@ -2479,10 +2479,10 @@ const DocumentManager: React.FC<{
                   </div>
                 )}
               </div>
-              <div className="p-6 border-t bg-slate-950/20 flex justify-end gap-3">
+              <div className={`p-6 border-t flex justify-end gap-3 ${darkMode ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className={`px-6 py-2.5 rounded-lg text-xs font-bold transition-all ${darkMode ? "bg-slate-800 text-slate-400 hover:bg-slate-700" : "bg-slate-200 text-slate-600 hover:bg-slate-300"}`}
+                  className={`px-6 py-2.5 rounded-lg text-xs font-bold transition-all ${darkMode ? "bg-slate-800 text-slate-400 hover:bg-slate-700" : "bg-slate-200 text-slate-800 hover:bg-slate-300"}`}
                 >
                   CERRAR
                 </button>
@@ -2839,9 +2839,10 @@ export default function Dashboard() {
   const inboxBaselineReadyRef = useRef(false);
   const canPlayInboxSoundRef = useRef(false);
   const inboxAudioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingInboxAlertRef = useRef(false);
 
   const playInboxAlert = useCallback(() => {
-    if (typeof window === "undefined" || !canPlayInboxSoundRef.current) return;
+    if (typeof window === "undefined") return;
 
     try {
       if (!inboxAudioRef.current) {
@@ -2852,9 +2853,14 @@ export default function Dashboard() {
 
       inboxAudioRef.current.currentTime = 0;
       void inboxAudioRef.current.play().catch((error) => {
+        pendingInboxAlertRef.current = true;
+        canPlayInboxSoundRef.current = false;
         console.error("No se pudo reproducir la alerta de mensaje", error);
       });
+      pendingInboxAlertRef.current = false;
+      canPlayInboxSoundRef.current = true;
     } catch (error) {
+      pendingInboxAlertRef.current = true;
       console.error("No se pudo reproducir la alerta de mensaje", error);
     }
   }, []);
@@ -2881,6 +2887,16 @@ export default function Dashboard() {
       }
 
       canPlayInboxSoundRef.current = true;
+
+      if (pendingInboxAlertRef.current && inboxAudioRef.current) {
+        try {
+          inboxAudioRef.current.currentTime = 0;
+          await inboxAudioRef.current.play();
+          pendingInboxAlertRef.current = false;
+        } catch (error) {
+          console.error("No se pudo reproducir la alerta pendiente", error);
+        }
+      }
     };
 
     window.addEventListener("pointerdown", unlockAudio, { passive: true });
@@ -2905,9 +2921,28 @@ export default function Dashboard() {
     return (isDirectRecipient || isDeptRecipient) && !isOwnMessage;
   }, [user?.gerencia_id, user?.id]);
 
+  const canSeeDocumentInInbox = useCallback((doc: Document) => {
+    const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
+    if (canViewAll) return true;
+
+    const isDirectRecipient =
+      !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
+    if (isDirectRecipient) return true;
+
+    const isDeptRecipient =
+      !!doc.receptor_gerencia_id &&
+      !!user?.gerencia_id &&
+      String(doc.receptor_gerencia_id) === String(user.gerencia_id);
+    if (isDeptRecipient) return true;
+
+    const docDept = String(doc.targetDepartment || "").toLowerCase().trim();
+    const userDeptLower = String(user?.gerencia_depto || "").toLowerCase().trim();
+    return !!docDept && !!userDeptLower && docDept === userDeptLower;
+  }, [hasPermission, user?.gerencia_depto, user?.gerencia_id, user?.id]);
+
   const unreadInboxCount = useMemo(
-    () => documents.filter((doc) => isIncomingDocumentForUser(doc) && !doc.leido).length,
-    [documents, isIncomingDocumentForUser],
+    () => documents.filter((doc) => canSeeDocumentInInbox(doc) && !doc.leido).length,
+    [canSeeDocumentInInbox, documents],
   );
 
   const fetchDocuments = useCallback(async () => {
