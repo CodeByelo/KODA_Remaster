@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Save } from 'lucide-react';
 import { createTicket } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
+import { uiAlert } from '../../../../lib/ui-dialog';
 
 const TECH_DEPT = 'Gerencia Nacional de Tecnologías de la Información y la Comunicación';
 
@@ -42,7 +43,7 @@ export default function NewTicketPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      window.alert('Título y descripción son obligatorios.');
+      void uiAlert('Título y descripción son obligatorios.', 'Campos Requeridos');
       return;
     }
 
@@ -54,11 +55,11 @@ export default function NewTicketPage() {
         prioridad: effectivePriority.toLowerCase(),
         observaciones: observations.trim(),
       });
-      window.alert('Ticket creado correctamente.');
+      await uiAlert('Ticket creado correctamente.', 'Éxito');
       router.push('/dashboard');
     } catch (error) {
       console.error('Error creando ticket:', error);
-      window.alert('No se pudo crear el ticket.');
+      void uiAlert('No se pudo crear el ticket.', 'Error');
     } finally {
       setLoading(false);
     }

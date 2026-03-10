@@ -2894,14 +2894,19 @@ export default function Dashboard() {
         inboxAudioRef.current.volume = 1;
       }
 
+      // Intentar reproducir
       inboxAudioRef.current.currentTime = 0;
-      void inboxAudioRef.current.play().catch((error) => {
-        pendingInboxAlertRef.current = true;
-        canPlayInboxSoundRef.current = false;
-        console.error("No se pudo reproducir la alerta de mensaje", error);
-      });
+      const playPromise = inboxAudioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error("Audio block prevented playback, will retry on next interaction", error);
+          pendingInboxAlertRef.current = true;
+          canPlayInboxSoundRef.current = false;
+        });
+      }
+      
       pendingInboxAlertRef.current = false;
-      canPlayInboxSoundRef.current = true;
     } catch (error) {
       pendingInboxAlertRef.current = true;
       console.error("No se pudo reproducir la alerta de mensaje", error);
@@ -2912,6 +2917,7 @@ export default function Dashboard() {
     if (typeof window === "undefined") return;
 
     const unlockAudio = async () => {
+      // Si ya está desbloqueado o no hay audio cargado, intentamos cargarlo/primarlo
       try {
         if (!inboxAudioRef.current) {
           inboxAudioRef.current = new Audio("/notification_message.mp3");
@@ -2919,37 +2925,40 @@ export default function Dashboard() {
           inboxAudioRef.current.volume = 1;
         }
 
+        // Prime the audio
         inboxAudioRef.current.muted = true;
-        inboxAudioRef.current.currentTime = 0;
         await inboxAudioRef.current.play();
         inboxAudioRef.current.pause();
         inboxAudioRef.current.currentTime = 0;
         inboxAudioRef.current.muted = false;
-      } catch {
-        // El navegador puede bloquear el priming; el siguiente play volvera a intentar.
-      }
+        
+        canPlayInboxSoundRef.current = true;
+        console.log("Audio system unlocked and ready.");
 
-      canPlayInboxSoundRef.current = true;
-
-      if (pendingInboxAlertRef.current && inboxAudioRef.current) {
-        try {
-          inboxAudioRef.current.currentTime = 0;
-          await inboxAudioRef.current.play();
-          pendingInboxAlertRef.current = false;
-        } catch (error) {
-          console.error("No se pudo reproducir la alerta pendiente", error);
+        // Si había una alerta pendiente, la reproducimos ahora
+        if (pendingInboxAlertRef.current) {
+          playInboxAlert();
         }
+
+        // Una vez desbloqueado, removemos los listeners de priming
+        window.removeEventListener("pointerdown", unlockAudio);
+        window.removeEventListener("keydown", unlockAudio);
+        window.removeEventListener("click", unlockAudio);
+      } catch (e) {
+        // Ignorar errores de priming, reintentará en la próxima interacción
       }
     };
 
     window.addEventListener("pointerdown", unlockAudio, { passive: true });
-    window.addEventListener("keydown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio, { passive: true });
+    window.addEventListener("click", unlockAudio, { passive: true });
 
     return () => {
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);
+      window.removeEventListener("click", unlockAudio);
     };
-  }, []);
+  }, [playInboxAlert]);
 
   const isIncomingDocumentForUser = useCallback((doc: Document) => {
     const isDirectRecipient =
