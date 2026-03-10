@@ -2970,8 +2970,12 @@ export default function Dashboard() {
     const isOwnMessage =
       !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
 
-    return (isDirectRecipient || isDeptRecipient) && !isOwnMessage;
-  }, [user?.gerencia_id, user?.id]);
+    // Para el Dashboard General y Mensajería: Si el usuario tiene permiso para verlo todo (CEO/Admin),
+    // queremos que escuche la alerta de cualquier mensaje que llegue a su entorno (excepto suyos).
+    const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
+
+    return (canViewAll || isDirectRecipient || isDeptRecipient) && !isOwnMessage;
+  }, [hasPermission, user?.gerencia_id, user?.id]);
 
   const canSeeDocumentInInbox = useCallback((doc: Document) => {
     const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
@@ -3107,17 +3111,21 @@ export default function Dashboard() {
 
       const nextInboxIds = new Set(inboxDocs.map((doc) => Number(doc.id)));
       const previousInboxIds = seenInboxDocumentIdsRef.current;
+      
+      const newMessages = inboxDocs.filter(doc => !previousInboxIds.has(Number(doc.id)));
+      
       const hasNewIncomingMessage =
         inboxBaselineReadyRef.current &&
-        inboxDocs.some((doc) => !previousInboxIds.has(Number(doc.id)));
+        newMessages.length > 0;
+
+      if (hasNewIncomingMessage) {
+        console.log("ðŸ”” NUEVA NOTIFICACION: Detectados mensaje(s) nuevo(s):", newMessages);
+        playInboxAlert();
+      }
 
       seenInboxDocumentIdsRef.current = nextInboxIds;
       inboxBaselineReadyRef.current = true;
       setDocuments(mappedDocs as any);
-
-      if (hasNewIncomingMessage) {
-        playInboxAlert();
-      }
     } catch (e) {
       console.error("Error fetching documents", e);
     }
