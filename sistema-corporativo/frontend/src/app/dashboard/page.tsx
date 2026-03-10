@@ -39,6 +39,7 @@ import {
   X,
   AlertOctagon,
   Eye,
+  Trash2,
   Mail,
   Globe,
   Sparkles,
@@ -81,6 +82,7 @@ import {
   getGerencias,
   getTickets,
   markAsRead,
+  deleteDocumento,
   getAnnouncement,
   getOrgStructure,
   getOrgManagementDetails,
@@ -1485,6 +1487,7 @@ const DocumentManager: React.FC<{
     const [messageContent, setMessageContent] = useState("");
     const [showViewModal, setShowViewModal] = useState(false);
     const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+    const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
     const canAccessSecurityModule =
       hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
       userRole === "Administrativo" ||
@@ -1495,6 +1498,7 @@ const DocumentManager: React.FC<{
       userRole === "Administrativo" ||
       userRole === "CEO";
     const canUseAuditView = isManager || isPrivilegedAuditRole;
+    const canBulkDeleteMessages = userRole === "Desarrollador";
 
     // Extract unique departments for filter
     const departments = useMemo(() => {
@@ -1548,6 +1552,10 @@ const DocumentManager: React.FC<{
         setFilterStatus("all");
       }
     }, [docView, filterStatus]);
+
+    useEffect(() => {
+      setSelectedDocIds([]);
+    }, [docView, filterDept, filterStatus, searchTerm]);
 
     useEffect(() => {
       setTargetUserIds([]);
@@ -1672,6 +1680,60 @@ const DocumentManager: React.FC<{
         return false;
       }
     });
+
+    const filteredDocIds = useMemo(
+      () => filteredDocs.map((doc) => String(doc.id)),
+      [filteredDocs],
+    );
+    const filteredDocIdSet = useMemo(() => new Set(filteredDocIds), [filteredDocIds]);
+    useEffect(() => {
+      setSelectedDocIds((prev) => prev.filter((id) => filteredDocIdSet.has(id)));
+    }, [filteredDocIdSet]);
+    const areAllFilteredSelected =
+      filteredDocIds.length > 0 &&
+      filteredDocIds.every((id) => selectedDocIds.includes(id));
+
+    const toggleDocSelection = (docId: string) => {
+      setSelectedDocIds((prev) =>
+        prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
+      );
+    };
+
+    const toggleSelectAllFiltered = () => {
+      if (areAllFilteredSelected) {
+        setSelectedDocIds((prev) => prev.filter((id) => !filteredDocIdSet.has(id)));
+        return;
+      }
+      setSelectedDocIds((prev) => Array.from(new Set([...prev, ...filteredDocIds])));
+    };
+
+    const deleteDocsByIds = async (ids: string[]) => {
+      if (!canBulkDeleteMessages || ids.length === 0) return;
+      const ok = await uiConfirm(
+        `Se eliminarán ${ids.length} mensaje(s) de la vista ${docViewLabel}. Esta acción no se puede deshacer.`,
+        "Eliminar mensajes",
+      );
+      if (!ok) return;
+
+      try {
+        await Promise.all(ids.map((id) => deleteDocumento(id)));
+        setSelectedDocIds((prev) => prev.filter((id) => !ids.includes(id)));
+        await refreshDocs();
+        void uiAlert(`${ids.length} mensaje(s) eliminado(s).`, "Mensajería");
+      } catch (error) {
+        console.error("Error deleting messages:", error);
+        void uiAlert("No se pudieron eliminar todos los mensajes seleccionados.", "Mensajería");
+      }
+    };
+
+    const handleDeleteSelected = async () => {
+      const validSelection = selectedDocIds.filter((id) => filteredDocIdSet.has(id));
+      await deleteDocsByIds(validSelection);
+    };
+
+    const handleDeleteAllFiltered = async () => {
+      await deleteDocsByIds(filteredDocIds);
+    };
 
     const updateDocumentStatus = async (
       id: number,
@@ -2186,6 +2248,32 @@ const DocumentManager: React.FC<{
             )}
           </div>
           <div className="flex gap-2">
+            {canBulkDeleteMessages && (
+              <>
+                <button
+                  onClick={handleDeleteSelected}
+                  disabled={selectedDocIds.filter((id) => filteredDocIdSet.has(id)).length === 0}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${
+                    selectedDocIds.filter((id) => filteredDocIdSet.has(id)).length === 0
+                      ? "bg-slate-500/30 text-slate-400 cursor-not-allowed"
+                      : "bg-red-700 text-white hover:bg-red-800"
+                  }`}
+                >
+                  Eliminar Seleccionados
+                </button>
+                <button
+                  onClick={handleDeleteAllFiltered}
+                  disabled={filteredDocs.length === 0}
+                  className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${
+                    filteredDocs.length === 0
+                      ? "bg-slate-500/30 text-slate-400 cursor-not-allowed"
+                      : "bg-red-900 text-white hover:bg-red-950"
+                  }`}
+                >
+                  Eliminar Todo ({filteredDocs.length})
+                </button>
+              </>
+            )}
             {hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD) && (
               <button
                 onClick={handleUploadClick}
@@ -2268,6 +2356,17 @@ const DocumentManager: React.FC<{
               className={`${darkMode ? "bg-slate-950/50" : "bg-slate-50"} border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
             >
               <tr>
+                {canBulkDeleteMessages && (
+                  <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-slate-500 w-12">
+                    <input
+                      type="checkbox"
+                      checked={areAllFilteredSelected}
+                      onChange={toggleSelectAllFiltered}
+                      className="accent-red-600"
+                      aria-label="Seleccionar todos"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Documento
                 </th>
@@ -2303,6 +2402,17 @@ const DocumentManager: React.FC<{
                     key={doc.id}
                     className={`transition-colors h-14 ${darkMode ? "hover:bg-slate-800/50" : "hover:bg-slate-50"} ${isUnread ? (darkMode ? "bg-blue-900/10" : "bg-blue-50/50") : ""}`}
                   >
+                    {canBulkDeleteMessages && (
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedDocIds.includes(String(doc.id))}
+                          onChange={() => toggleDocSelection(String(doc.id))}
+                          className="accent-red-600"
+                          aria-label={`Seleccionar mensaje ${doc.idDoc || doc.id}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-3">
                         <div className={`mt-1 p-2 rounded-lg ${darkMode ? "bg-slate-800" : "bg-slate-100"}`}>
@@ -2379,6 +2489,19 @@ const DocumentManager: React.FC<{
                             <Download size={16} />
                           </a>
                         )}
+                        {canBulkDeleteMessages && (
+                          <button
+                            onClick={() => deleteDocsByIds([String(doc.id)])}
+                            className={`p-2 rounded-md transition-colors ${
+                              darkMode
+                                ? "hover:bg-red-900/40 text-red-400"
+                                : "hover:bg-red-50 text-red-700"
+                            }`}
+                            title="Eliminar mensaje"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -2388,7 +2511,7 @@ const DocumentManager: React.FC<{
               {/* Mensaje de vacío FUERA del .map() */}
               {filteredDocs.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-slate-500 italic">
+                  <td colSpan={canBulkDeleteMessages ? 8 : 7} className="p-10 text-center text-slate-500 italic">
                     No se encontraron documentos
                   </td>
                 </tr>
@@ -2885,8 +3008,7 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [gerencias, setGerencias] = useState<any[]>([]);
-  const seenInboxDocumentIdsRef = useRef<Set<number>>(new Set());
-  const alertedInboxUnreadIdsRef = useRef<Set<number>>(new Set());
+  const previousUnreadIncomingIdsRef = useRef<Set<number>>(new Set());
   const inboxBaselineReadyRef = useRef(false);
   const canPlayInboxSoundRef = useRef(false);
   const inboxAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2978,12 +3100,8 @@ export default function Dashboard() {
     const isOwnMessage =
       !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
 
-    // Para el Dashboard General y Mensajería: Si el usuario tiene permiso para verlo todo (CEO/Admin),
-    // queremos que escuche la alerta de cualquier mensaje que llegue a su entorno (excepto suyos).
-    const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
-
-    return (canViewAll || isDirectRecipient || isDeptRecipient) && !isOwnMessage;
-  }, [hasPermission, user?.gerencia_id, user?.id]);
+    return (isDirectRecipient || isDeptRecipient) && !isOwnMessage;
+  }, [user?.gerencia_id, user?.id]);
 
   const canSeeDocumentInInbox = useCallback((doc: Document) => {
     const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
@@ -3118,26 +3236,19 @@ export default function Dashboard() {
       const inboxDocs = mappedDocs.filter((doc) => isIncomingDocumentForUser(doc));
       const inboxUnreadDocs = inboxDocs.filter((doc) => !doc.leido);
 
-      const nextInboxIds = new Set(inboxDocs.map((doc) => Number(doc.id)));
-      const previousInboxIds = seenInboxDocumentIdsRef.current;
-      
-      const newUnreadMessages = inboxUnreadDocs.filter(
-        (doc) =>
-          !previousInboxIds.has(Number(doc.id)) &&
-          !alertedInboxUnreadIdsRef.current.has(Number(doc.id)),
+      const currentUnreadIncomingIds = new Set(
+        inboxUnreadDocs.map((doc) => Number(doc.id)),
       );
-      if (!inboxBaselineReadyRef.current) {
-        inboxUnreadDocs.forEach((doc) =>
-          alertedInboxUnreadIdsRef.current.add(Number(doc.id)),
-        );
-      } else if (newUnreadMessages.length > 0) {
-        newUnreadMessages.forEach((doc) =>
-          alertedInboxUnreadIdsRef.current.add(Number(doc.id)),
-        );
+      const previousUnreadIncomingIds = previousUnreadIncomingIdsRef.current;
+      const hasNewUnreadIncoming = Array.from(currentUnreadIncomingIds).some(
+        (id) => !previousUnreadIncomingIds.has(id),
+      );
+
+      if (inboxBaselineReadyRef.current && hasNewUnreadIncoming) {
         playInboxAlert();
       }
 
-      seenInboxDocumentIdsRef.current = nextInboxIds;
+      previousUnreadIncomingIdsRef.current = currentUnreadIncomingIds;
       inboxBaselineReadyRef.current = true;
       setDocuments(mappedDocs as any);
     } catch (e) {
@@ -4286,5 +4397,8 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+
+
+
 
 

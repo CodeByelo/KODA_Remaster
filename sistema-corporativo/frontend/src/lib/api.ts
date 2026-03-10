@@ -189,7 +189,7 @@ export async function updateDocumentStatus(
 /**
  * Marca un documento como leído por el receptor.
  */
-export async function markAsRead(documentId: number): Promise<ApiDocument> {
+export async function markAsRead(documentId: string | number): Promise<ApiDocument> {
     const res = await fetch(`${BASE_URL}/documentos/${documentId}/leido`, {
         method: "PATCH",
         headers: getAuthHeaders(),
