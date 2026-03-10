@@ -14,8 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CORPOELEC Industrial - Sistema de GestiÃ³n",
-  description: "Sistema de GestiÃ³n Institucional CORPOELEC Industrial",
+  title: "CORPOELEC Industrial - Sistema de Gestión",
+  description: "Sistema de Gestión Institucional CORPOELEC Industrial",
+  icons: {
+    icon: [{ url: "/favicon-round.png", type: "image/png" }],
+    shortcut: ["/favicon-round.png"],
+    apple: ["/favicon-round.png"],
+  },
 };
 
 export default function RootLayout({
@@ -36,3 +41,4 @@ export default function RootLayout({
     </html>
   );
 }
+
