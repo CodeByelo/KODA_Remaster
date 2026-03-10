@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+ï»¿import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CORPOELEC Industrial - Sistema de Gestión",
-  description: "Sistema de Gestión Institucional CORPOELEC Industrial",
+  title: "CORPOELEC Industrial - Sistema de GestiÃ³n",
+  description: "Sistema de GestiÃ³n Institucional CORPOELEC Industrial",
   icons: {
     icon: [{ url: "/favicon-round.png", type: "image/png" }],
     shortcut: ["/favicon-round.png"],
@@ -34,11 +34,8 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
 }
-
