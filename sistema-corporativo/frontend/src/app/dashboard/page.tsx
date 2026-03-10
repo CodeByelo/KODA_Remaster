@@ -1798,38 +1798,45 @@ const DocumentManager: React.FC<{
     };
 
     const viewDocument = async (doc: Document) => {
-      setSelectedDoc(doc);
+      setSelectedDoc({ ...doc, leido: true });
       setShowViewModal(true);
 
-      // Marcar como Leído si no lo estaba y el usuario actual es receptor directo o por gerencia
+      // Marcar como leido con la misma logica de visibilidad de bandeja en este modulo.
+      const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
       const isDirectRecipient =
         !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
       const isDeptRecipient =
         !!doc.receptor_gerencia_id &&
         !!user?.gerencia_id &&
         String(doc.receptor_gerencia_id) === String(user.gerencia_id);
-
-      if (!doc.leido && (isDirectRecipient || isDeptRecipient)) {
+      const docDept = String(doc.targetDepartment || "").toLowerCase().trim();
+      const userDeptLower = String(userDept || "").toLowerCase().trim();
+      const matchesDeptByName = !!docDept && !!userDeptLower && docDept === userDeptLower;
+      const canMarkAsRead =
+        docView === "inbox" &&
+        (canViewAll || isDirectRecipient || isDeptRecipient || matchesDeptByName);
+      if (!doc.leido && canMarkAsRead) {
+        // Actualizacion optimista inmediata para actualizar contador sin recargar.
+        setDocuments((prev) =>
+          prev.map((d) =>
+            d.id === doc.id
+              ? {
+                ...d,
+                leido: true,
+                signatureStatus: ["en-proceso", "pendiente"].includes(
+                  String(d.signatureStatus || "").toLowerCase(),
+                )
+                  ? "recibido"
+                  : d.signatureStatus,
+              }
+              : d,
+          ),
+        );
         try {
           await markAsRead(doc.id);
-          // Actualización optimista local
-          setDocuments(prev =>
-            prev.map(d =>
-              d.id === doc.id
-                ? {
-                  ...d,
-                  leido: true,
-                  signatureStatus: ["en-proceso", "pendiente"].includes(
-                    String(d.signatureStatus || "").toLowerCase(),
-                  )
-                    ? "recibido"
-                    : d.signatureStatus,
-                }
-                : d,
-            ),
-          );
         } catch (e) {
           console.error("Error marking as read", e);
+          refreshDocs();
         }
       }
     };
@@ -2879,6 +2886,7 @@ export default function Dashboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [gerencias, setGerencias] = useState<any[]>([]);
   const seenInboxDocumentIdsRef = useRef<Set<number>>(new Set());
+  const alertedInboxUnreadIdsRef = useRef<Set<number>>(new Set());
   const inboxBaselineReadyRef = useRef(false);
   const canPlayInboxSoundRef = useRef(false);
   const inboxAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -3108,18 +3116,24 @@ export default function Dashboard() {
 
       console.log("ðŸ“„ Documentos mapeados:", mappedDocs);
       const inboxDocs = mappedDocs.filter((doc) => isIncomingDocumentForUser(doc));
+      const inboxUnreadDocs = inboxDocs.filter((doc) => !doc.leido);
 
       const nextInboxIds = new Set(inboxDocs.map((doc) => Number(doc.id)));
       const previousInboxIds = seenInboxDocumentIdsRef.current;
       
-      const newMessages = inboxDocs.filter(doc => !previousInboxIds.has(Number(doc.id)));
-      
-      const hasNewIncomingMessage =
-        inboxBaselineReadyRef.current &&
-        newMessages.length > 0;
-
-      if (hasNewIncomingMessage) {
-        console.log("ðŸ”” NUEVA NOTIFICACION: Detectados mensaje(s) nuevo(s):", newMessages);
+      const newUnreadMessages = inboxUnreadDocs.filter(
+        (doc) =>
+          !previousInboxIds.has(Number(doc.id)) &&
+          !alertedInboxUnreadIdsRef.current.has(Number(doc.id)),
+      );
+      if (!inboxBaselineReadyRef.current) {
+        inboxUnreadDocs.forEach((doc) =>
+          alertedInboxUnreadIdsRef.current.add(Number(doc.id)),
+        );
+      } else if (newUnreadMessages.length > 0) {
+        newUnreadMessages.forEach((doc) =>
+          alertedInboxUnreadIdsRef.current.add(Number(doc.id)),
+        );
         playInboxAlert();
       }
 
@@ -3269,7 +3283,7 @@ export default function Dashboard() {
       }
     };
 
-    const intervalId = window.setInterval(syncDocs, 8000);
+    const intervalId = window.setInterval(syncDocs, 3000);
     window.addEventListener("focus", syncDocs);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -4272,3 +4286,5 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+
+

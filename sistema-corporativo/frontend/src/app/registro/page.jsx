@@ -387,7 +387,7 @@ const LoadingButton = ({ isLoading, children, ...props }) => (
     disabled={isLoading}
     className={`relative overflow-hidden w-full py-4 rounded-xl font-bold text-lg tracking-wide transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none ${isLoading
       ? 'bg-gray-700 cursor-not-allowed'
-      : 'bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-500 hover:to-orange-600 shadow-red-500/30 hover:shadow-red-500/50'
+      : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 shadow-red-500/30 hover:shadow-red-500/50'
       } shadow-lg`}
   >
     {isLoading && (
@@ -678,7 +678,7 @@ const RegistroForm = () => {
               </div>
             </div>
             <h1 className="text-3xl font-bold auth-primary-text tracking-tight">
-              CORPOELEC <span className="text-red-500">INDUSTRIAL</span>
+              CORPOELEC <span className="text-red-600">INDUSTRIAL</span>
             </h1>
             <p className="auth-secondary-text mt-2 text-sm flex items-center justify-center gap-2">
               <User size={14} />
