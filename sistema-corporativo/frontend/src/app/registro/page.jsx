@@ -612,7 +612,7 @@ const RegistroForm = () => {
       await register(userData);
 
       // Éxito
-      console.log('✅ Registro exitoso en DB');
+      console.log('Registro exitoso en DB');
       setRegistroSuccess(true);
 
     } catch (error) {

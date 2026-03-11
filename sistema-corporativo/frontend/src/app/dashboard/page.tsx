@@ -3173,7 +3173,7 @@ export default function Dashboard() {
     try {
       const data = await getDocumentos();
 
-      console.log("ðŸ“„ Documentos RAW del backend:", data);
+      console.log("Documentos RAW del backend:", data);
 
       const mappedDocs = data.map((d: any) => {
         // Fechas seguras
@@ -3274,7 +3274,7 @@ export default function Dashboard() {
         };
       });
 
-      console.log("ðŸ“„ Documentos mapeados:", mappedDocs);
+      console.log("Documentos mapeados:", mappedDocs);
       const inboxDocs = mappedDocs.filter((doc) => isIncomingDocumentForUser(doc));
       const inboxUnreadDocs = inboxDocs.filter((doc) => !doc.leido);
 

@@ -426,7 +426,7 @@ const LoginCorpoelecForm = () => {
       const result = await authLogin(formData.username, formData.password);
 
       if (result.success) {
-        console.log('✅ Acceso autorizado por AuthContext');
+        console.log('Acceso autorizado por AuthContext');
         setLoginSuccess(true);
       } else {
         setLoginError(result.error || 'Credenciales incorrectas o error de servidor');
