@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Save } from 'lucide-react';
 import { createTicket, getTickets, updateTicket } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
@@ -12,7 +12,6 @@ const TECH_DEPT = 'Gerencia Nacional de Tecnologías de la Información y la Com
 
 export default function NewTicketPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -21,10 +20,8 @@ export default function NewTicketPage() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'ALTA' | 'MEDIA' | 'BAJA'>('MEDIA');
   const [observations, setObservations] = useState('');
-
-  const ticketIdParam = searchParams.get('ticketId');
-  const editingTicketId = ticketIdParam ? Number(ticketIdParam) : NaN;
-  const isEditing = Number.isFinite(editingTicketId);
+  const [editingTicketId, setEditingTicketId] = useState<number | null>(null);
+  const isEditing = editingTicketId !== null;
 
   const effectivePriority = useMemo(() => {
     if (String(user?.role || '').toLowerCase() === 'usuario') return 'MEDIA';
@@ -47,7 +44,14 @@ export default function NewTicketPage() {
   }, [darkMode]);
 
   React.useEffect(() => {
-    if (!isEditing) return;
+    if (typeof window === 'undefined') return;
+    const ticketIdParam = new URLSearchParams(window.location.search).get('ticketId');
+    const parsed = ticketIdParam ? Number(ticketIdParam) : NaN;
+    setEditingTicketId(Number.isFinite(parsed) ? parsed : null);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isEditing || editingTicketId === null) return;
     let cancelled = false;
 
     const loadTicket = async () => {
@@ -95,6 +99,7 @@ export default function NewTicketPage() {
     setLoading(true);
     try {
       if (isEditing) {
+        if (editingTicketId === null) throw new Error('Ticket inválido');
         await updateTicket(editingTicketId, {
           titulo: title.trim(),
           descripcion: description.trim(),
