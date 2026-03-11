@@ -162,13 +162,7 @@ export default function TicketSystem({
 
     const startEdit = (e: React.MouseEvent, ticket: Ticket) => {
         e.stopPropagation();
-        setEditingTicket(ticket);
-        setNewTitle(ticket.title);
-        setNewDesc(ticket.description);
-        setNewArea(ticket.area);
-        setNewPriority(ticket.priority);
-        setNewObservations(ticket.observations || '');
-        setShowModal(true);
+        window.location.href = `/dashboard/tickets/new?ticketId=${ticket.id}`;
         setMenuOpenId(null);
     };
 

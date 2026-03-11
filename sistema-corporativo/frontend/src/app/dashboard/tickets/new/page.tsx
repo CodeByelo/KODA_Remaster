@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Plus, Save } from 'lucide-react';
-import { createTicket } from '../../../../lib/api';
+import { createTicket, getTickets, updateTicket } from '../../../../lib/api';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
 import { uiAlert } from '../../../../lib/ui-dialog';
@@ -12,13 +12,19 @@ const TECH_DEPT = 'Gerencia Nacional de Tecnologías de la Información y la Com
 
 export default function NewTicketPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadingTicket, setLoadingTicket] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'ALTA' | 'MEDIA' | 'BAJA'>('MEDIA');
   const [observations, setObservations] = useState('');
+
+  const ticketIdParam = searchParams.get('ticketId');
+  const editingTicketId = ticketIdParam ? Number(ticketIdParam) : NaN;
+  const isEditing = Number.isFinite(editingTicketId);
 
   const effectivePriority = useMemo(() => {
     if (String(user?.role || '').toLowerCase() === 'usuario') return 'MEDIA';
@@ -40,8 +46,47 @@ export default function NewTicketPage() {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
+  React.useEffect(() => {
+    if (!isEditing) return;
+    let cancelled = false;
+
+    const loadTicket = async () => {
+      setLoadingTicket(true);
+      try {
+        const rows = await getTickets();
+        const ticket = (rows || []).find((t: any) => Number(t.id) === editingTicketId);
+
+        if (!ticket) {
+          void uiAlert('No se encontró el ticket a editar.', 'Tickets');
+          router.push('/dashboard?tab=tickets');
+          return;
+        }
+
+        if (cancelled) return;
+
+        setTitle(String(ticket.titulo || ''));
+        setDescription(String(ticket.descripcion || ''));
+        const p = String(ticket.prioridad || 'media').toUpperCase();
+        setPriority(p === 'ALTA' || p === 'BAJA' || p === 'MEDIA' ? p : 'MEDIA');
+        setObservations(String(ticket.observaciones || ''));
+      } catch (error) {
+        console.error('Error cargando ticket:', error);
+        void uiAlert('No se pudo cargar el ticket.', 'Error');
+      } finally {
+        if (!cancelled) setLoadingTicket(false);
+      }
+    };
+
+    void loadTicket();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editingTicketId, isEditing, router]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!title.trim() || !description.trim()) {
       void uiAlert('Título y descripción son obligatorios.', 'Campos Requeridos');
       return;
@@ -49,17 +94,28 @@ export default function NewTicketPage() {
 
     setLoading(true);
     try {
-      await createTicket({
-        titulo: title.trim(),
-        descripcion: description.trim(),
-        prioridad: effectivePriority.toLowerCase(),
-        observaciones: observations.trim(),
-      });
-      await uiAlert('Ticket creado correctamente.', 'Éxito');
-      router.push('/dashboard');
+      if (isEditing) {
+        await updateTicket(editingTicketId, {
+          titulo: title.trim(),
+          descripcion: description.trim(),
+          prioridad: effectivePriority.toLowerCase(),
+          observaciones: observations.trim(),
+        });
+        await uiAlert('Ticket actualizado correctamente.', 'Éxito');
+      } else {
+        await createTicket({
+          titulo: title.trim(),
+          descripcion: description.trim(),
+          prioridad: effectivePriority.toLowerCase(),
+          observaciones: observations.trim(),
+        });
+        await uiAlert('Ticket creado correctamente.', 'Éxito');
+      }
+
+      router.push('/dashboard?tab=tickets');
     } catch (error) {
-      console.error('Error creando ticket:', error);
-      void uiAlert('No se pudo crear el ticket.', 'Error');
+      console.error('Error guardando ticket:', error);
+      void uiAlert('No se pudo guardar el ticket.', 'Error');
     } finally {
       setLoading(false);
     }
@@ -71,7 +127,7 @@ export default function NewTicketPage() {
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/dashboard?tab=tickets')}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border ${darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-slate-300 hover:bg-slate-100'}`}
             >
               <ArrowLeft size={16} />
@@ -79,11 +135,15 @@ export default function NewTicketPage() {
             </button>
             <h1 className="text-2xl font-bold inline-flex items-center gap-2">
               <Plus size={20} />
-              Nuevo Ticket
+              {isEditing ? 'Editar Ticket' : 'Nuevo Ticket'}
             </h1>
           </div>
 
           <form onSubmit={submit} className={`rounded-2xl border p-5 md:p-7 space-y-5 ${darkMode ? 'border-zinc-800 bg-zinc-900' : 'border-slate-200 bg-white'}`}>
+            {loadingTicket && (
+              <div className={`text-sm ${darkMode ? 'text-zinc-300' : 'text-slate-600'}`}>Cargando ticket...</div>
+            )}
+
             <div>
               <label className="block mb-1 text-sm font-semibold">Título de la Solicitud</label>
               <input
@@ -142,21 +202,21 @@ export default function NewTicketPage() {
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/dashboard?tab=tickets')}
                 className={`px-5 py-2 rounded-lg border ${darkMode ? 'border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || loadingTicket}
                 className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-700 hover:bg-red-800 font-semibold disabled:opacity-60 text-white"
               >
                 {loading ? (
                   'Guardando...'
                 ) : (
                   <>
-                    <Save size={16} /> Crear Ticket
+                    <Save size={16} /> {isEditing ? 'Guardar Cambios' : 'Crear Ticket'}
                   </>
                 )}
               </button>
