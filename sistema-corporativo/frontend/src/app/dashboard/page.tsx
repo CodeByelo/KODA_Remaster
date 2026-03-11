@@ -183,41 +183,41 @@ const ORG_ICONS: Record<string, React.ElementType> = {
 
 const DEFAULT_ORG_STRUCTURE: OrgCategory[] = [
   {
-    category: "I. Alta DirecciÃ³n y Control",
+    category: "I. Alta Dirección y Control",
     icon: "Shield",
     items: [
       "Gerencia General",
-      "AuditorÃ­a Interna",
-      "ConsultorÃ­a JurÃ­dica",
-      "Gerencia Nacional de PlanificaciÃ³n y Presupuesto",
+      "Auditoría Interna",
+      "Consultoría Jurídica",
+      "Gerencia Nacional de Planificación y Presupuesto",
     ],
   },
   {
-    category: "II. GestiÃ³n Administrativa",
+    category: "II. Gestión Administrativa",
     icon: "Briefcase",
     items: [
-      "Gerencia Nacional de AdministraciÃ³n",
-      "Gerencia Nacional de GestiÃ³n Humana",
-      "Gerencia Nacional de TecnologÃ­as de la InformaciÃ³n y la ComunicaciÃ³n",
-      "Gerencia Nacional de TecnologÃ­as de Proyectos",
+      "Gerencia Nacional de Administración",
+      "Gerencia Nacional de Gestión Humana",
+      "Gerencia Nacional de Tecnologías de la Información y la Comunicación",
+      "Gerencia Nacional de Tecnologías de Proyectos",
     ],
   },
   {
-    category: "III. GestiÃ³n Operativa y ASHO",
+    category: "III. Gestión Operativa y ASHO",
     icon: "Zap",
     items: [
       "Gerencia Nacional de Adecuaciones y Mejoras",
       "Gerencia Nacional de Asho",
-      "Gerencia Nacional de AtenciÃ³n al Ciudadano",
-      "Gerencia de ComercializaciÃ³n",
+      "Gerencia Nacional de Atención al Ciudadano",
+      "Gerencia de Comercialización",
     ],
   },
   {
-    category: "IV. EnergÃ­a y Comunidad",
+    category: "IV. Energía y Comunidad",
     icon: "Users",
     items: [
-      "Gerencia Nacional de EnergÃ­a Alternativa y Eficiencia EnergÃ©tica",
-      "Gerencia Nacional de GestiÃ³n Comunal",
+      "Gerencia Nacional de Energía Alternativa y Eficiencia Energética",
+      "Gerencia Nacional de Gestión Comunal",
     ],
   },
   {
@@ -229,67 +229,67 @@ const DEFAULT_ORG_STRUCTURE: OrgCategory[] = [
 
 const MANAGEMENT_DETAILS: Record<string, string[]> = {
   "Gerencia General": [
-    "DefiniciÃ³n de polÃ­ticas institucionales.",
-    "SupervisiÃ³n de Gerencias operativas y administrativas.",
-    "RepresentaciÃ³n legal de la instituciÃ³n.",
-    "AprobaciÃ³n de presupuesto anual.",
-    "CoordinaciÃ³n de relaciones interinstitucionales.",
+    "Definición de políticas institucionales.",
+    "Supervisión de Gerencias operativas y administrativas.",
+    "Representación legal de la institución.",
+    "Aprobación de presupuesto anual.",
+    "Coordinación de relaciones interinstitucionales.",
   ],
-  "AuditorÃ­a Interna": [
-    "EvaluaciÃ³n de controles internos.",
-    "AuditorÃ­a de procesos financieros y administrativos.",
-    "VerificaciÃ³n del cumplimiento normativo.",
-    "InvestigaciÃ³n de irregularidades.",
-    "ElaboraciÃ³n de informes de gestiÃ³n de riesgos.",
+  "Auditoría Interna": [
+    "Evaluación de controles internos.",
+    "Auditoría de procesos financieros y administrativos.",
+    "Verificación del cumplimiento normativo.",
+    "Investigación de irregularidades.",
+    "Elaboración de informes de gestión de riesgos.",
   ],
-  "ConsultorÃ­a JurÃ­dica": [
-    "AsesorÃ­a legal a la presidencia y Gerencias.",
-    "RevisiÃ³n y redacciÃ³n de contratos y convenios.",
-    "Defensa judicial y extrajudicial de la instituciÃ³n.",
-    "Emitir dictÃ¡menes jurÃ­dicos vinculantes.",
+  "Consultoría Jurídica": [
+    "Asesoría legal a la presidencia y Gerencias.",
+    "Revisión y redacción de contratos y convenios.",
+    "Defensa judicial y extrajudicial de la institución.",
+    "Emitir dictámenes jurídicos vinculantes.",
   ],
-  "Gerencia Nacional de PlanificaciÃ³n y Presupuesto": [
-    "FormulaciÃ³n del Plan Operativo Anual (POA).",
-    "Control y seguimiento de la ejecuciÃ³n presupuestaria.",
-    "EvaluaciÃ³n de indicadores de gestiÃ³n.",
-    "ProyecciÃ³n de escenarios financieros a mediano plazo.",
+  "Gerencia Nacional de Planificación y Presupuesto": [
+    "Formulación del Plan Operativo Anual (POA).",
+    "Control y seguimiento de la ejecución presupuestaria.",
+    "Evaluación de indicadores de gestión.",
+    "Proyección de escenarios financieros a mediano plazo.",
   ],
-  "Gerencia Nacional de AdministraciÃ³n": [
-    "GestiÃ³n de recursos financieros y tesorerÃ­a.",
-    "AdministraciÃ³n de servicios generales.",
+  "Gerencia Nacional de Administración": [
+    "Gestión de recursos financieros y tesorería.",
+    "Administración de servicios generales.",
     "Procesamiento de pagos a proveedores.",
-    "ContabilizaciÃ³n de operaciones financieras.",
+    "Contabilización de operaciones financieras.",
   ],
-  "Gerencia Nacional de GestiÃ³n Humana": [
-    "Reclutamiento y selecciÃ³n de personal.",
-    "GestiÃ³n de nÃ³mina y beneficios laborales.",
-    "PlanificaciÃ³n de capacitaciÃ³n y desarrollo.",
-    "EvaluaciÃ³n del desempeÃ±o del personal.",
+  "Gerencia Nacional de Gestión Humana": [
+    "Reclutamiento y selección de personal.",
+    "Gestión de nómina y beneficios laborales.",
+    "Planificación de capacitación y desarrollo.",
+    "Evaluación del desempeño del personal.",
   ],
-  "Gerencia Nacional de TecnologÃ­as de la InformaciÃ³n y la ComunicaciÃ³n": [
-    "Mantenimiento de infraestructura tecnolÃ³gica.",
-    "Desarrollo y soporte de sistemas de informaciÃ³n.",
-    "Garantizar la seguridad de la informaciÃ³n.",
-    "Soporte tÃ©cnico a usuarios finales.",
+  "Gerencia Nacional de Tecnologías de la Información y la Comunicación": [
+    "Mantenimiento de infraestructura tecnológica.",
+    "Desarrollo y soporte de sistemas de información.",
+    "Garantizar la seguridad de la información.",
+    "Soporte técnico a usuarios finales.",
   ],
-  "GestiÃ³n Directa": [
+  "Gestión Directa": [
     "Acceso a la terminal de comandos del servidor.",
     "Monitoreo de procesos en tiempo real.",
-    "Ajuste de variables de entorno crÃ­ticas.",
-    "GestiÃ³n de certificados SSL y seguridad perimetral.",
+    "Ajuste de variables de entorno críticas.",
+    "Gestión de certificados SSL y seguridad perimetral.",
   ],
-  "Logs de AuditorÃ­a": [
+  "Logs de Auditoría": [
     "Consulta de trazas de base de datos a bajo nivel.",
-    "Historial completo de intentos de intrusiÃ³n.",
+    "Historial completo de intentos de intrusión.",
     "Seguimiento de cambios en esquemas de permisos.",
-    "ExportaciÃ³n de logs en formato raw JSON/CSV.",
+    "Exportación de logs en formato raw JSON/CSV.",
   ],
 };
 
 const getDefaultFunctions = (name: string) => [
-  `GestiÃ³n operativa de ${name}.`,
-  "CoordinaciÃ³n de personal asignado.",
-  "Reporte de indicadores de gestiÃ³n.",
+  `Gestión operativa de ${name}.`,
+  "Coordinación de personal asignado.",
+  "Reporte de indicadores de gestión.",
   "Cumplimiento de metas trimestrales asignadas.",
   "Seguimiento de planes de mejora continua.",
 ];
@@ -315,33 +315,33 @@ const PLANT_METRICS = [
 
 const AUDIT_ALERTS: AuditAlert[] = [
   {
-    title: "RevisiÃ³n JurÃ­dica Pendiente",
+    title: "Revisión Jurídica Pendiente",
     description: "Gerencia General requiere firma de documentos legales",
     priority: "high",
     date: "Hoy",
   },
   {
     title: "Mantenimiento Preventivo",
-    description: "Planta Tanques entra en ciclo de revisiÃ³n programada",
+    description: "Planta Tanques entra en ciclo de revisión programada",
     priority: "medium",
-    date: "MaÃ±ana",
+    date: "Mañana",
   },
   {
-    title: "ActualizaciÃ³n de Protocolos",
-    description: "Departamento TIC necesita aprobaciÃ³n de nuevos estÃ¡ndares",
+    title: "Actualización de Protocolos",
+    description: "Departamento TIC necesita aprobación de nuevos estándares",
     priority: "low",
-    date: "En 3 dÃ­as",
+    date: "En 3 días",
   },
 ];
 
-// NUEVOS DATOS PARA MÃ“DULOS
+// NUEVOS DATOS PARA M�"DULOS
 const PRIORITY_MATRIX: PriorityItem[] = [];
 
 // Tickets data moved to TicketSystem component
 
 const INITIAL_DOCUMENTS: Document[] = [];
 
-// NUEVOS DATOS PARA MÃ“DULO DE SEGURIDAD
+// NUEVOS DATOS PARA M�"DULO DE SEGURIDAD
 const ACCOUNT_REQUESTS = [
   {
     id: 1,
@@ -379,7 +379,7 @@ const USER_PERMISSIONS = [
   {
     id: 103,
     user: "CSANCHEZ (Soporte)",
-    role: "TÃ©cnico Nivel 2",
+    role: "Técnico Nivel 2",
     access: ["Tickets", "Sistemas"],
     lastActive: "Hace 1h",
   },
@@ -388,7 +388,7 @@ const USER_PERMISSIONS = [
 const SECURITY_LOGS = [
   {
     id: 1,
-    event: "Inicio de SesiÃ³n Exitoso",
+    event: "Inicio de Sesión Exitoso",
     user: "JPEREZ",
     ip: "192.168.1.10",
     time: "10:23 AM",
@@ -606,7 +606,7 @@ const DetailModal: React.FC<{
       .map((line) => line.trim())
       .filter(Boolean);
     if (next.length === 0) {
-      void uiAlert("Debe existir al menos una funciÃ³n para guardar.", "Validacion");
+      void uiAlert("Debe existir al menos una función para guardar.", "Validacion");
       return;
     }
     onSave(title, next);
@@ -646,7 +646,7 @@ const DetailModal: React.FC<{
           {isEditing ? (
             <div className="space-y-2">
               <p className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-500"}`}>
-                Una funciÃ³n por lÃ­nea.
+                Una función por línea.
               </p>
               <textarea
                 value={draftFunctions}
@@ -1572,7 +1572,7 @@ const DocumentManager: React.FC<{
 
       if (raw === "en-proceso" || raw === "en proceso" || raw === "en_proceso") return "en-proceso";
       if (raw === "recibido") return "recibido";
-      if (raw === "leido" || raw === "LeÃ­do") return "leido";
+      if (raw === "leido" || raw === "Leído") return "leido";
       if (raw === "pendiente" || raw === "aprobado" || raw === "rechazado" || raw === "omitido") return "en-proceso";
 
       return "en-proceso";
@@ -1586,7 +1586,7 @@ const DocumentManager: React.FC<{
           : "Auditar Mensajes";
 
     const MY_DEPT =
-      "Gerencia Nacional de TecnologÃ­as de la InformaciÃ³n y la ComunicaciÃ³n";
+      "Gerencia Nacional de Tecnologías de la Información y la Comunicación";
 
     const filteredDocs = documents.filter((doc) => {
       const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
@@ -1674,7 +1674,7 @@ const DocumentManager: React.FC<{
         // Coincidencia por remitente_id
         if (doc.remitente_id && user?.id) {
           if (String(doc.remitente_id) === String(user.id)) {
-            console.log("[MATCH] Enviado por mÃ­");
+            console.log("[MATCH] Enviado por mí");
             return true;
           }
         }
@@ -1712,7 +1712,7 @@ const DocumentManager: React.FC<{
     const deleteDocsByIds = async (ids: string[]) => {
       if (!canBulkDeleteMessages || ids.length === 0) return;
       const ok = await uiConfirm(
-        `Se eliminarÃ¡n ${ids.length} mensaje(s) de la vista ${docViewLabel}. Esta acciÃ³n no se puede deshacer.`,
+        `Se eliminarán ${ids.length} mensaje(s) de la vista ${docViewLabel}. Esta acción no se puede deshacer.`,
         "Eliminar mensajes",
       );
       if (!ok) return;
@@ -1772,7 +1772,7 @@ const DocumentManager: React.FC<{
         await apiUpdateStatus(id, newStatus);
         refreshDocs();
         await logDocumentActivity({
-          username: userRole === "CEO" ? "Admin. General" : "Usuario EstÃ¡ndar",
+          username: userRole === "CEO" ? "Admin. General" : "Usuario Estándar",
           evento: "FLUJO DOCUMENTAL",
           detalles: `Cambio de estado en documento ID ${id} a ${newStatus.toUpperCase()}`,
           estado:
@@ -1797,7 +1797,7 @@ const DocumentManager: React.FC<{
       if (!file) return;
 
       if (file.type !== "application/pdf") {
-        void uiAlert("Error: Solo se permiten archivos en formato PDF.", "Archivo invÃ¡lido");
+        void uiAlert("Error: Solo se permiten archivos en formato PDF.", "Archivo inválido");
         if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
@@ -1865,8 +1865,8 @@ const DocumentManager: React.FC<{
 
         await logDocumentActivity({
           username: user?.nombre || "Usuario",
-          evento: "MENSAJERÃA INTERNA",
-          detalles: `EnvÃ­o de mensaje: "${docName}" a ${recipients.length} ${sendMode === "user" ? "usuario(s)" : "gerencia(s)"}`,
+          evento: "MENSAJERÍA INTERNA",
+          detalles: `Envío de mensaje: "${docName}" a ${recipients.length} ${sendMode === "user" ? "usuario(s)" : "gerencia(s)"}`,
           estado: "success",
         });
 
@@ -1881,7 +1881,7 @@ const DocumentManager: React.FC<{
         setTargetUserIds([]);
         setTargetDeptIds([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
-        void uiAlert("Mensaje enviado con Ã©xito.", "MensajerÃ­a");
+        void uiAlert("Mensaje enviado con éxito.", "Mensajería");
       } catch (e) {
         console.error("Error sending message:", e);
         void uiAlert("Error al enviar el mensaje.", "Error");
@@ -2005,11 +2005,11 @@ const DocumentManager: React.FC<{
             label: "Recibido",
           };
         case "leido":
-        case "LeÃ­do":
+        case "Leído":
           return {
             color: darkMode ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-700",
             icon: Eye,
-            label: "LeÃ­do",
+            label: "Leído",
           };
         default:
           return {
@@ -2119,7 +2119,7 @@ const DocumentManager: React.FC<{
                   {priorityEnabled && (
                     <div className="mt-3">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 tracking-wider">
-                        Tiempo mÃ¡ximo de atenciÃ³n (dÃ­as)
+                        Tiempo máximo de atención (días)
                       </label>
                       <input
                         type="number"
@@ -2198,7 +2198,7 @@ const DocumentManager: React.FC<{
                     value={messageContent}
                     onChange={(e) => setMessageContent(e.target.value)}
                     rows={4}
-                    placeholder="Escribe tu mensaje aquÃ­..."
+                    placeholder="Escribe tu mensaje aquí..."
                     className={`w-full px-4 py-2.5 rounded-lg border outline-none text-sm resize-none ${darkMode ? "bg-slate-950 border-slate-700 text-white" : "bg-slate-50 border-slate-200"}`}
                   />
                 </div>
@@ -2214,7 +2214,7 @@ const DocumentManager: React.FC<{
                     >
                       <div className="flex flex-col items-center gap-1">
                         <FileText size={24} className="text-slate-400" />
-                        <span className="text-xs text-slate-500">AÃ±adir Archivo PDF</span>
+                        <span className="text-xs text-slate-500">Añadir Archivo PDF</span>
                       </div>
                     </div>
 
@@ -2335,7 +2335,7 @@ const DocumentManager: React.FC<{
         >
           <div className="flex-1 min-w-[200px]">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-              BÃºsqueda
+              Búsqueda
             </label>
             <div
               className={`flex items-center px-3 py-2 rounded-md border ${darkMode ? "bg-slate-950 border-slate-700" : "bg-white border-slate-300"}`}
@@ -2344,7 +2344,7 @@ const DocumentManager: React.FC<{
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por ID o TÃ­tulo..."
+                placeholder="Buscar por ID o Título..."
                 className="bg-transparent border-none outline-none text-sm w-full"
               />
             </div>
@@ -2361,7 +2361,7 @@ const DocumentManager: React.FC<{
               <option value="all">Todos los Estados</option>
               {docView !== "sent" ? (
                 <>
-                  <option value="leido">LeÃ­do</option>
+                  <option value="leido">Leído</option>
                   <option value="en-proceso">En Proceso</option>
                 </>
               ) : (
@@ -2552,7 +2552,7 @@ const DocumentManager: React.FC<{
                 );
               })}
 
-              {/* Mensaje de vacÃ­o FUERA del .map() */}
+              {/* Mensaje de vacío FUERA del .map() */}
               {filteredDocs.length === 0 && (
                 <tr>
                   <td colSpan={canBulkDeleteMessages ? 8 : 7} className="p-10 text-center text-slate-500 italic">
@@ -2675,7 +2675,7 @@ const DocumentManager: React.FC<{
     )
   };
 
-// MÃ³dulo importado de forma dinÃ¡mica para evitar errores de hidrataciÃ³n y mejorar carga de chunks
+// Módulo importado de forma dinámica para evitar errores de hidratación y mejorar carga de chunks
 import dynamic from "next/dynamic";
 const SecurityModule = dynamic(() => import("./security/SecurityModule"), {
   ssr: false,
@@ -2735,7 +2735,7 @@ const ChartsModule: React.FC<{
     // Alineado con Control de seguimiento: evalua el vencimiento por fecha visible.
     const deadline = parseFlexibleDate(doc.fecha_caducidad || undefined);
     
-    // Comparar con hoy (al final del dÃ­a para ser justos)
+    // Comparar con hoy (al final del día para ser justos)
     if (deadline) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -2873,12 +2873,12 @@ const ChartsModule: React.FC<{
                 <h1
                   className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}
                 >
-                  MÃ³dulo de EstadÃ­sticas y GrÃ¡ficos
+                  Módulo de Estadísticas y Gráficos
                 </h1>
                 <p
                   className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}
                 >
-                  VisualizaciÃ³n de datos estratÃ©gicos y mÃ©tricas de desempeÃ±o.
+                  Visualización de datos estratégicos y métricas de desempeño.
                 </p>
               </>
             ) : (
@@ -3091,7 +3091,7 @@ export default function Dashboard() {
     if (typeof window === "undefined") return;
 
     const unlockAudio = async () => {
-      // Si ya estÃ¡ desbloqueado o no hay audio cargado, intentamos cargarlo/primarlo
+      // Si ya está desbloqueado o no hay audio cargado, intentamos cargarlo/primarlo
       try {
         if (!inboxAudioRef.current) {
           inboxAudioRef.current = new Audio("/notification_message.mp3");
@@ -3109,7 +3109,7 @@ export default function Dashboard() {
         canPlayInboxSoundRef.current = true;
         console.log("Audio system unlocked and ready.");
 
-        // Si habÃ­a una alerta pendiente, la reproducimos ahora
+        // Si había una alerta pendiente, la reproducimos ahora
         if (pendingInboxAlertRef.current) {
           playInboxAlert();
         }
@@ -3119,7 +3119,7 @@ export default function Dashboard() {
         window.removeEventListener("keydown", unlockAudio);
         window.removeEventListener("click", unlockAudio);
       } catch (e) {
-        // Ignorar errores de priming, reintentarÃ¡ en la prÃ³xima interacciÃ³n
+        // Ignorar errores de priming, reintentará en la próxima interacción
       }
     };
 
@@ -3231,13 +3231,13 @@ export default function Dashboard() {
         return {
           id: d.id,
           idDoc: correlativoValue,
-          name: d.titulo || d.title || d.name || "Sin TÃ­tulo",
+          name: d.titulo || d.title || d.name || "Sin Título",
           category: d.tipo_documento || d.category || "Otros",
           type: "pdf" as const,
           size: "N/A",
           uploadedBy: d.uploadedBy || d.remitente_nombre || "Desconocido",
           receivedBy: d.receptor_nombre || d.receivedBy || "Pendiente",
-          // IDs como strings para comparaciÃ³n
+          // IDs como strings para comparación
           receptor_id: d.receptor_id ? String(d.receptor_id) : undefined,
           receptor_gerencia_id: d.receptor_gerencia_id ? Number(d.receptor_gerencia_id) : undefined,
           remitente_id: d.remitente_id ? String(d.remitente_id) : undefined,
@@ -3321,11 +3321,11 @@ export default function Dashboard() {
       const rows = await getTickets();
       const mapped: Ticket[] = rows.map((t: any) => ({
         id: t.id,
-        title: t.titulo || "Sin TÃ­tulo",
+        title: t.titulo || "Sin Título",
         description: t.descripcion || "",
         area:
           t.area ||
-          "Gerencia Nacional de TecnologÃ­as de la InformaciÃ³n y la ComunicaciÃ³n",
+          "Gerencia Nacional de Tecnologías de la Información y la Comunicación",
         creatorDept: t.solicitante_gerencia || "Sin Asignar",
         priority: (String(t.prioridad || "media").toUpperCase() as Ticket["priority"]),
         status:
@@ -3413,12 +3413,12 @@ export default function Dashboard() {
     try {
       localStorage.setItem(MANAGEMENT_DETAILS_STORAGE_KEY, JSON.stringify(nextMap));
     } catch (error) {
-      console.error("No se pudo persistir personalizaciÃ³n local de gerencia", error);
+      console.error("No se pudo persistir personalización local de gerencia", error);
     }
     try {
       await saveOrgManagementDetails(nextMap);
     } catch (error) {
-      console.error("No se pudo persistir personalizaciÃ³n de gerencia en backend", error);
+      console.error("No se pudo persistir personalización de gerencia en backend", error);
     }
   }, [managementDetailsMap]);
 
@@ -3525,9 +3525,9 @@ export default function Dashboard() {
 
       if (userRole === "Desarrollador" && !data.some((g) => g.category?.includes("Desarrollo"))) {
         data.push({
-          category: "VI. MÃ³dulo de Desarrollo y Control RaÃ­z",
+          category: "VI. Módulo de Desarrollo y Control Raíz",
           icon: "Shield",
-          items: ["GestiÃ³n Directa", "Logs de AuditorÃ­a", "Control de Dominios"],
+          items: ["Gestión Directa", "Logs de Auditoría", "Control de Dominios"],
         });
       }
 
@@ -3539,15 +3539,15 @@ export default function Dashboard() {
     };
   }, [mounted, userRole, user?.id, canEditOrgStructure]);
 
-  // OK: AÃ±ade el estado para el bot de ayuda
+  // OK: Añade el estado para el bot de ayuda
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   // ESTADO DE ANUNCIOS (Dashboard General)
   const [announcement, setAnnouncement] = useState<AnnouncementData>({
-    badge: "Comunicado del DÃ­a",
-    title: "ActualizaciÃ³n de Protocolos de Seguridad 2026",
+    badge: "Comunicado del Día",
+    title: "Actualización de Protocolos de Seguridad 2026",
     description:
-      "Se les informa a todas las Gerencias que a partir de las 14:00h se iniciarÃ¡ la migraciÃ³n de los protocolos de firma digital. Por favor, aseguren sus trÃ¡mites pendientes.",
+      "Se les informa a todas las Gerencias que a partir de las 14:00h se iniciará la migración de los protocolos de firma digital. Por favor, aseguren sus trámites pendientes.",
     status: "Activo",
     urgency: "Alta",
     color: "#dc2626",
@@ -3583,7 +3583,7 @@ export default function Dashboard() {
         setActiveTab(tab);
         if (tab === "seguridad") setActiveSection("dashboard");
       } else {
-        console.warn(`Intento de acceso no autorizado a la pestaÃ±a: ${tab}`);
+        console.warn(`Intento de acceso no autorizado a la pestaña: ${tab}`);
         setActiveTab("overview");
         // Clean URL from malicious tab
         window.history.replaceState({}, "", window.location.pathname);
@@ -3692,7 +3692,7 @@ export default function Dashboard() {
         },
         {
           title: "Nivel de Acceso",
-          value: "EstÃ¡ndar",
+          value: "Estándar",
           subtext: "Usuario TIC",
           icon: Shield,
           trend: "Verificado",
@@ -3704,7 +3704,7 @@ export default function Dashboard() {
     if (userRole === "CEO" || userRole === "Desarrollador") {
       return [
         {
-          title: "Consumo ElÃ©ctrico",
+          title: "Consumo Eléctrico",
           value: "1,245 MW",
           subtext: "Total Nacional",
           icon: Zap,
@@ -3730,7 +3730,7 @@ export default function Dashboard() {
         {
           title: "Presupuesto",
           value: "$2.4M",
-          subtext: "EjecuciÃ³n Q1 2026",
+          subtext: "Ejecución Q1 2026",
           icon: TrendingUp,
           trend: "75%",
           trendPositive: true,
@@ -3743,7 +3743,7 @@ export default function Dashboard() {
       {
         title: "Tickets Totales",
         value: "124",
-        subtext: "GarcÃ­a asigned",
+        subtext: "García asigned",
         icon: Tag,
         trend: "+15 hoy",
       },
@@ -3924,7 +3924,7 @@ export default function Dashboard() {
                 <h1
                   className={`text-3xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-700"}`}
                 >
-                  Â¡Bienvenido, {user?.nombre || "Usuario"}!
+                  ¡Bienvenido, {user?.nombre || "Usuario"}!
                 </h1>
                 <p
                   className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-700"}`}
@@ -4074,12 +4074,12 @@ export default function Dashboard() {
                   <p
                     className={`font-bold text-sm ${darkMode ? "text-white" : "text-slate-900"}`}
                   >
-                    Corrector OrtogrÃ¡fico
+                    Corrector Ortográfico
                   </p>
                   <p
                     className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-500"}`}
                   >
-                    Refinar redacciÃ³n de oficios
+                    Refinar redacción de oficios
                   </p>
                 </div>
               </a>
@@ -4097,7 +4097,7 @@ export default function Dashboard() {
                   <p
                     className={`font-bold text-sm ${darkMode ? "text-white" : "text-slate-900"}`}
                   >
-                    Cerrar SesiÃ³n
+                    Cerrar Sesión
                   </p>
                   <p
                     className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-500"}`}
@@ -4177,7 +4177,7 @@ export default function Dashboard() {
               )}
               <SidebarItem
                 icon={Mail}
-                label="MensajerÃ­a Interna"
+                label="Mensajería Interna"
                 active={
                   activeSection === "dashboard" && activeTab === "documentos"
                 }
@@ -4207,7 +4207,7 @@ export default function Dashboard() {
               {canAccessStats && (
                 <SidebarItem
                   icon={BarChart2}
-                  label="GrÃ¡ficos"
+                  label="Gráficos"
                   active={activeTab === "graficos"}
                   collapsed={collapsed}
                   darkMode={darkMode}
@@ -4220,7 +4220,7 @@ export default function Dashboard() {
               {canAccessSecurity && (
                 <SidebarItem
                   icon={Shield}
-                  label="MÃ³dulo de Seguridad"
+                  label="Módulo de Seguridad"
                   active={
                     activeSection === "dashboard" && activeTab === "seguridad"
                   }
@@ -4236,7 +4236,7 @@ export default function Dashboard() {
               {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
                 <SidebarItem
                   icon={Shield}
-                  label="ConfiguraciÃ³n Maestra"
+                  label="Configuración Maestra"
                   active={activeTab === "permisos-dev"}
                   collapsed={collapsed}
                   darkMode={darkMode}
@@ -4283,7 +4283,7 @@ export default function Dashboard() {
               <h2
                 className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-800"} truncate`}
               >
-                Sistema de GestiÃ³n Documentos{" "}
+                Sistema de Gestión Documentos{" "}
                 <span className={`mx-2 ${darkMode ? "text-slate-500" : "text-slate-600"}`}>|</span>{" "}
                 <span className={`font-normal ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
                   Alfa 2026 V-1.0
@@ -4301,7 +4301,7 @@ export default function Dashboard() {
               <div
                 className="flex items-center gap-3 cursor-pointer hover:bg-slate-100/10 p-1 rounded-md transition-colors"
                 onClick={async () => {
-                  const ok = await uiConfirm("Â¿Desea cerrar sesiÃ³n?", "Cerrar sesiÃ³n");
+                  const ok = await uiConfirm("¿Desea cerrar sesión?", "Cerrar sesión");
                   if (ok) {
                     void logout();
                   }
@@ -4378,9 +4378,9 @@ export default function Dashboard() {
                         : activeTab === "tickets"
                           ? "Sistema de Tickets"
                           : activeTab === "documentos"
-                            ? "MensajerÃ­a Interna"
+                            ? "Mensajería Interna"
                             : activeTab === "seguridad"
-                              ? "MÃ³dulo de Seguridad"
+                              ? "Módulo de Seguridad"
                               : activeTab === "impresoras"
                                 ? "Control de Impresoras y Toners"
                                 : "Panel Detalle"}
@@ -4391,14 +4391,14 @@ export default function Dashboard() {
                       {activeTab === "prioridades"
                         ? "Control de seguimiento de documentos con prioridad."
                         : activeTab === "tickets"
-                          ? "GestiÃ³n de solicitudes tÃ©cnicas y administrativas."
+                          ? "Gestión de solicitudes técnicas y administrativas."
                           : activeTab === "documentos"
-                            ? "AdministraciÃ³n de correspondencia y comunicaciÃ³n interna."
+                            ? "Administración de correspondencia y comunicación interna."
                             : activeTab === "seguridad"
-                              ? "GestiÃ³n de usuarios, permisos y auditorÃ­a de seguridad."
+                              ? "Gestión de usuarios, permisos y auditoría de seguridad."
                               : activeTab === "impresoras"
                                 ? "Monitoreo del estado operativo de impresoras y niveles de suministros."
-                                : "Vista de detalles del MÃ³dulo seleccionado."}
+                                : "Vista de detalles del Módulo seleccionado."}
                     </p>
                   </div>
                 </div>
@@ -4436,6 +4436,7 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+
 
 
 
