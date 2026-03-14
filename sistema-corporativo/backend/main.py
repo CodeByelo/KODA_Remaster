@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import ipaddress
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
@@ -304,7 +305,19 @@ async def global_exception_handler(request: Request, exc: Exception):
     
     # Inyectar CORS manualmente para evitar bloqueos de navegador en errores 500
     origin = request.headers.get("origin")
-    if origin in origins or "*" in origins:
+    # Soportar previews de Vercel incluso cuando hay error 500
+    allow_origin = False
+    if origin:
+        if origin in origins or "*" in origins:
+            allow_origin = True
+        else:
+            try:
+                if re.match(r"https://sistema-corpoelect.*\.vercel\.app", origin):
+                    allow_origin = True
+            except re.error:
+                allow_origin = False
+
+    if allow_origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Methods"] = "*"
