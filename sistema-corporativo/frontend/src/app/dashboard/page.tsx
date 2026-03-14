@@ -1544,39 +1544,72 @@ const PriorityMatrix: React.FC<{
                 </div>
                 {trackingResponses.length > 0 ? (
                   <div className="space-y-3">
-                    {trackingResponses.map((resp) => (
-                      <div key={resp.id} className={`rounded-lg border p-4 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-                        <div className={`text-[11px] mb-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                          {resp.usuario_nombre || "Receptor"}{" "}
-                          {resp.created_at ? `• ${new Date(resp.created_at).toLocaleString("es-ES")}` : ""}
-                        </div>
-                        {resp.contenido}
-                        {(resp.archivos || []).length > 0 && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {resp.archivos?.map((file: string, idx: number) => {
-                              const url = file.startsWith("http")
-                                ? file
-                                : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${file}`;
-                              return (
-                                <a
-                                  key={`${file}-${idx}`}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                                    darkMode
-                                      ? "border-slate-700 text-slate-300 hover:bg-slate-800"
-                                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  PDF {idx + 1}
-                                </a>
-                              );
-                            })}
+                    {trackingResponses.map((resp) => {
+                      const currentUserLabel = user?.nombre
+                        ? `${user?.nombre} ${user?.apellido || ""}`.trim()
+                        : "";
+                      const isMine =
+                        currentUserLabel &&
+                        String(resp.usuario_nombre || "").toLowerCase().trim() ===
+                          currentUserLabel.toLowerCase().trim();
+                      return (
+                        <div key={resp.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                              isMine
+                                ? darkMode
+                                  ? "bg-emerald-600 text-white rounded-br-none"
+                                  : "bg-emerald-500 text-white rounded-br-none"
+                                : darkMode
+                                  ? "bg-slate-800 text-slate-100 rounded-bl-none"
+                                  : "bg-white text-slate-700 border border-slate-200 rounded-bl-none"
+                            }`}
+                          >
+                            <div
+                              className={`text-[11px] mb-2 ${
+                                isMine
+                                  ? darkMode
+                                    ? "text-emerald-100/80"
+                                    : "text-emerald-50/90"
+                                  : darkMode
+                                    ? "text-slate-400"
+                                    : "text-slate-500"
+                              }`}
+                            >
+                              {resp.usuario_nombre || "Receptor"}{" "}
+                              {resp.created_at ? `• ${new Date(resp.created_at).toLocaleString("es-ES")}` : ""}
+                            </div>
+                            {resp.contenido}
+                            {(resp.archivos || []).length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                {resp.archivos?.map((file: string, idx: number) => {
+                                  const url = file.startsWith("http")
+                                    ? file
+                                    : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${file}`;
+                                  return (
+                                    <a
+                                      key={`${file}-${idx}`}
+                                      href={url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                        isMine
+                                          ? "border-white/30 text-white hover:bg-white/10"
+                                          : darkMode
+                                            ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
+                                            : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      PDF {idx + 1}
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-sm text-slate-500 italic">Aun sin respuesta.</div>
@@ -1591,9 +1624,12 @@ const PriorityMatrix: React.FC<{
                     !!selectedTrackingDoc.receptor_gerencia_id &&
                     !!user?.gerencia_id &&
                     String(selectedTrackingDoc.receptor_gerencia_id) === String(user.gerencia_id);
-                  const canReply = isDirectRecipient || isDeptRecipient;
-                  const canSendReply =
-                    canReply && !selectedTrackingDoc.respuesta_contenido && modalComputedStatus !== "finalizado";
+                  const isSender =
+                    !!selectedTrackingDoc.remitente_id &&
+                    !!currentUserId &&
+                    String(selectedTrackingDoc.remitente_id) === currentUserId;
+                  const canReply = isDirectRecipient || isDeptRecipient || isSender;
+                  const canSendReply = canReply && modalComputedStatus !== "finalizado";
                   if (!canSendReply) return null;
                   return (
                     <div className="space-y-2">
@@ -1602,7 +1638,7 @@ const PriorityMatrix: React.FC<{
                         value={trackingResponseDraft}
                         onChange={(e) => setTrackingResponseDraft(e.target.value)}
                         placeholder="Escribe la respuesta..."
-                        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${darkMode ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-300 text-slate-800"}`}
+                        className={`w-full rounded-full border px-4 py-2 text-sm outline-none resize-none ${darkMode ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-300 text-slate-800"}`}
                       />
                       <div className="space-y-1">
                         <input
@@ -1620,9 +1656,7 @@ const PriorityMatrix: React.FC<{
                       </div>
                       <button
                         onClick={() => void handleSendTrackingResponse(selectedTrackingDoc.id)}
-                        className={`px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${darkMode
-                          ? "border-blue-700 text-blue-300 hover:bg-blue-900/20"
-                          : "border-blue-300 text-blue-700 hover:bg-blue-50"}`}
+                        className="w-full sm:w-auto px-4 py-2 rounded-full text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                       >
                         Enviar respuesta
                       </button>
@@ -1782,6 +1816,8 @@ const DocumentManager: React.FC<{
       label: string;
       docs: Document[];
     } | null>(null);
+    const [replyDraft, setReplyDraft] = useState("");
+    const [replySending, setReplySending] = useState(false);
     const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
     const canAccessSecurityModule =
       hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
@@ -2303,17 +2339,18 @@ const DocumentManager: React.FC<{
       );
     };
 
-    const viewConversation = async (label: string, docs: Document[]) => {
+    const viewConversation = async (key: string, label: string, docs: Document[]) => {
       const orderedDocs = [...docs].sort((a, b) => {
         const aTs = getDocTimestamp(a);
         const bTs = getDocTimestamp(b);
         return aTs - bTs;
       });
       setSelectedConversation({
-        key: label,
+        key,
         label,
         docs: orderedDocs,
       });
+      setReplyDraft("");
       setShowViewModal(true);
 
       const unreadIds = orderedDocs
@@ -2362,6 +2399,81 @@ const DocumentManager: React.FC<{
         return <File size={18} className="text-red-500" />;
       }
       return <Mail size={18} className="text-cyan-500" />;
+    };
+
+    const sendConversationReply = async () => {
+      if (!selectedConversation) return;
+      const content = replyDraft.trim();
+      if (!content) {
+        void uiAlert("Escribe un mensaje antes de enviar.", "Mensajería");
+        return;
+      }
+      const key = selectedConversation.key || "";
+      let recipientType: "user" | "dept" | "dept-name" | null = null;
+      let recipientValue = "";
+      if (key.startsWith("user:")) {
+        recipientType = "user";
+        recipientValue = key.slice(5);
+      } else if (key.startsWith("dept:")) {
+        recipientType = "dept";
+        recipientValue = key.slice(5);
+      } else if (key.startsWith("dept-name:")) {
+        recipientType = "dept-name";
+        recipientValue = key.slice(10);
+      }
+      if (!recipientType || !recipientValue) {
+        void uiAlert("No se pudo determinar el destinatario de esta conversación.", "Mensajería");
+        return;
+      }
+      try {
+        setReplySending(true);
+        const formData = new FormData();
+        formData.append("titulo", `Respuesta - ${selectedConversation.label}`.trim());
+        formData.append("tipo_documento", "Mensaje");
+        formData.append("prioridad", "media");
+        formData.append("contenido", content);
+        if (recipientType === "user") {
+          formData.append("receptor_id", recipientValue);
+        } else if (recipientType === "dept") {
+          formData.append("receptor_gerencia_id", recipientValue);
+        } else if (recipientType === "dept-name") {
+          formData.append("receptor_gerencia_nombre", recipientValue);
+        }
+        await uploadDocumento(formData);
+        const now = new Date();
+        const senderLabel = user?.nombre
+          ? `${user?.nombre} ${user?.apellido || ""}`.trim()
+          : "Yo";
+        setSelectedConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                docs: [
+                  ...prev.docs,
+                  {
+                    id: Date.now(),
+                    remitente_id: currentUserId || undefined,
+                    uploadedBy: senderLabel,
+                    uploadDate: now.toLocaleDateString("es-ES"),
+                    uploadTime: now.toLocaleTimeString("es-ES", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                    contenido: content,
+                  } as Document,
+                ],
+              }
+            : prev,
+        );
+        await refreshDocs();
+        setReplyDraft("");
+        void uiAlert("Mensaje enviado.", "Mensajería");
+      } catch (error) {
+        console.error("Error sending reply:", error);
+        void uiAlert("No se pudo enviar el mensaje.", "Mensajería");
+      } finally {
+        setReplySending(false);
+      }
     };
 
     const getSignatureStatus = (status: string | null | undefined) => {
@@ -2931,7 +3043,7 @@ const DocumentManager: React.FC<{
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => viewConversation(group.label, group.docs)}
+                          onClick={() => viewConversation(group.key, group.label, group.docs)}
                           className={`p-2 rounded-md transition-colors ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
                           title="Ver conversacion"
                         >
@@ -3012,66 +3124,110 @@ const DocumentManager: React.FC<{
                 </button>
               </div>
               <div className="p-8 space-y-6">
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-2">
+                <div className="space-y-4 max-h-[55vh] overflow-y-auto no-scrollbar pr-2">
                   {selectedConversation.docs.map((msg) => {
                     const isMine = currentUserId && msg.remitente_id && String(msg.remitente_id) === currentUserId;
                     return (
-                      <div
-                        key={msg.id}
-                        className={`rounded-xl border p-4 text-sm leading-relaxed whitespace-pre-wrap ${
-                          isMine
-                            ? darkMode
-                              ? "border-red-800/60 bg-red-950/40 text-slate-200"
-                              : "border-red-200 bg-red-50 text-slate-800"
-                            : darkMode
-                              ? "border-slate-800 bg-slate-950 text-slate-300"
-                              : "border-slate-200 bg-slate-50 text-slate-700"
-                        }`}
-                      >
-                        <div className={`text-[11px] mb-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                          {msg.uploadedBy || "Remitente"} • {msg.uploadDate} {msg.uploadTime}
-                        </div>
-                        {msg.contenido ? (
-                          <div>{msg.contenido}</div>
-                        ) : (
-                          <div className="italic text-slate-500">Sin contenido de mensaje en texto.</div>
-                        )}
-                        {(msg.fileUrl || (msg.archivos || []).length > 0) && (
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {msg.fileUrl && (
-                              <a
-                                href={msg.fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                                  darkMode
-                                    ? "border-blue-700 text-blue-300 hover:bg-blue-900/20"
-                                    : "border-blue-300 text-blue-700 hover:bg-blue-50"
-                                }`}
-                              >
-                                Ver archivo
-                              </a>
-                            )}
-                            {(msg.archivos || []).map((file: string, idx: number) => (
-                              <a
-                                key={`${file}-${idx}`}
-                                href={file}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                                  darkMode
-                                    ? "border-slate-700 text-slate-300 hover:bg-slate-800"
-                                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                                }`}
-                              >
-                                Adjunto {idx + 1}
-                              </a>
-                            ))}
+                      <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                            isMine
+                              ? darkMode
+                                ? "bg-emerald-600 text-white rounded-br-none"
+                                : "bg-emerald-500 text-white rounded-br-none"
+                              : darkMode
+                                ? "bg-slate-800 text-slate-100 rounded-bl-none"
+                                : "bg-white text-slate-700 border border-slate-200 rounded-bl-none"
+                          }`}
+                        >
+                          <div
+                            className={`text-[11px] mb-2 ${
+                              isMine
+                                ? darkMode
+                                  ? "text-emerald-100/80"
+                                  : "text-emerald-50/90"
+                                : darkMode
+                                  ? "text-slate-400"
+                                  : "text-slate-500"
+                            }`}
+                          >
+                            {msg.uploadedBy || "Remitente"} • {msg.uploadDate} {msg.uploadTime}
                           </div>
-                        )}
+                          {msg.contenido ? (
+                            <div>{msg.contenido}</div>
+                          ) : (
+                            <div className="italic opacity-80">Sin contenido de mensaje en texto.</div>
+                          )}
+                          {(msg.fileUrl || (msg.archivos || []).length > 0) && (
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {msg.fileUrl && (
+                                <a
+                                  href={msg.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                    isMine
+                                      ? "border-white/30 text-white hover:bg-white/10"
+                                      : darkMode
+                                        ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
+                                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  Ver archivo
+                                </a>
+                              )}
+                              {(msg.archivos || []).map((file: string, idx: number) => (
+                                <a
+                                  key={`${file}-${idx}`}
+                                  href={file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                    isMine
+                                      ? "border-white/30 text-white hover:bg-white/10"
+                                      : darkMode
+                                        ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
+                                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  Adjunto {idx + 1}
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
+                </div>
+                <div className={`pt-4 border-t ${darkMode ? "border-slate-800" : "border-slate-200"}`}>
+                  <div className="flex gap-2 items-end">
+                    <textarea
+                      rows={2}
+                      value={replyDraft}
+                      onChange={(e) => setReplyDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void sendConversationReply();
+                        }
+                      }}
+                      placeholder="Escribe tu respuesta..."
+                      className={`flex-1 rounded-full px-4 py-2 text-sm outline-none resize-none ${darkMode ? "bg-slate-950 border border-slate-800 text-slate-200" : "bg-white border border-slate-300 text-slate-800"}`}
+                    />
+                    <button
+                      onClick={() => void sendConversationReply()}
+                      disabled={!replyDraft.trim() || replySending}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-colors ${
+                        replySending
+                          ? "bg-emerald-400"
+                          : "bg-emerald-600 hover:bg-emerald-700"
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      title="Enviar"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className={`p-6 border-t flex justify-end gap-3 ${darkMode ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
