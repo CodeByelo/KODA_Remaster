@@ -67,9 +67,23 @@ export default function NewDocumentoPage() {
 
   const deptOptions = useMemo(
     () =>
-      gerencias
-        .map((g) => ({ id: String(g?.id || ''), nombre: String(g?.nombre || '').trim() }))
-        .filter((g) => g.id && g.nombre),
+      (() => {
+        const normalize = (value: string) =>
+          value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+        const map = new Map<string, { id: string; nombre: string }>();
+        gerencias.forEach((g) => {
+          const id = String(g?.id || '');
+          const nombre = String(g?.nombre || '').trim();
+          if (!id || !nombre) return;
+          const key = normalize(nombre);
+          if (!map.has(key)) map.set(key, { id, nombre });
+        });
+        return Array.from(map.values());
+      })(),
     [gerencias],
   );
 
