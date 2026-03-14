@@ -32,6 +32,7 @@ from database.async_db import get_db_connection, init_db_pool
 import database.async_db as async_db
 from middleware.tenant import get_tenant_context, trace_id_var
 from services.rate_limiter import rate_limiter_middleware
+from database.supabase_client import get_supabase_admin_client
 
 
 def _extract_client_ip(request: Request) -> Optional[str]:
@@ -78,6 +79,7 @@ DEFAULT_JWT_SECRET = "tu_clave_secreta_muy_segura_cambiala_en_produccion"
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))  # 10MB por archivo
 MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "5"))
 ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
+DEFAULT_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "documentos")
 
 # ===================================================================
 # CONFIGURACIÓN DE LOGGING ESTRUCTURADO JSON ENTERPRISE
@@ -184,6 +186,8 @@ origins = [
     "https://sistema-corpoelect.vercel.app",
     "https://sistema-corpoelect-eight.vercel.app",
     "https://sistema-corpoelect-git-main-henryddaniel1910-6913s-projects.vercel.app",
+    "https://sistema-corpoelect-12nf6fj9-henryddaniel1910-6913s-projects.vercel.app",
+    "https://sistema-corpoelect-6poeoi215-henryddaniel1910-6913s-projects.vercel.app",
     "https://sistema-corpoelect-backend.onrender.com"
 ]
 
@@ -751,6 +755,27 @@ async def _log_document_event(
     )
 
 
+async def _upload_to_supabase_storage(file: UploadFile, folder_prefix: str) -> str:
+    bucket = DEFAULT_STORAGE_BUCKET
+    client = get_supabase_admin_client()
+    ext = Path(file.filename).suffix.lower()
+    storage_path = f"{folder_prefix}/{uuid.uuid4()}{ext}"
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="Archivo vacio")
+    result = client.storage.from_(bucket).upload(
+        storage_path,
+        data,
+        {"content-type": file.content_type or "application/octet-stream"},
+    )
+    if isinstance(result, dict) and result.get("error"):
+        raise HTTPException(status_code=500, detail=f"Error subiendo archivo: {result['error']}")
+    public = client.storage.from_(bucket).get_public_url(storage_path)
+    if isinstance(public, dict):
+        return public.get("publicUrl") or public.get("public_url") or storage_path
+    return public
+
+
 @app.get("/documentos/{id}/eventos")
 async def listar_eventos_documento(
     id: uuid.UUID,
@@ -1275,32 +1300,19 @@ async def create_documento(
                     status_code=400,
                     detail=f"Cantidad maxima de archivos excedida. Limite: {MAX_UPLOAD_FILES}",
                 )
-            folder = Path("uploads")
-            folder.mkdir(exist_ok=True)
             for archivo in archivos:
                 if archivo and archivo.filename:
                     ext = Path(archivo.filename).suffix.lower()
                     if ext not in ALLOWED_UPLOAD_EXTENSIONS:
                         raise HTTPException(status_code=400, detail=f"Extension no permitida: {ext}")
-                    file_id = f"{uuid.uuid4()}{ext}"
-                    filepath = folder / file_id
-                    written = 0
-                    with filepath.open("wb") as buffer:
-                        while True:
-                            chunk = await archivo.read(1024 * 1024)
-                            if not chunk:
-                                break
-                            written += len(chunk)
-                            if written > MAX_UPLOAD_BYTES:
-                                buffer.close()
-                                filepath.unlink(missing_ok=True)
-                                raise HTTPException(
-                                    status_code=413,
-                                    detail=f"Archivo excede limite permitido ({MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
-                                )
-                            buffer.write(chunk)
+                    if archivo.size and archivo.size > MAX_UPLOAD_BYTES:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"Archivo excede limite permitido ({MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
+                        )
+                    uploaded_url = await _upload_to_supabase_storage(archivo, "documentos")
                     await archivo.close()
-                    file_urls.append(f"/uploads/{file_id}")
+                    file_urls.append(uploaded_url)
 
         # Guardamos la primera URL en la tabla principal para compatibilidad legacy
         primary_file_url = file_urls[0] if file_urls else None
@@ -1604,32 +1616,19 @@ async def responder_documento(
 
         response_file_urls = []
         if archivos:
-            folder = Path("uploads")
-            folder.mkdir(exist_ok=True)
             for archivo in archivos:
                 if archivo and archivo.filename:
                     ext = Path(archivo.filename).suffix.lower()
                     if ext != ".pdf":
                         raise HTTPException(status_code=400, detail="Solo se permiten adjuntos PDF en respuestas")
-                    file_id = f"resp_{uuid.uuid4()}{ext}"
-                    filepath = folder / file_id
-                    written = 0
-                    with filepath.open("wb") as buffer:
-                        while True:
-                            chunk = await archivo.read(1024 * 1024)
-                            if not chunk:
-                                break
-                            written += len(chunk)
-                            if written > MAX_UPLOAD_BYTES:
-                                buffer.close()
-                                filepath.unlink(missing_ok=True)
-                                raise HTTPException(
-                                    status_code=413,
-                                    detail=f"Archivo excede limite permitido ({MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
-                                )
-                            buffer.write(chunk)
+                    if archivo.size and archivo.size > MAX_UPLOAD_BYTES:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"Archivo excede limite permitido ({MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
+                        )
+                    uploaded_url = await _upload_to_supabase_storage(archivo, "documentos/respuestas")
                     await archivo.close()
-                    response_file_urls.append(f"/uploads/{file_id}")
+                    response_file_urls.append(uploaded_url)
 
         response_id = await conn.fetchval(
             """
