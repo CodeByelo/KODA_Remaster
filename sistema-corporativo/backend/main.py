@@ -2939,11 +2939,11 @@ async def update_ticket(
                 descripcion = COALESCE($3, descripcion),
                 prioridad = COALESCE($4, prioridad),
                 observaciones = CASE
-                    WHEN $6::boolean = TRUE AND $5 IS NOT NULL AND BTRIM($5) <> '' THEN
-                        COALESCE(observaciones, '') ||
-                        CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
-                        '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
-                        COALESCE($7, 'tecnico') || ': ' || $5
+                WHEN $6::boolean = TRUE AND $5::text IS NOT NULL AND BTRIM($5::text) <> '' THEN
+                    COALESCE(observaciones, '') ||
+                    CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
+                    '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
+                    COALESCE($7::text, 'tecnico') || ': ' || $5::text
                     ELSE observaciones
                 END
             WHERE id = $1
@@ -3034,11 +3034,11 @@ async def update_ticket_status(
                 estado = $2,
                 tecnico_id = CASE WHEN $3::uuid IS NULL THEN tecnico_id ELSE $3::uuid END,
                 observaciones = CASE
-                    WHEN $4 IS NOT NULL AND BTRIM($4) <> '' THEN
-                        COALESCE(observaciones, '') ||
-                        CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
-                        '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
-                        COALESCE($5, 'tecnico') || ': ' || $4
+                WHEN $4::text IS NOT NULL AND BTRIM($4::text) <> '' THEN
+                    COALESCE(observaciones, '') ||
+                    CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
+                    '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
+                    COALESCE($5::text, 'tecnico') || ': ' || $4::text
                     ELSE observaciones
                 END
             WHERE id = $1
