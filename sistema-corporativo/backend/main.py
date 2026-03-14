@@ -2905,81 +2905,87 @@ async def update_ticket(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    await _ensure_tickets_schema(conn)
-    user_id = current_user.get("sub")
-    role = current_user.get("role")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Token invalido")
-    role_norm = _normalize_text(role)
-    is_dev = role_norm in {"desarrollador", "dev", "developer"}
-    is_admin = role_norm in {"administrativo", "admin", "administrador"}
-    is_ceo = role_norm == "ceo"
-
-    current_row = await conn.fetchrow("SELECT solicitante_id, titulo, prioridad FROM tickets WHERE id = $1", ticket_id)
-    owner_id = current_row["solicitante_id"] if current_row else None
-    if not owner_id:
-        raise HTTPException(status_code=404, detail="Ticket no encontrado")
-    if is_ceo:
-        raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
-    if str(owner_id) != str(user_id) and not (is_admin or is_dev):
-        raise HTTPException(status_code=403, detail="No autorizado para editar este ticket")
-
-    is_tech = await _is_tech_user(conn, user_id)
-    can_manage_ticket = is_dev or is_admin or is_tech
-    tenant_id = current_user.get("tenant_id")
-    next_priority = payload.prioridad if can_manage_ticket else None
-    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
-    obs_value = _clean_observation(payload.observaciones) if can_manage_ticket else None
-
-    updated = await conn.fetchrow("""
-        UPDATE tickets
-        SET
-            titulo = COALESCE($2, titulo),
-            descripcion = COALESCE($3, descripcion),
-            prioridad = COALESCE($4, prioridad),
-            observaciones = CASE
-                WHEN $6::boolean = TRUE AND $5 IS NOT NULL AND BTRIM($5) <> '' THEN
-                    COALESCE(observaciones, '') ||
-                    CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
-                    '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
-                    COALESCE($7, 'tecnico') || ': ' || $5
-                ELSE observaciones
-            END
-        WHERE id = $1
-        RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
-    """, ticket_id, payload.titulo, payload.descripcion, next_priority, obs_value, can_manage_ticket, username)
-
     try:
-        await _ensure_security_events_table(conn)
-        await conn.execute(
-            """
-            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
-            VALUES ($1::uuid, $2::uuid, $3, 'TICKET_EDITADO', $4, 'info', '/dashboard?tab=tickets')
-            """,
-            tenant_id,
-            user_id,
-            username or "anon",
-            f"Ticket #{updated['id']} editado | titulo='{updated['titulo']}' | prioridad='{updated['prioridad']}'",
-        )
-    except Exception:
-        pass
-    try:
-        await _log_ticket_event(
-            conn,
-            int(updated["id"]),
-            tenant_id,
-            user_id,
-            username or "anon",
-            "UPDATED",
-            old_status=None,
-            new_status=updated["estado"],
-            observaciones=obs_value,
-            details=f"Ticket editado: '{current_row['titulo']}' -> '{updated['titulo']}' | prioridad '{current_row['prioridad']}' -> '{updated['prioridad']}'",
-        )
-    except Exception:
-        pass
+        await _ensure_tickets_schema(conn)
+        user_id = current_user.get("sub")
+        role = current_user.get("role")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token invalido")
+        role_norm = _normalize_text(role)
+        is_dev = role_norm in {"desarrollador", "dev", "developer"}
+        is_admin = role_norm in {"administrativo", "admin", "administrador"}
+        is_ceo = role_norm == "ceo"
 
-    return dict(updated)
+        current_row = await conn.fetchrow("SELECT solicitante_id, titulo, prioridad FROM tickets WHERE id = $1", ticket_id)
+        owner_id = current_row["solicitante_id"] if current_row else None
+        if not owner_id:
+            raise HTTPException(status_code=404, detail="Ticket no encontrado")
+        if is_ceo:
+            raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
+        if str(owner_id) != str(user_id) and not (is_admin or is_dev):
+            raise HTTPException(status_code=403, detail="No autorizado para editar este ticket")
+
+        is_tech = await _is_tech_user(conn, user_id)
+        can_manage_ticket = is_dev or is_admin or is_tech
+        tenant_id = current_user.get("tenant_id")
+        next_priority = payload.prioridad if can_manage_ticket else None
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        obs_value = _clean_observation(payload.observaciones) if can_manage_ticket else None
+
+        updated = await conn.fetchrow("""
+            UPDATE tickets
+            SET
+                titulo = COALESCE($2, titulo),
+                descripcion = COALESCE($3, descripcion),
+                prioridad = COALESCE($4, prioridad),
+                observaciones = CASE
+                    WHEN $6::boolean = TRUE AND $5 IS NOT NULL AND BTRIM($5) <> '' THEN
+                        COALESCE(observaciones, '') ||
+                        CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
+                        '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
+                        COALESCE($7, 'tecnico') || ': ' || $5
+                    ELSE observaciones
+                END
+            WHERE id = $1
+            RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
+        """, ticket_id, payload.titulo, payload.descripcion, next_priority, obs_value, can_manage_ticket, username)
+
+        try:
+            await _ensure_security_events_table(conn)
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'TICKET_EDITADO', $4, 'info', '/dashboard?tab=tickets')
+                """,
+                tenant_id,
+                user_id,
+                username or "anon",
+                f"Ticket #{updated['id']} editado | titulo='{updated['titulo']}' | prioridad='{updated['prioridad']}'",
+            )
+        except Exception:
+            pass
+        try:
+            await _log_ticket_event(
+                conn,
+                int(updated["id"]),
+                tenant_id,
+                user_id,
+                username or "anon",
+                "UPDATED",
+                old_status=None,
+                new_status=updated["estado"],
+                observaciones=obs_value,
+                details=f"Ticket editado: '{current_row['titulo']}' -> '{updated['titulo']}' | prioridad '{current_row['prioridad']}' -> '{updated['prioridad']}'",
+            )
+        except Exception:
+            pass
+
+        return dict(updated)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error en update_ticket")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.patch("/tickets/{ticket_id}/estado", dependencies=[Depends(get_tenant_context)])
@@ -2989,86 +2995,92 @@ async def update_ticket_status(
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection)
 ):
-    await _ensure_tickets_schema(conn)
-    user_id = current_user.get("sub")
-    role = current_user.get("role")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Token invalido")
-
-    role_norm = _normalize_text(role)
-    is_dev = role_norm in {"desarrollador", "dev", "developer"}
-    is_admin = role_norm in {"administrativo", "admin", "administrador"}
-    is_ceo = role_norm == "ceo"
-
-    current = await conn.fetchrow("SELECT id, estado, solicitante_id FROM tickets WHERE id = $1", ticket_id)
-    if not current:
-        raise HTTPException(status_code=404, detail="Ticket no encontrado")
-
-    next_status = _normalize_text(payload.estado).replace(" ", "-")
-    if next_status not in {"abierto", "en-proceso", "resuelto"}:
-        raise HTTPException(status_code=400, detail="Estado invalido")
-
-    is_tech = await _is_tech_user(conn, user_id)
-    can_manage_ticket = is_dev or is_admin or is_tech
-    if is_ceo:
-        raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
-    if not can_manage_ticket:
-        raise HTTPException(status_code=403, detail="No autorizado para cambiar este ticket")
-    if payload.observaciones and not can_manage_ticket:
-        raise HTTPException(status_code=403, detail="No autorizado para registrar observaciones")
-
-    tecnico_id = user_id if next_status in {"en-proceso", "resuelto"} else None
-    tenant_id = current_user.get("tenant_id")
-    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
-    obs_value = _clean_observation(payload.observaciones) if can_manage_ticket else None
-    updated = await conn.fetchrow("""
-        UPDATE tickets
-        SET
-            estado = $2,
-            tecnico_id = CASE WHEN $3::uuid IS NULL THEN tecnico_id ELSE $3::uuid END,
-            observaciones = CASE
-                WHEN $4 IS NOT NULL AND BTRIM($4) <> '' THEN
-                    COALESCE(observaciones, '') ||
-                    CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
-                    '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
-                    COALESCE($5, 'tecnico') || ': ' || $4
-                ELSE observaciones
-            END
-        WHERE id = $1
-        RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
-    """, ticket_id, next_status, tecnico_id, obs_value, username)
-
     try:
-        await _ensure_security_events_table(conn)
-        await conn.execute(
-            """
-            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
-            VALUES ($1::uuid, $2::uuid, $3, 'TICKET_ESTADO_ACTUALIZADO', $4, 'info', '/dashboard?tab=tickets')
-            """,
-            tenant_id,
-            user_id,
-            username or "anon",
-            f"Ticket #{updated['id']} cambio a estado='{updated['estado']}' | tecnico='{updated['tecnico_id']}'",
-        )
-    except Exception:
-        pass
-    try:
-        await _log_ticket_event(
-            conn,
-            int(updated["id"]),
-            tenant_id,
-            user_id,
-            username or "anon",
-            "STATUS_CHANGED",
-            old_status=current["estado"],
-            new_status=updated["estado"],
-            observaciones=obs_value,
-            details=f"Cambio de estado de '{current['estado']}' a '{updated['estado']}'",
-        )
-    except Exception:
-        pass
+        await _ensure_tickets_schema(conn)
+        user_id = current_user.get("sub")
+        role = current_user.get("role")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token invalido")
 
-    return dict(updated)
+        role_norm = _normalize_text(role)
+        is_dev = role_norm in {"desarrollador", "dev", "developer"}
+        is_admin = role_norm in {"administrativo", "admin", "administrador"}
+        is_ceo = role_norm == "ceo"
+
+        current = await conn.fetchrow("SELECT id, estado, solicitante_id FROM tickets WHERE id = $1", ticket_id)
+        if not current:
+            raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+        next_status = _normalize_text(payload.estado).replace(" ", "-")
+        if next_status not in {"abierto", "en-proceso", "resuelto"}:
+            raise HTTPException(status_code=400, detail="Estado invalido")
+
+        is_tech = await _is_tech_user(conn, user_id)
+        can_manage_ticket = is_dev or is_admin or is_tech
+        if is_ceo:
+            raise HTTPException(status_code=403, detail="CEO solo tiene acceso de lectura")
+        if not can_manage_ticket:
+            raise HTTPException(status_code=403, detail="No autorizado para cambiar este ticket")
+        if payload.observaciones and not can_manage_ticket:
+            raise HTTPException(status_code=403, detail="No autorizado para registrar observaciones")
+
+        tecnico_id = user_id if next_status in {"en-proceso", "resuelto"} else None
+        tenant_id = current_user.get("tenant_id")
+        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+        obs_value = _clean_observation(payload.observaciones) if can_manage_ticket else None
+        updated = await conn.fetchrow("""
+            UPDATE tickets
+            SET
+                estado = $2,
+                tecnico_id = CASE WHEN $3::uuid IS NULL THEN tecnico_id ELSE $3::uuid END,
+                observaciones = CASE
+                    WHEN $4 IS NOT NULL AND BTRIM($4) <> '' THEN
+                        COALESCE(observaciones, '') ||
+                        CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
+                        '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
+                        COALESCE($5, 'tecnico') || ': ' || $4
+                    ELSE observaciones
+                END
+            WHERE id = $1
+            RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
+        """, ticket_id, next_status, tecnico_id, obs_value, username)
+
+        try:
+            await _ensure_security_events_table(conn)
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'TICKET_ESTADO_ACTUALIZADO', $4, 'info', '/dashboard?tab=tickets')
+                """,
+                tenant_id,
+                user_id,
+                username or "anon",
+                f"Ticket #{updated['id']} cambio a estado='{updated['estado']}' | tecnico='{updated['tecnico_id']}'",
+            )
+        except Exception:
+            pass
+        try:
+            await _log_ticket_event(
+                conn,
+                int(updated["id"]),
+                tenant_id,
+                user_id,
+                username or "anon",
+                "STATUS_CHANGED",
+                old_status=current["estado"],
+                new_status=updated["estado"],
+                observaciones=obs_value,
+                details=f"Cambio de estado de '{current['estado']}' a '{updated['estado']}'",
+            )
+        except Exception:
+            pass
+
+        return dict(updated)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error en update_ticket_status")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/tickets/{ticket_id}", dependencies=[Depends(get_tenant_context)])
