@@ -689,6 +689,103 @@ async def _ensure_ticket_events_table(conn) -> None:
     """)
 
 
+async def _ensure_documento_respuestas_tables(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS documento_respuestas (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            documento_id UUID NOT NULL REFERENCES documentos(id) ON DELETE CASCADE,
+            tenant_id UUID NOT NULL,
+            user_id UUID NOT NULL,
+            contenido TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS documento_respuesta_adjuntos (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            respuesta_id UUID NOT NULL REFERENCES documento_respuestas(id) ON DELETE CASCADE,
+            url_archivo TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+async def _ensure_document_events_table(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS document_events (
+            id BIGSERIAL PRIMARY KEY,
+            documento_id UUID NOT NULL,
+            tenant_id UUID,
+            actor_user_id UUID,
+            actor_username TEXT,
+            action TEXT NOT NULL,
+            details TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+async def _log_document_event(
+    conn,
+    documento_id: uuid.UUID,
+    tenant_id: Optional[str],
+    actor_user_id: Optional[str],
+    actor_username: Optional[str],
+    action: str,
+    details: Optional[str] = None,
+) -> None:
+    await _ensure_document_events_table(conn)
+    await conn.execute(
+        """
+        INSERT INTO document_events (
+            documento_id, tenant_id, actor_user_id, actor_username, action, details
+        )
+        VALUES ($1, $2::uuid, $3::uuid, $4, $5, $6)
+        """,
+        documento_id,
+        tenant_id,
+        actor_user_id,
+        actor_username,
+        action,
+        details,
+    )
+
+
+@app.get("/documentos/{id}/eventos")
+async def listar_eventos_documento(
+    id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    try:
+        await _ensure_document_events_table(conn)
+        tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
+        if not tenant_id:
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+        rows = await conn.fetch(
+            """
+            SELECT id, documento_id, actor_username, action, details, created_at
+            FROM document_events
+            WHERE documento_id = $1
+              AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
+            ORDER BY created_at ASC
+            """,
+            id,
+            tenant_id,
+        )
+        return [dict(r) for r in rows]
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 async def _ensure_tickets_schema(conn) -> None:
     await conn.execute("""
         ALTER TABLE tickets
@@ -738,6 +835,13 @@ async def _log_ticket_event(
         observaciones,
         details,
     )
+
+
+def _clean_observation(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned if cleaned else None
 
 
 async def _ensure_announcement_table(conn) -> None:
@@ -932,6 +1036,7 @@ async def list_documentos(
     conn = Depends(get_db_connection)
 ):
     try:
+        await _ensure_documento_respuestas_tables(conn)
         tenant_id = current_user.get("tenant_id")
         user_id_raw = current_user.get("sub")
         if not user_id_raw:
@@ -989,10 +1094,23 @@ async def list_documentos(
                 d.fecha_caducidad,
                 d.tenant_id,
                 d.contenido,
-                d.leido
+                d.leido,
+                r_last.contenido as respuesta_contenido,
+                r_last.user_id as respuesta_usuario_id,
+                r_last.created_at as respuesta_fecha,
+                (SELECT array_agg(ra.url_archivo) FROM documento_respuesta_adjuntos ra WHERE ra.respuesta_id = r_last.id) as respuesta_archivos,
+                COALESCE(p_resp.nombre || ' ' || p_resp.apellido, p_resp.username) as respuesta_usuario_nombre
             FROM documentos d
+            LEFT JOIN LATERAL (
+                SELECT r.id, r.user_id, r.contenido, r.created_at
+                FROM documento_respuestas r
+                WHERE r.documento_id = d.id
+                ORDER BY r.created_at DESC
+                LIMIT 1
+            ) r_last ON TRUE
             LEFT JOIN profiles p_rem ON d.remitente_id = p_rem.id
             LEFT JOIN profiles p_rec ON d.receptor_id = p_rec.id
+            LEFT JOIN profiles p_resp ON r_last.user_id = p_resp.id
             LEFT JOIN gerencias g ON d.receptor_gerencia_id = g.id
             LEFT JOIN gerencias g_rem ON p_rem.gerencia_id = g_rem.id
             LEFT JOIN gerencias g_rec ON p_rec.gerencia_id = g_rec.id
@@ -1315,6 +1433,22 @@ async def mark_as_read(
             )
         except Exception:
             pass
+        try:
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            await _log_document_event(
+                conn,
+                id,
+                tenant_id,
+                user_uuid,
+                username or "anon",
+                "READ",
+                details=f"Documento marcado como leido",
+            )
+        except Exception:
+            pass
 
         return {"status": "success", "estado": updated.get("estado")}
     except HTTPException:
@@ -1340,6 +1474,32 @@ async def update_doc_status(
                 user_id,
             )
         nuevo_estado = status_data.get("estado")
+        comentario = (status_data.get("comentario") or "").strip()
+        await _ensure_documento_respuestas_tables(conn)
+        doc = await conn.fetchrow(
+            """
+            SELECT id, remitente_id
+            FROM documentos
+            WHERE id = $1
+              AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR tenant_id IS NULL)
+            """,
+            id,
+            tenant_id,
+        )
+        if not doc:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+        role_norm = _normalize_text(current_user.get("role"))
+        is_privileged = role_norm in {"desarrollador", "dev", "developer", "administrativo", "admin", "administrador", "ceo"}
+        is_sender = doc.get("remitente_id") and str(doc.get("remitente_id")) == str(user_id)
+        if nuevo_estado in {"finalizado", "en-aclaracion"} and not (is_sender or is_privileged):
+            raise HTTPException(status_code=403, detail="No autorizado para este cambio de estado")
+        if nuevo_estado == "finalizado":
+            has_response = await conn.fetchval(
+                "SELECT 1 FROM documento_respuestas WHERE documento_id = $1 LIMIT 1",
+                id,
+            )
+            if not has_response:
+                raise HTTPException(status_code=400, detail="No se puede finalizar sin respuesta")
         updated = await conn.fetchrow("""
             UPDATE documentos 
             SET estado = $1, fecha_ultima_actividad = NOW() 
@@ -1367,7 +1527,233 @@ async def update_doc_status(
             )
         except Exception:
             pass
+        try:
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            await _log_document_event(
+                conn,
+                id,
+                tenant_id,
+                user_id,
+                username or "anon",
+                "STATUS_CHANGED",
+                details=f"estado='{nuevo_estado}'" + (f" | comentario='{comentario}'" if comentario else ""),
+            )
+        except Exception:
+            pass
         return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/documentos/{id}/respuesta")
+async def responder_documento(
+    request: Request,
+    id: uuid.UUID,
+    contenido: str = Form(...),
+    archivos: List[UploadFile] = FastAPIFile(None),
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    try:
+        await _ensure_documento_respuestas_tables(conn)
+        tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
+        if not tenant_id:
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+        user_uuid = uuid.UUID(str(user_id))
+        user_gerencia_id = await conn.fetchval(
+            "SELECT gerencia_id FROM profiles WHERE id = $1::uuid",
+            user_uuid,
+        )
+        is_privileged = await _is_privileged_user(conn, current_user)
+        content = (contenido or "").strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="contenido requerido")
+
+        doc = await conn.fetchrow(
+            """
+            SELECT id, receptor_id, receptor_gerencia_id
+            FROM documentos
+            WHERE id = $1
+              AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR tenant_id IS NULL)
+            """,
+            id,
+            tenant_id,
+        )
+        if not doc:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+        can_reply = is_privileged
+        if doc.get("receptor_id") and str(doc.get("receptor_id")) == str(user_uuid):
+            can_reply = True
+        if doc.get("receptor_gerencia_id") and user_gerencia_id:
+            if int(doc.get("receptor_gerencia_id")) == int(user_gerencia_id):
+                can_reply = True
+        if not can_reply:
+            raise HTTPException(status_code=403, detail="No autorizado para responder este documento")
+
+        response_file_urls = []
+        if archivos:
+            folder = Path("uploads")
+            folder.mkdir(exist_ok=True)
+            for archivo in archivos:
+                if archivo and archivo.filename:
+                    ext = Path(archivo.filename).suffix.lower()
+                    if ext != ".pdf":
+                        raise HTTPException(status_code=400, detail="Solo se permiten adjuntos PDF en respuestas")
+                    file_id = f"resp_{uuid.uuid4()}{ext}"
+                    filepath = folder / file_id
+                    written = 0
+                    with filepath.open("wb") as buffer:
+                        while True:
+                            chunk = await archivo.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            written += len(chunk)
+                            if written > MAX_UPLOAD_BYTES:
+                                buffer.close()
+                                filepath.unlink(missing_ok=True)
+                                raise HTTPException(
+                                    status_code=413,
+                                    detail=f"Archivo excede limite permitido ({MAX_UPLOAD_BYTES // (1024 * 1024)}MB)",
+                                )
+                            buffer.write(chunk)
+                    await archivo.close()
+                    response_file_urls.append(f"/uploads/{file_id}")
+
+        response_id = await conn.fetchval(
+            """
+            INSERT INTO documento_respuestas (
+                documento_id, tenant_id, user_id, contenido
+            ) VALUES ($1, $2::uuid, $3::uuid, $4)
+            RETURNING id
+            """,
+            id,
+            tenant_id,
+            user_uuid,
+            content,
+        )
+        if not response_id:
+            raise HTTPException(status_code=500, detail="No se pudo registrar la respuesta")
+
+        for url in response_file_urls:
+            await conn.execute(
+                """
+                INSERT INTO documento_respuesta_adjuntos (respuesta_id, url_archivo)
+                VALUES ($1, $2)
+                """,
+                response_id,
+                url,
+            )
+
+        updated = await conn.fetchrow(
+            """
+            UPDATE documentos
+            SET
+                estado = CASE
+                    WHEN estado IN ('en-proceso', 'pendiente', 'recibido', 'en-aclaracion') THEN 'respondido'
+                    ELSE estado
+                END,
+                fecha_ultima_actividad = NOW()
+            WHERE id = $1
+              AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR tenant_id IS NULL)
+            RETURNING id
+            """,
+            id,
+            tenant_id,
+        )
+        if not updated:
+            raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+        try:
+            await _ensure_security_events_table(conn)
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_uuid,
+            )
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'DOCUMENTO_RESPONDIDO', $4, 'info', '/dashboard?tab=prioridades')
+                """,
+                tenant_id,
+                user_uuid,
+                username or "anon",
+                f"Respuesta registrada en documento {id}",
+            )
+        except Exception:
+            pass
+        try:
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_uuid,
+            )
+            await _log_document_event(
+                conn,
+                id,
+                tenant_id,
+                user_uuid,
+                username or "anon",
+                "RESPONDED",
+                details="Respuesta registrada",
+            )
+        except Exception:
+            pass
+
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/documentos/{id}/respuestas")
+async def listar_respuestas_documento(
+    id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    try:
+        await _ensure_documento_respuestas_tables(conn)
+        tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
+        if not tenant_id:
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+        rows = await conn.fetch(
+            """
+            SELECT
+                r.id,
+                r.documento_id,
+                r.user_id,
+                r.contenido,
+                r.created_at,
+                COALESCE(p.nombre || ' ' || p.apellido, p.username) as usuario_nombre,
+                (SELECT array_agg(a.url_archivo) FROM documento_respuesta_adjuntos a WHERE a.respuesta_id = r.id) as archivos
+            FROM documento_respuestas r
+            LEFT JOIN profiles p ON r.user_id = p.id
+            WHERE r.documento_id = $1
+              AND ($2::uuid IS NULL OR r.tenant_id = $2::uuid)
+            ORDER BY r.created_at ASC
+            """,
+            id,
+            tenant_id,
+        )
+        return [dict(r) for r in rows]
     except HTTPException:
         raise
     except Exception as e:
@@ -2533,9 +2919,10 @@ async def update_ticket(
 
     is_tech = await _is_tech_user(conn, user_id)
     can_manage_ticket = is_dev or is_admin or is_tech
-    obs_value = payload.observaciones if can_manage_ticket else None
     tenant_id = current_user.get("tenant_id")
     next_priority = payload.prioridad if can_manage_ticket else None
+    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+    obs_value = _clean_observation(payload.observaciones) if can_manage_ticket else None
 
     updated = await conn.fetchrow("""
         UPDATE tickets
@@ -2544,16 +2931,19 @@ async def update_ticket(
             descripcion = COALESCE($3, descripcion),
             prioridad = COALESCE($4, prioridad),
             observaciones = CASE
-                WHEN $6::boolean = TRUE THEN COALESCE($5, observaciones)
+                WHEN $6::boolean = TRUE AND $5 IS NOT NULL AND BTRIM($5) <> '' THEN
+                    COALESCE(observaciones, '') ||
+                    CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
+                    '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
+                    COALESCE($7, 'tecnico') || ': ' || $5
                 ELSE observaciones
             END
         WHERE id = $1
         RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
-    """, ticket_id, payload.titulo, payload.descripcion, next_priority, obs_value, can_manage_ticket)
+    """, ticket_id, payload.titulo, payload.descripcion, next_priority, obs_value, can_manage_ticket, username)
 
     try:
         await _ensure_security_events_table(conn)
-        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
         await conn.execute(
             """
             INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
@@ -2567,7 +2957,6 @@ async def update_ticket(
     except Exception:
         pass
     try:
-        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
         await _log_ticket_event(
             conn,
             int(updated["id"]),
@@ -2623,19 +3012,27 @@ async def update_ticket_status(
 
     tecnico_id = user_id if next_status in {"en-proceso", "resuelto"} else None
     tenant_id = current_user.get("tenant_id")
+    username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
+    obs_value = _clean_observation(payload.observaciones) if can_manage_ticket else None
     updated = await conn.fetchrow("""
         UPDATE tickets
         SET
             estado = $2,
             tecnico_id = CASE WHEN $3::uuid IS NULL THEN tecnico_id ELSE $3::uuid END,
-            observaciones = COALESCE($4, observaciones)
+            observaciones = CASE
+                WHEN $4 IS NOT NULL AND BTRIM($4) <> '' THEN
+                    COALESCE(observaciones, '') ||
+                    CASE WHEN COALESCE(observaciones, '') = '' THEN '' ELSE E'\n' END ||
+                    '[' || to_char(NOW(), 'DD/MM/YYYY HH24:MI') || '] ' ||
+                    COALESCE($5, 'tecnico') || ': ' || $4
+                ELSE observaciones
+            END
         WHERE id = $1
         RETURNING id, titulo, descripcion, area, prioridad, estado, solicitante_id, tecnico_id, observaciones, fecha_creacion
-    """, ticket_id, next_status, tecnico_id, payload.observaciones)
+    """, ticket_id, next_status, tecnico_id, obs_value, username)
 
     try:
         await _ensure_security_events_table(conn)
-        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
         await conn.execute(
             """
             INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
@@ -2649,7 +3046,6 @@ async def update_ticket_status(
     except Exception:
         pass
     try:
-        username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
         await _log_ticket_event(
             conn,
             int(updated["id"]),
@@ -2659,7 +3055,7 @@ async def update_ticket_status(
             "STATUS_CHANGED",
             old_status=current["estado"],
             new_status=updated["estado"],
-            observaciones=payload.observaciones,
+            observaciones=obs_value,
             details=f"Cambio de estado de '{current['estado']}' a '{updated['estado']}'",
         )
     except Exception:
