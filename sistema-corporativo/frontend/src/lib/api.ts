@@ -39,6 +39,12 @@ export interface ApiDocument {
     remitente_gerencia_id?: number;
     remitente_gerencia_nombre?: string;
     fecha_caducidad?: string;
+    respuesta_contenido?: string;
+    respuesta_usuario_id?: string;
+    respuesta_usuario_nombre?: string;
+    respuesta_fecha?: string;
+    respuesta_url_archivo?: string;
+    respuesta_archivos?: string[];
 }
 
 export interface ApiUser {
@@ -181,9 +187,64 @@ export async function updateDocumentStatus(
     const res = await fetch(`${BASE_URL}/documentos/${documentId}/estado`, {
         method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ estado: newStatus, comment }),
+        body: JSON.stringify({ estado: newStatus, comentario: comment }),
     });
     return handleResponse<ApiDocument>(res);
+}
+
+export async function respondDocumento(
+    documentId: number,
+    contenido: string,
+    archivos: File[] = [],
+): Promise<{ status: string }> {
+    const token =
+        typeof window !== "undefined" ? localStorage.getItem("sgd_token") : null;
+    const formData = new FormData();
+    formData.append("contenido", contenido);
+    archivos.forEach((file) => formData.append("archivos", file));
+    const res = await fetch(`${BASE_URL}/documentos/${documentId}/respuesta`, {
+        method: "POST",
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+    });
+    return handleResponse<{ status: string }>(res);
+}
+
+export interface ApiDocumentoRespuesta {
+    id: string;
+    documento_id: string;
+    user_id: string;
+    contenido: string;
+    created_at: string;
+    usuario_nombre?: string;
+    archivos?: string[];
+}
+
+export async function getDocumentoRespuestas(documentId: number): Promise<ApiDocumentoRespuesta[]> {
+    const res = await fetch(`${BASE_URL}/documentos/${documentId}/respuestas`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+    });
+    return handleResponse<ApiDocumentoRespuesta[]>(res);
+}
+
+export interface ApiDocumentoEvento {
+    id: number;
+    documento_id: string;
+    actor_username?: string;
+    action: string;
+    details?: string;
+    created_at: string;
+}
+
+export async function getDocumentoEventos(documentId: number): Promise<ApiDocumentoEvento[]> {
+    const res = await fetch(`${BASE_URL}/documentos/${documentId}/eventos`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+    });
+    return handleResponse<ApiDocumentoEvento[]>(res);
 }
 
 /**

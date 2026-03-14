@@ -5,7 +5,7 @@ import { Search, Plus, MoreVertical, UsersRound, Clock, CheckCircle, FileText, H
 import { logTicketActivity } from '../app/dashboard/security/actions';
 import { UserRole } from '../context/AuthContext';
 import { createTicket as apiCreateTicket, updateTicket as apiUpdateTicket, updateTicketStatus as apiUpdateTicketStatus, deleteTicket as apiDeleteTicket, getTicketHistory as apiGetTicketHistory, searchTicketHistory as apiSearchTicketHistory, ApiTicketHistoryEvent } from '../lib/api';
-import { uiAlert, uiConfirm } from '../lib/ui-dialog';
+import { uiAlert, uiConfirm, uiPrompt } from '../lib/ui-dialog';
 
 type TicketStatus = 'ABIERTO' | 'EN-PROCESO' | 'RESUELTO' | 'ELIMINADO';
 type TicketPriority = 'ALTA' | 'MEDIA' | 'BAJA';
@@ -214,9 +214,21 @@ export default function TicketSystem({
         if (ticket.status !== status) {
             logAction(`CAMBIO DE ESTADO (A ${status})`, ticket.title, 'info');
         }
+        let observationPayload: string | null = '';
+        if (canOperateTicketFlow) {
+            observationPayload = await uiPrompt(
+                `Observacion para el ticket #${ticket.id} (${status})`,
+                '',
+                'Registrar observacion',
+                'Escriba una observacion o deje en blanco...',
+            );
+            if (observationPayload === null) {
+                return;
+            }
+        }
         await apiUpdateTicketStatus(id, {
             estado: toApiStatus(status),
-            observaciones: ticket.observations || '',
+            ...(observationPayload ? { observaciones: observationPayload } : {}),
         });
         await refreshFromServer();
     };

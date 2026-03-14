@@ -34,6 +34,12 @@ export interface Document {
     prioridad?: string;
     contenido?: string; // Nuevo: cuerpo del mensaje
     leido?: boolean;    // Nuevo: estado de lectura
+    respuesta_contenido?: string;
+    respuesta_usuario_id?: string;
+    respuesta_usuario_nombre?: string;
+    respuesta_fecha?: string;
+    respuesta_url_archivo?: string;
+    respuesta_archivos?: string[];
     fecha_caducidad?: string;
 }
 

@@ -78,6 +78,9 @@ import {
   getDocumentos,
   uploadDocumento,
   updateDocumentStatus as apiUpdateStatus,
+  respondDocumento as apiRespondDocumento,
+  getDocumentoRespuestas as apiGetDocumentoRespuestas,
+  getDocumentoEventos as apiGetDocumentoEventos,
   getAllUsers,
   getGerencias,
   getTickets,
@@ -90,7 +93,7 @@ import {
   saveOrgManagementDetails,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
-import { uiAlert, uiConfirm } from "../../lib/ui-dialog";
+import { uiAlert, uiConfirm, uiPrompt } from "../../lib/ui-dialog";
 const ResponsiveContainerCompat =
   ResponsiveContainer as unknown as React.ComponentType<any>;
 const PieChartCompat = PieChart as unknown as React.ComponentType<any>;
@@ -167,6 +170,23 @@ function capitalizeDateParts(value: string): string {
   return String(value || "").replace(/(^|[\s,])(\p{L})/gu, (_match, prefix, letter: string) => {
     return `${prefix}${letter.toUpperCase()}`;
   });
+}
+
+function parseFlexibleDateGlobal(value?: string) {
+  if (!value || value === "N/A") return null;
+  const normalized = String(value).trim();
+  const latinMatch = normalized.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (latinMatch) {
+    const [, ddRaw, mmRaw, yyyy, hh = "00", min = "00", sec = "00"] = latinMatch;
+    const dd = ddRaw.padStart(2, "0");
+    const mm = mmRaw.padStart(2, "0");
+    const d = new Date(`${yyyy}-${mm}-${dd}T${hh.padStart(2, "0")}:${min}:${sec}`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 // ==========================================
@@ -844,14 +864,31 @@ const AlertCard: React.FC<{
 const PriorityMatrix: React.FC<{
   darkMode: boolean;
   userRole: UserRole;
+  user: User | null;
   isReadOnly?: boolean;
   documents: Document[];
   hasPermission: (permission: string) => boolean;
   refreshDocs: () => void | Promise<void>;
-}> = ({ darkMode, userRole, isReadOnly, documents, hasPermission, refreshDocs }) => {
+}> = ({ darkMode, userRole, user, isReadOnly, documents, hasPermission, refreshDocs }) => {
   const [trackingSearch, setTrackingSearch] = useState("");
   const [trackingStatus, setTrackingStatus] = useState<string>("all");
   const [trackingSender, setTrackingSender] = useState<string>("all");
+  const [trackingResponseDraft, setTrackingResponseDraft] = useState("");
+  const [trackingResponseFiles, setTrackingResponseFiles] = useState<File[]>([]);
+  const [trackingResponses, setTrackingResponses] = useState<Array<{
+    id: string;
+    contenido: string;
+    created_at: string;
+    usuario_nombre?: string;
+    archivos?: string[];
+  }>>([]);
+  const [trackingEvents, setTrackingEvents] = useState<Array<{
+    id: number;
+    action: string;
+    details?: string;
+    actor_username?: string;
+    created_at: string;
+  }>>([]);
   const [selectedTrackingDoc, setSelectedTrackingDoc] = useState<any | null>(null);
   const [updatingTrackingStatus, setUpdatingTrackingStatus] = useState(false);
 
@@ -862,6 +899,14 @@ const PriorityMatrix: React.FC<{
         return darkMode
           ? "bg-red-500/10 text-red-400"
           : "bg-red-50 text-red-700";
+      case "en-aclaracion":
+        return darkMode
+          ? "bg-purple-500/10 text-purple-400"
+          : "bg-purple-50 text-purple-700";
+      case "respondido":
+        return darkMode
+          ? "bg-blue-500/10 text-blue-400"
+          : "bg-blue-50 text-blue-700";
       case "finalizado":
         return darkMode
           ? "bg-green-500/10 text-green-400"
@@ -889,32 +934,16 @@ const PriorityMatrix: React.FC<{
     return Number.isNaN(ts) ? 0 : ts;
   };
 
-  const parseFlexibleDate = (value: string) => {
-    if (!value || value === "N/A") return null;
-    const normalized = String(value).trim();
-    // Interpretar fechas latinas: dd/mm/yyyy o d/m/yyyy (con hora opcional)
-    const latinMatch = normalized.match(
-      /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
-    );
-    if (latinMatch) {
-      const [, ddRaw, mmRaw, yyyy, hh = "00", min = "00", sec = "00"] = latinMatch;
-      const dd = ddRaw.padStart(2, "0");
-      const mm = mmRaw.padStart(2, "0");
-      const d = new Date(`${yyyy}-${mm}-${dd}T${hh.padStart(2, "0")}:${min}:${sec}`);
-      return Number.isNaN(d.getTime()) ? null : d;
-    }
-    const d = new Date(normalized);
-    return Number.isNaN(d.getTime()) ? null : d;
-  };
-
   const getTrackingStatus = useCallback(
     (item: { rawStatus?: string; deadlineRaw?: string; fechaMaximaEntrega?: string }) => {
       const raw = String(item.rawStatus || "").toLowerCase().trim();
       const deadline =
-        parseFlexibleDate(item.deadlineRaw || "") ||
-        parseFlexibleDate(item.fechaMaximaEntrega || "");
+        parseFlexibleDateGlobal(item.deadlineRaw || "") ||
+        parseFlexibleDateGlobal(item.fechaMaximaEntrega || "");
       
       if (raw === "finalizado") return "finalizado";
+      if (raw === "respondido") return "respondido";
+      if (raw === "en-aclaracion") return "en-aclaracion";
       
       if (deadline) {
         const today = new Date();
@@ -950,6 +979,74 @@ const PriorityMatrix: React.FC<{
     [refreshDocs],
   );
 
+  const handleRequestClarification = useCallback(
+    async (docId: number) => {
+      const note = await uiPrompt(
+        "Describe que falta o que debe aclararse.",
+        "",
+        "Solicitar aclaracion",
+        "Escribe un comentario...",
+      );
+      if (note === null) return;
+      try {
+        setUpdatingTrackingStatus(true);
+        await apiUpdateStatus(docId, "en-aclaracion", note.trim());
+        setSelectedTrackingDoc((prev: any) =>
+          prev && prev.id === docId
+            ? { ...prev, rawStatus: "en-aclaracion", status: "en-aclaracion" }
+            : prev,
+        );
+        await refreshDocs();
+        void uiAlert("Aclaracion solicitada.", "Control de seguimiento");
+      } catch (error) {
+        console.error("Error solicitando aclaracion:", error);
+        void uiAlert("No se pudo solicitar aclaracion.", "Error");
+      } finally {
+        setUpdatingTrackingStatus(false);
+      }
+    },
+    [refreshDocs],
+  );
+
+  const handleSendTrackingResponse = useCallback(
+    async (docId: number) => {
+      const content = trackingResponseDraft.trim();
+      if (!content) {
+        void uiAlert("Escribe una respuesta antes de enviar.", "Control de seguimiento");
+        return;
+      }
+      try {
+        await apiRespondDocumento(docId, content, trackingResponseFiles);
+        setSelectedTrackingDoc((prev: any) =>
+          prev && prev.id === docId
+            ? {
+              ...prev,
+              rawStatus: "respondido",
+              status: "respondido",
+              respuesta_contenido: content,
+              respuesta_usuario_nombre: user?.nombre ? `${user?.nombre} ${user?.apellido || ""}`.trim() : "Respuesta",
+              respuesta_fecha: new Date().toISOString(),
+            }
+            : prev,
+        );
+        setTrackingResponseDraft("");
+        setTrackingResponseFiles([]);
+        try {
+          const rows = await apiGetDocumentoRespuestas(docId);
+          setTrackingResponses(rows || []);
+        } catch {
+          setTrackingResponses([]);
+        }
+        await refreshDocs();
+        void uiAlert("Respuesta registrada.", "Control de seguimiento");
+      } catch (error) {
+        console.error("Error al responder documento:", error);
+        void uiAlert("No se pudo registrar la respuesta.", "Error");
+      }
+    },
+    [refreshDocs, trackingResponseDraft, trackingResponseFiles, user?.apellido, user?.nombre],
+  );
+
   const DeadlineClock = ({
     sentDate,
     deadlineDate,
@@ -957,10 +1054,10 @@ const PriorityMatrix: React.FC<{
   }: {
     sentDate: string;
     deadlineDate: string;
-    status: "en-proceso" | "vencido" | "finalizado";
+    status: "en-proceso" | "vencido" | "finalizado" | "respondido" | "en-aclaracion";
   }) => {
-    const sent = parseFlexibleDate(sentDate);
-    const deadline = parseFlexibleDate(deadlineDate);
+    const sent = parseFlexibleDateGlobal(sentDate);
+    const deadline = parseFlexibleDateGlobal(deadlineDate);
     const now = Date.now();
     const deadlineMs = deadline?.getTime() ?? null;
 
@@ -1002,6 +1099,10 @@ const PriorityMatrix: React.FC<{
 
     const ringColor = isFinalized
       ? "#22c55e"
+      : status === "respondido"
+      ? "#3b82f6"
+      : status === "en-aclaracion"
+      ? "#a855f7"
       : isOverdue || isCritical
       ? "#ef4444"
       : isNearDue
@@ -1061,31 +1162,39 @@ const PriorityMatrix: React.FC<{
     );
   };
 
-  const mappedTracking = useMemo(() => {
-    const controlDocs = documents.filter(
-      (doc) => String(doc.prioridad || "").toLowerCase() === "control",
-    );
-    return controlDocs.map((doc) => ({
-      id: doc.id,
-      title: doc.name,
-      correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
-      sentBy: doc.uploadedBy || "Desconocido",
-      receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
-      fechaEnvio: doc.uploadDate || "N/A",
-      fechaMaximaEntrega: doc.fecha_caducidad
+    const mappedTracking = useMemo(() => {
+      const controlDocs = documents.filter(
+        (doc) => String(doc.prioridad || "").toLowerCase() === "control",
+      );
+      return controlDocs.map((doc) => ({
+        id: doc.id,
+        title: doc.name,
+        correlativo: doc.correlativo || doc.idDoc || `DOC-${doc.id}`,
+        sentBy: doc.uploadedBy || "Desconocido",
+        receivedBy: doc.receivedBy || doc.targetDepartment || "Sin Asignar",
+        fechaEnvio: doc.uploadDate || "N/A",
+        fechaMaximaEntrega: doc.fecha_caducidad
         ? (() => {
           const d = new Date(doc.fecha_caducidad);
           return Number.isNaN(d.getTime()) ? String(doc.fecha_caducidad) : d.toLocaleDateString("es-ES");
         })()
         : "N/A",
       deadlineRaw: doc.fecha_caducidad || "",
-      rawStatus: String(doc.signatureStatus || "en-proceso").toLowerCase(),
-      status: String(doc.signatureStatus || "en-proceso").toLowerCase(),
-      contenido: doc.contenido || "",
-      fileUrl: doc.fileUrl,
-      archivos: doc.archivos || [],
-    }));
-  }, [documents]);
+        rawStatus: String(doc.signatureStatus || "en-proceso").toLowerCase(),
+        status: String(doc.signatureStatus || "en-proceso").toLowerCase(),
+        contenido: doc.contenido || "",
+        fileUrl: doc.fileUrl,
+        archivos: doc.archivos || [],
+        remitente_id: doc.remitente_id,
+        receptor_id: doc.receptor_id,
+        receptor_gerencia_id: doc.receptor_gerencia_id,
+        respuesta_contenido: doc.respuesta_contenido || "",
+        respuesta_usuario_nombre: doc.respuesta_usuario_nombre || "",
+        respuesta_fecha: doc.respuesta_fecha || "",
+        respuesta_url_archivo: doc.respuesta_url_archivo || "",
+        respuesta_archivos: doc.respuesta_archivos || [],
+      }));
+    }, [documents]);
 
   const senderOptions = useMemo(
     () =>
@@ -1094,6 +1203,41 @@ const PriorityMatrix: React.FC<{
         .sort((a, b) => a.localeCompare(b)),
     [mappedTracking],
   );
+
+  useEffect(() => {
+    if (selectedTrackingDoc) {
+      setTrackingResponseDraft("");
+      setTrackingResponseFiles([]);
+    }
+  }, [selectedTrackingDoc]);
+
+  useEffect(() => {
+    if (!selectedTrackingDoc) {
+      setTrackingResponses([]);
+      setTrackingEvents([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await apiGetDocumentoRespuestas(selectedTrackingDoc.id);
+        if (!cancelled) setTrackingResponses(rows || []);
+      } catch (error) {
+        console.error("Error cargando respuestas:", error);
+        if (!cancelled) setTrackingResponses([]);
+      }
+      try {
+        const rows = await apiGetDocumentoEventos(selectedTrackingDoc.id);
+        if (!cancelled) setTrackingEvents(rows || []);
+      } catch (error) {
+        console.error("Error cargando eventos:", error);
+        if (!cancelled) setTrackingEvents([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTrackingDoc]);
 
   const filteredTracking = useMemo(() => {
     const normalizedSearch = trackingSearch.trim().toLowerCase();
@@ -1142,6 +1286,8 @@ const PriorityMatrix: React.FC<{
             <option value="all">Todos</option>
             <option value="vencido">Vencido</option>
             <option value="en-proceso">En Proceso</option>
+            <option value="respondido">Respondido</option>
+            <option value="en-aclaracion">En aclaracion</option>
             <option value="finalizado">Finalizado</option>
           </select>
         </div>
@@ -1249,7 +1395,11 @@ const PriorityMatrix: React.FC<{
                   ? "EN PROCESO"
                   : computedStatus === "vencido"
                     ? "VENCIDO"
-                    : "FINALIZADO";
+                    : computedStatus === "respondido"
+                      ? "RESPONDIDO"
+                      : computedStatus === "en-aclaracion"
+                        ? "EN ACLARACION"
+                        : "FINALIZADO";
               return (
               <tr
                 key={item.id}
@@ -1338,6 +1488,10 @@ const PriorityMatrix: React.FC<{
               ? "EN PROCESO"
               : modalComputedStatus === "vencido"
                 ? "VENCIDO"
+                : modalComputedStatus === "respondido"
+                  ? "RESPONDIDO"
+                  : modalComputedStatus === "en-aclaracion"
+                    ? "EN ACLARACION"
                 : "FINALIZADO";
           return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
@@ -1384,10 +1538,145 @@ const PriorityMatrix: React.FC<{
                 <p className="text-sm text-slate-500 italic">Sin contenido de mensaje en texto.</p>
               )}
 
+              <div className="space-y-3">
+                <div className={`text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
+                  RESPUESTA DEL RECEPTOR
+                </div>
+                {trackingResponses.length > 0 ? (
+                  <div className="space-y-3">
+                    {trackingResponses.map((resp) => (
+                      <div key={resp.id} className={`rounded-lg border p-4 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                        <div className={`text-[11px] mb-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          {resp.usuario_nombre || "Receptor"}{" "}
+                          {resp.created_at ? `• ${new Date(resp.created_at).toLocaleString("es-ES")}` : ""}
+                        </div>
+                        {resp.contenido}
+                        {(resp.archivos || []).length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {resp.archivos?.map((file: string, idx: number) => {
+                              const url = file.startsWith("http")
+                                ? file
+                                : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${file}`;
+                              return (
+                                <a
+                                  key={`${file}-${idx}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                    darkMode
+                                      ? "border-slate-700 text-slate-300 hover:bg-slate-800"
+                                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  PDF {idx + 1}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500 italic">Aun sin respuesta.</div>
+                )}
+                {(() => {
+                  const currentUserId = user?.id ? String(user.id) : "";
+                  const isDirectRecipient =
+                    !!selectedTrackingDoc.receptor_id &&
+                    !!currentUserId &&
+                    String(selectedTrackingDoc.receptor_id) === currentUserId;
+                  const isDeptRecipient =
+                    !!selectedTrackingDoc.receptor_gerencia_id &&
+                    !!user?.gerencia_id &&
+                    String(selectedTrackingDoc.receptor_gerencia_id) === String(user.gerencia_id);
+                  const canReply = isDirectRecipient || isDeptRecipient;
+                  const canSendReply =
+                    canReply && !selectedTrackingDoc.respuesta_contenido && modalComputedStatus !== "finalizado";
+                  if (!canSendReply) return null;
+                  return (
+                    <div className="space-y-2">
+                      <textarea
+                        rows={3}
+                        value={trackingResponseDraft}
+                        onChange={(e) => setTrackingResponseDraft(e.target.value)}
+                        placeholder="Escribe la respuesta..."
+                        className={`w-full rounded-lg border px-3 py-2 text-sm outline-none ${darkMode ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-300 text-slate-800"}`}
+                      />
+                      <div className="space-y-1">
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          multiple
+                          onChange={(e) => setTrackingResponseFiles(Array.from(e.target.files || []))}
+                          className={`block w-full text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}
+                        />
+                        {trackingResponseFiles.length > 0 && (
+                          <div className={`text-[11px] ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
+                            {trackingResponseFiles.length} PDF(s) seleccionados
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => void handleSendTrackingResponse(selectedTrackingDoc.id)}
+                        className={`px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${darkMode
+                          ? "border-blue-700 text-blue-300 hover:bg-blue-900/20"
+                          : "border-blue-300 text-blue-700 hover:bg-blue-50"}`}
+                      >
+                        Enviar respuesta
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="space-y-2">
+                <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
+                  <Activity size={12} />
+                  HISTORIAL
+                </div>
+                {trackingEvents.length > 0 ? (
+                  <div className={`rounded-lg border p-3 text-xs space-y-2 ${darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                    {trackingEvents.map((ev) => (
+                      <div key={ev.id} className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold">{ev.action}</div>
+                          {ev.details ? <div className="text-[11px] opacity-80">{ev.details}</div> : null}
+                        </div>
+                        <div className="text-[10px] opacity-70 text-right">
+                          <div>{ev.actor_username || "sistema"}</div>
+                          <div>{new Date(ev.created_at).toLocaleString("es-ES")}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500 italic">Sin historial.</div>
+                )}
+              </div>
+
               <div className="flex flex-wrap gap-2">
-                {modalComputedStatus === "en-proceso" && (
+                {modalComputedStatus === "respondido" && (
                   <button
-                    onClick={() => void handleMarkFinalized(selectedTrackingDoc.id)}
+                    onClick={() => void handleRequestClarification(selectedTrackingDoc.id)}
+                    disabled={updatingTrackingStatus}
+                    className={`px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${darkMode
+                      ? "border-purple-700 text-purple-300 hover:bg-purple-900/20 disabled:opacity-50"
+                      : "border-purple-300 text-purple-700 hover:bg-purple-50 disabled:opacity-50"}`}
+                  >
+                    Solicitar aclaracion
+                  </button>
+                )}
+                {modalComputedStatus !== "finalizado" && (
+                  <button
+                    onClick={async () => {
+                      if (!selectedTrackingDoc.respuesta_contenido) {
+                        void uiAlert("No puedes finalizar sin una respuesta del receptor.", "Control de seguimiento");
+                        return;
+                      }
+                      await handleMarkFinalized(selectedTrackingDoc.id);
+                    }}
                     disabled={updatingTrackingStatus}
                     className={`px-3 py-2 rounded-md text-sm font-semibold border transition-colors ${darkMode
                       ? "border-green-700 text-green-300 hover:bg-green-900/20 disabled:opacity-50"
@@ -1488,7 +1777,11 @@ const DocumentManager: React.FC<{
     const [sendMode, setSendMode] = useState<"user" | "dept">("user");
     const [messageContent, setMessageContent] = useState("");
     const [showViewModal, setShowViewModal] = useState(false);
-    const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+    const [selectedConversation, setSelectedConversation] = useState<{
+      key: string;
+      label: string;
+      docs: Document[];
+    } | null>(null);
     const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
     const canAccessSecurityModule =
       hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
@@ -1588,6 +1881,62 @@ const DocumentManager: React.FC<{
     const MY_DEPT =
       "Gerencia Nacional de Tecnologías de la Información y la Comunicación";
 
+    const currentUserId = user?.id ? String(user.id) : "";
+
+    const getDocTimestamp = (doc: Document) => {
+      const combined = [doc.uploadDate, doc.uploadTime].filter(Boolean).join(" ");
+      const parsed =
+        parseFlexibleDateGlobal(combined) ||
+        parseFlexibleDateGlobal(doc.uploadDate) ||
+        null;
+      return parsed ? parsed.getTime() : 0;
+    };
+
+    const getConversationKey = (doc: Document) => {
+      const senderId = doc.remitente_id ? String(doc.remitente_id) : "";
+      const receiverId = doc.receptor_id ? String(doc.receptor_id) : "";
+      if (senderId && receiverId) {
+        const otherId =
+          senderId === currentUserId
+            ? receiverId
+            : receiverId === currentUserId
+              ? senderId
+              : receiverId;
+        if (otherId) return `user:${otherId}`;
+      }
+      if (doc.receptor_gerencia_id) return `dept:${doc.receptor_gerencia_id}`;
+      const deptName = String(
+        doc.targetDepartment ||
+          doc.receptor_gerencia_nombre ||
+          doc.receptor_gerencia_nombre_usuario ||
+          "",
+      )
+        .toLowerCase()
+        .trim();
+      return deptName ? `dept-name:${deptName}` : `misc:${doc.id}`;
+    };
+
+    const getConversationLabel = (doc: Document) => {
+      const senderId = doc.remitente_id ? String(doc.remitente_id) : "";
+      const receiverId = doc.receptor_id ? String(doc.receptor_id) : "";
+      if (senderId && receiverId && currentUserId) {
+        if (senderId === currentUserId) {
+          return doc.receivedBy !== "Pendiente"
+            ? doc.receivedBy
+            : doc.targetDepartment || "Destino";
+        }
+        return doc.uploadedBy || "Remitente";
+      }
+      return (
+        doc.receptor_gerencia_nombre ||
+        doc.receptor_gerencia_nombre_usuario ||
+        doc.targetDepartment ||
+        doc.receivedBy ||
+        doc.uploadedBy ||
+        "Conversacion"
+      );
+    };
+
     const filteredDocs = documents.filter((doc) => {
       const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
       const canViewDept = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_DEPT);
@@ -1683,6 +2032,45 @@ const DocumentManager: React.FC<{
       }
     });
 
+    const conversationGroups = useMemo(() => {
+      const map = new Map<
+        string,
+        {
+          key: string;
+          label: string;
+          docs: Document[];
+          latestDoc: Document;
+          latestTs: number;
+          unreadCount: number;
+        }
+      >();
+      filteredDocs.forEach((doc) => {
+        const key = getConversationKey(doc);
+        const label = getConversationLabel(doc);
+        const ts = getDocTimestamp(doc);
+        const existing = map.get(key);
+        const unread = !doc.leido ? 1 : 0;
+        if (!existing) {
+          map.set(key, {
+            key,
+            label,
+            docs: [doc],
+            latestDoc: doc,
+            latestTs: ts,
+            unreadCount: unread,
+          });
+          return;
+        }
+        existing.docs.push(doc);
+        existing.unreadCount += unread;
+        if (ts >= existing.latestTs) {
+          existing.latestTs = ts;
+          existing.latestDoc = doc;
+        }
+      });
+      return Array.from(map.values()).sort((a, b) => b.latestTs - a.latestTs);
+    }, [filteredDocs]);
+
     const filteredDocIds = useMemo(
       () => filteredDocs.map((doc) => String(doc.id)),
       [filteredDocs],
@@ -1699,6 +2087,16 @@ const DocumentManager: React.FC<{
       setSelectedDocIds((prev) =>
         prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId],
       );
+    };
+
+    const toggleConversationSelection = (docIds: string[]) => {
+      setSelectedDocIds((prev) => {
+        const allSelected = docIds.every((id) => prev.includes(id));
+        if (allSelected) {
+          return prev.filter((id) => !docIds.includes(id));
+        }
+        return Array.from(new Set([...prev, ...docIds]));
+      });
     };
 
     const toggleSelectAllFiltered = () => {
@@ -1888,11 +2286,7 @@ const DocumentManager: React.FC<{
       }
     };
 
-    const viewDocument = async (doc: Document) => {
-      setSelectedDoc({ ...doc, leido: true });
-      setShowViewModal(true);
-
-      // Marcar como leido con la misma logica de visibilidad de bandeja en este modulo.
+    const canMarkDocAsRead = (doc: Document) => {
       const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
       const isDirectRecipient =
         !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
@@ -1903,32 +2297,50 @@ const DocumentManager: React.FC<{
       const docDept = String(doc.targetDepartment || "").toLowerCase().trim();
       const userDeptLower = String(userDept || "").toLowerCase().trim();
       const matchesDeptByName = !!docDept && !!userDeptLower && docDept === userDeptLower;
-      const canMarkAsRead =
+      return (
         docView === "inbox" &&
-        (canViewAll || isDirectRecipient || isDeptRecipient || matchesDeptByName);
-      if (!doc.leido && canMarkAsRead) {
-        // Actualizacion optimista inmediata para actualizar contador sin recargar.
-        setDocuments((prev) =>
-          prev.map((d) =>
-            d.id === doc.id
-              ? {
-                ...d,
-                leido: true,
-                signatureStatus: ["en-proceso", "pendiente"].includes(
-                  String(d.signatureStatus || "").toLowerCase(),
-                )
-                  ? "recibido"
-                  : d.signatureStatus,
-              }
-              : d,
-          ),
-        );
-        try {
-          await markAsRead(doc.id);
-        } catch (e) {
-          console.error("Error marking as read", e);
-          refreshDocs();
-        }
+        (canViewAll || isDirectRecipient || isDeptRecipient || matchesDeptByName)
+      );
+    };
+
+    const viewConversation = async (label: string, docs: Document[]) => {
+      const orderedDocs = [...docs].sort((a, b) => {
+        const aTs = getDocTimestamp(a);
+        const bTs = getDocTimestamp(b);
+        return aTs - bTs;
+      });
+      setSelectedConversation({
+        key: label,
+        label,
+        docs: orderedDocs,
+      });
+      setShowViewModal(true);
+
+      const unreadIds = orderedDocs
+        .filter((d) => !d.leido && canMarkDocAsRead(d))
+        .map((d) => d.id);
+      if (unreadIds.length === 0) return;
+
+      setDocuments((prev) =>
+        prev.map((d) =>
+          unreadIds.includes(d.id)
+            ? {
+              ...d,
+              leido: true,
+              signatureStatus: ["en-proceso", "pendiente"].includes(
+                String(d.signatureStatus || "").toLowerCase(),
+              )
+                ? "recibido"
+                : d.signatureStatus,
+            }
+            : d,
+        ),
+      );
+      try {
+        await Promise.allSettled(unreadIds.map((id) => markAsRead(id)));
+      } catch (e) {
+        console.error("Error marking conversation as read", e);
+        refreshDocs();
       }
     };
 
@@ -2435,11 +2847,14 @@ const DocumentManager: React.FC<{
               </tr>
             </thead>
             <tbody className={`divide-y ${darkMode ? "divide-slate-800" : "divide-slate-200"}`}>
-              {filteredDocs.map((doc) => {
+              {conversationGroups.map((group) => {
+                const doc = group.latestDoc;
                 const effectiveStatus = normalizeMessagingStatus(doc, docView);
                 const statusInfo = getSignatureStatus(effectiveStatus);
                 const StatusIcon = statusInfo.icon;
-                const isUnread = !doc.leido && docView === "inbox";
+                const isUnread = docView === "inbox" && group.unreadCount > 0;
+                const groupDocIds = group.docs.map((d) => String(d.id));
+                const isGroupSelected = groupDocIds.every((id) => selectedDocIds.includes(id));
 
                 return (
                   <tr
@@ -2450,10 +2865,10 @@ const DocumentManager: React.FC<{
                       <td className="px-4 py-3 text-center">
                         <input
                           type="checkbox"
-                          checked={selectedDocIds.includes(String(doc.id))}
-                          onChange={() => toggleDocSelection(String(doc.id))}
+                          checked={isGroupSelected}
+                          onChange={() => toggleConversationSelection(groupDocIds)}
                           className="accent-red-600"
-                          aria-label={`Seleccionar mensaje ${doc.idDoc || doc.id}`}
+                          aria-label={`Seleccionar conversacion ${group.label}`}
                         />
                       </td>
                     )}
@@ -2464,10 +2879,10 @@ const DocumentManager: React.FC<{
                         </div>
                         <div className="max-w-[200px] overflow-hidden">
                           <div className={`text-sm truncate ${isUnread ? (darkMode ? "font-bold text-white" : "font-bold text-slate-900") : darkMode ? "text-slate-400" : "text-slate-700"}`}>
-                            {doc.name}
+                            {group.label}
                           </div>
                           <div className={`text-[10px] truncate ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
-                            {doc.category}
+                            {doc.name} • {group.docs.length} mensaje(s)
                           </div>
                         </div>
                         {isUnread && (
@@ -2516,9 +2931,9 @@ const DocumentManager: React.FC<{
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => viewDocument(doc)}
+                          onClick={() => viewConversation(group.label, group.docs)}
                           className={`p-2 rounded-md transition-colors ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
-                          title="Leer Mensaje / Ver Documento"
+                          title="Ver conversacion"
                         >
                           <Eye size={16} />
                         </button>
@@ -2535,13 +2950,13 @@ const DocumentManager: React.FC<{
                         )}
                         {canBulkDeleteMessages && (
                           <button
-                            onClick={() => deleteDocsByIds([String(doc.id)])}
+                            onClick={() => deleteDocsByIds(groupDocIds)}
                             className={`p-2 rounded-md transition-colors ${
                               darkMode
                                 ? "hover:bg-red-900/40 text-red-400"
                                 : "hover:bg-red-50 text-red-700"
                             }`}
-                            title="Eliminar mensaje"
+                            title="Eliminar conversacion"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -2553,7 +2968,7 @@ const DocumentManager: React.FC<{
               })}
 
               {/* Mensaje de vacío FUERA del .map() */}
-              {filteredDocs.length === 0 && (
+              {conversationGroups.length === 0 && (
                 <tr>
                   <td colSpan={canBulkDeleteMessages ? 8 : 7} className="p-10 text-center text-slate-500 italic">
                     No se encontraron documentos
@@ -2562,7 +2977,7 @@ const DocumentManager: React.FC<{
               )}
             </tbody>
           </table>
-          {filteredDocs.length === 0 && (
+          {conversationGroups.length === 0 && (
             <div className="p-10 text-center">
               <div className="text-slate-500 italic mb-2">No se encontraron mensajes</div>
               <div className="text-xs text-slate-400 mb-4 space-y-1">
@@ -2580,85 +2995,84 @@ const DocumentManager: React.FC<{
         </div>
 
         {/* Modal de Lectura de Mensaje */}
-        {showViewModal && selectedDoc && (
+        {showViewModal && selectedConversation && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in zoom-in duration-200">
             <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
               <div className={`p-6 border-b flex justify-between items-center ${darkMode ? "bg-slate-950/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-700 flex items-center justify-center text-white font-bold">
-                    {selectedDoc.uploadedBy?.[0] || "?"}
-                  </div>
-                  <div>
-                    <h2 className={`font-bold text-lg leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>{selectedDoc.name}</h2>
-                    <p className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-700"}`}>De: {selectedDoc.uploadedBy} - {selectedDoc.uploadDate} {selectedDoc.uploadTime}</p>
-                  </div>
+                <div>
+                  <h2 className={`font-bold text-lg leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
+                    Conversacion con {selectedConversation.label}
+                  </h2>
+                  <p className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
+                    {selectedConversation.docs.length} mensaje(s)
+                  </p>
                 </div>
                 <button onClick={() => setShowViewModal(false)} className={`transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"}`}>
                   <X size={24} />
                 </button>
               </div>
               <div className="p-8 space-y-6">
-                <div className="space-y-2">
-                  <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
-                    <Mail size={12} />
-                    CONTENIDO DEL MENSAJE
-                  </div>
-                  <div className={`p-6 rounded-xl border leading-relaxed text-sm min-h-[150px] whitespace-pre-wrap ${darkMode ? "bg-slate-950/50 border-slate-800 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700"}`}>
-                    {selectedDoc.contenido || "Este mensaje no tiene contenido de texto."}
-                  </div>
-                </div>
-
-                {((selectedDoc.archivos && selectedDoc.archivos.length > 0) || selectedDoc.fileUrl) && (
-                  <div className="space-y-3">
-                    <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
-                      <FileText size={12} />
-                      ADJUNTOS ({selectedDoc.archivos?.length || (selectedDoc.fileUrl ? 1 : 0)})
-                    </div>
-                    <div className="grid grid-cols-1 gap-2">
-                      {selectedDoc.archivos && selectedDoc.archivos.length > 0 ? (
-                        selectedDoc.archivos.map((url, idx) => (
-                          <div key={idx} className={`p-4 rounded-xl border flex items-center justify-between ${darkMode ? "bg-blue-900/10 border-blue-900/30 text-blue-400" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
-                            <div className="flex items-center gap-3">
-                              <FileText size={20} />
-                              <div>
-                                <div className="text-sm font-bold">Documento Adjunto {idx + 1}</div>
-                                <div className="text-[10px] opacity-70">PDF - LISTO</div>
-                              </div>
-                            </div>
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
-                            >
-                              <Eye size={14} />
-                              ABRIR
-                            </a>
-                          </div>
-                        ))
-                      ) : (
-                        <div className={`p-4 rounded-xl border flex items-center justify-between ${darkMode ? "bg-blue-900/10 border-blue-900/30 text-blue-400" : "bg-blue-50 border-blue-100 text-blue-700"}`}>
-                          <div className="flex items-center gap-3">
-                            <FileText size={20} />
-                            <div>
-                              <div className="text-sm font-bold">Documento Adjunto Original</div>
-                              <div className="text-[10px] opacity-70">PDF - LISTO</div>
-                            </div>
-                          </div>
-                          <a
-                            href={selectedDoc.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
-                          >
-                            <Eye size={14} />
-                            ABRIR
-                          </a>
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-2">
+                  {selectedConversation.docs.map((msg) => {
+                    const isMine = currentUserId && msg.remitente_id && String(msg.remitente_id) === currentUserId;
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`rounded-xl border p-4 text-sm leading-relaxed whitespace-pre-wrap ${
+                          isMine
+                            ? darkMode
+                              ? "border-red-800/60 bg-red-950/40 text-slate-200"
+                              : "border-red-200 bg-red-50 text-slate-800"
+                            : darkMode
+                              ? "border-slate-800 bg-slate-950 text-slate-300"
+                              : "border-slate-200 bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        <div className={`text-[11px] mb-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          {msg.uploadedBy || "Remitente"} • {msg.uploadDate} {msg.uploadTime}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                        {msg.contenido ? (
+                          <div>{msg.contenido}</div>
+                        ) : (
+                          <div className="italic text-slate-500">Sin contenido de mensaje en texto.</div>
+                        )}
+                        {(msg.fileUrl || (msg.archivos || []).length > 0) && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {msg.fileUrl && (
+                              <a
+                                href={msg.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                  darkMode
+                                    ? "border-blue-700 text-blue-300 hover:bg-blue-900/20"
+                                    : "border-blue-300 text-blue-700 hover:bg-blue-50"
+                                }`}
+                              >
+                                Ver archivo
+                              </a>
+                            )}
+                            {(msg.archivos || []).map((file: string, idx: number) => (
+                              <a
+                                key={`${file}-${idx}`}
+                                href={file}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                  darkMode
+                                    ? "border-slate-700 text-slate-300 hover:bg-slate-800"
+                                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                                }`}
+                              >
+                                Adjunto {idx + 1}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div className={`p-6 border-t flex justify-end gap-3 ${darkMode ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
                 <button
@@ -2733,7 +3147,7 @@ const ChartsModule: React.FC<{
     if (raw === "vencido") return "vencido";
 
     // Alineado con Control de seguimiento: evalua el vencimiento por fecha visible.
-    const deadline = parseFlexibleDate(doc.fecha_caducidad || undefined);
+    const deadline = parseFlexibleDateGlobal(doc.fecha_caducidad || undefined);
     
     // Comparar con hoy (al final del día para ser justos)
     if (deadline) {
@@ -3270,6 +3684,18 @@ export default function Dashboard() {
           user_id: d.user_id,
           contenido: d.contenido, // Nuevo
           leido: d.leido,          // Nuevo
+          respuesta_contenido: d.respuesta_contenido || "",
+          respuesta_usuario_id: d.respuesta_usuario_id ? String(d.respuesta_usuario_id) : undefined,
+          respuesta_usuario_nombre: d.respuesta_usuario_nombre || "",
+          respuesta_fecha: d.respuesta_fecha || undefined,
+          respuesta_archivos: (d.respuesta_archivos || []).map((url: string) =>
+            url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${url}`
+          ),
+          respuesta_url_archivo: (d.respuesta_archivos && d.respuesta_archivos.length > 0)
+            ? (String(d.respuesta_archivos[0]).startsWith("http")
+              ? d.respuesta_archivos[0]
+              : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${d.respuesta_archivos[0]}`)
+            : undefined,
           fecha_caducidad: d.fecha_caducidad || undefined,
         };
       });
@@ -3828,6 +4254,7 @@ export default function Dashboard() {
           <PriorityMatrix
             darkMode={darkMode}
             userRole={userRole}
+            user={user}
             isReadOnly={isReadOnly}
             documents={documents}
             hasPermission={hasPermission}
