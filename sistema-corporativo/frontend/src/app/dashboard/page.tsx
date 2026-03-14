@@ -3628,8 +3628,11 @@ export default function Dashboard() {
           .replaceAll(" ", "-") as Document["signatureStatus"];
 
         // URL del archivo
-        const fileUrl = d.url_archivo || d.fileUrl
-          ? `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${d.url_archivo || d.fileUrl}`
+        const rawFileUrl = d.url_archivo || d.fileUrl;
+        const fileUrl = rawFileUrl
+          ? (String(rawFileUrl).startsWith("http")
+            ? rawFileUrl
+            : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${rawFileUrl}`)
           : undefined;
         const rawCorrelativo =
           d.correlativo ??
