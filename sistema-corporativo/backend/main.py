@@ -183,18 +183,13 @@ origins = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
-    "https://sistema-corpoelect.vercel.app",
-    "https://sistema-corpoelect-eight.vercel.app",
-    "https://sistema-corpoelect-git-main-henryddaniel1910-6913s-projects.vercel.app",
-    "https://sistema-corpoelect-12nf6fj9-henryddaniel1910-6913s-projects.vercel.app",
-    "https://sistema-corpoelect-6poeoi215-henryddaniel1910-6913s-projects.vercel.app",
     "https://sistema-corpoelect-backend.onrender.com"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://sistema-corpoelect.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
