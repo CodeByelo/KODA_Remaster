@@ -2,7 +2,7 @@
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Paperclip, Send, X } from 'lucide-react';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
 import { getDocumentos, markAsRead, uploadDocumento } from '../../../../lib/api';
@@ -60,6 +60,8 @@ function MensajeriaChatClient() {
   const [replyDraft, setReplyDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canPlayAudioRef = useRef(false);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -314,7 +316,7 @@ function MensajeriaChatClient() {
 
   const sendReply = async () => {
     const content = replyDraft.trim();
-    if (!content) {
+    if (!content && selectedFiles.length === 0) {
       void uiAlert('Escribe un mensaje antes de enviar.', 'Mensajería');
       return;
     }
@@ -340,7 +342,10 @@ function MensajeriaChatClient() {
       formData.append('titulo', `Respuesta - ${conversationLabel}`.trim());
       formData.append('tipo_documento', 'Mensaje');
       formData.append('prioridad', 'media');
-      formData.append('contenido', content);
+      if (content) formData.append('contenido', content);
+      if (selectedFiles.length > 0) {
+        selectedFiles.forEach((file) => formData.append('archivos', file));
+      }
       if (recipientType === 'user') {
         formData.append('receptor_id', recipientValue);
       } else if (recipientType === 'dept') {
@@ -351,6 +356,7 @@ function MensajeriaChatClient() {
       await uploadDocumento(formData);
       await refreshDocuments();
       setReplyDraft('');
+      setSelectedFiles([]);
     } catch (error) {
       console.error('Error sending reply:', error);
       void uiAlert('No se pudo enviar el mensaje.', 'Mensajería');
@@ -389,7 +395,7 @@ function MensajeriaChatClient() {
           </div>
 
           <div
-            className={`rounded-2xl border overflow-hidden flex flex-col min-h-[70vh] ${
+            className={`rounded-2xl border overflow-hidden flex flex-col h-[calc(100vh-220px)] ${
               darkMode ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'
             }`}
           >
@@ -490,7 +496,52 @@ function MensajeriaChatClient() {
                 darkMode ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-white'
               }`}
             >
-              <div className="flex gap-2 items-end">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                multiple
+                accept=".pdf"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length === 0) return;
+                  setSelectedFiles((prev) => [...prev, ...files]);
+                  e.currentTarget.value = '';
+                }}
+              />
+              {selectedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedFiles.map((file, idx) => (
+                    <div
+                      key={`${file.name}-${idx}`}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs border ${
+                        darkMode ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-300 bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <span className="max-w-[220px] truncate">{file.name}</span>
+                      <button
+                        onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="opacity-70 hover:opacity-100"
+                        title="Quitar archivo"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-11 h-11 rounded-full border flex items-center justify-center transition-colors ${
+                    darkMode
+                      ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
+                  }`}
+                  title="Adjuntar PDF"
+                >
+                  <Paperclip size={18} />
+                </button>
                 <textarea
                   rows={2}
                   value={replyDraft}
@@ -502,14 +553,14 @@ function MensajeriaChatClient() {
                     }
                   }}
                   placeholder="Escribe tu respuesta..."
-                  className={`flex-1 rounded-full px-4 py-2 text-sm outline-none resize-none ${
+                  className={`flex-1 rounded-full px-4 py-3 text-sm outline-none resize-none ${
                     darkMode ? 'bg-slate-950 border border-slate-800 text-slate-200' : 'bg-white border border-slate-300 text-slate-800'
                   }`}
                 />
                 <button
                   onClick={() => void sendReply()}
-                  disabled={!replyDraft.trim() || sending}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-colors ${
+                  disabled={sending || (!replyDraft.trim() && selectedFiles.length === 0)}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center text-white transition-colors ${
                     sending ? 'bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                   title="Enviar"
