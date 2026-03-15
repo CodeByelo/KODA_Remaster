@@ -1,5 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Home,
   BarChart2,
@@ -1780,6 +1781,7 @@ const DocumentManager: React.FC<{
   gerencias,
   refreshDocs,
 }) => {
+    const router = useRouter();
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [filterDept, setFilterDept] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState("");
@@ -2350,11 +2352,7 @@ const DocumentManager: React.FC<{
         label,
         view: docView,
       });
-      const chatUrl = `/dashboard/documentos/chat?${params.toString()}`;
-      const popup = window.open(chatUrl, "_blank", "noopener,noreferrer");
-      if (!popup) {
-        void uiAlert("Tu navegador bloqueó la ventana emergente. Permite pop-ups para abrir la conversación.", "Mensajería");
-      }
+      router.push(`/dashboard/documentos/chat?${params.toString()}`);
 
       const unreadIds = orderedDocs
         .filter((d) => !d.leido && canMarkDocAsRead(d))
