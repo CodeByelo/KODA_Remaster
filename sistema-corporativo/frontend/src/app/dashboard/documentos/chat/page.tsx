@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, Send } from 'lucide-react';
 import { RoleGuard } from '../../../../components/RoleGuard';
@@ -51,7 +51,7 @@ function parseFlexibleDateGlobal(value?: string) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export default function MensajeriaChatPage() {
+function MensajeriaChatClient() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -387,5 +387,19 @@ export default function MensajeriaChatPage() {
         </div>
       </div>
     </RoleGuard>
+  );
+}
+
+export default function MensajeriaChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <MensajeriaChatClient />
+    </Suspense>
   );
 }
