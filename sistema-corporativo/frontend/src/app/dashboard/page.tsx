@@ -2920,137 +2920,138 @@ const DocumentManager: React.FC<{
 
         <div className={selectedConversation ? "hidden" : "block"}>
           <div className="flex justify-between items-center mb-2">
-          <div
-            className={`flex p-1 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"}`}
-          >
-            <button
-              onClick={() => setDocView("inbox")}
-              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "inbox" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
+            <div
+              className={`flex p-1 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"}`}
             >
-              <Inbox size={14} />
-              BANDEJA DE ENTRADA
-            </button>
-            <button
-              onClick={() => setDocView("sent")}
-              className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "sent" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
-            >
-              <Send size={14} />
-              ENVIADOS
-            </button>
-            {canUseAuditView && (
               <button
-                onClick={() => setDocView("audit")}
-                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "audit" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
+                onClick={() => setDocView("inbox")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "inbox" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
               >
-                <Shield size={14} />
-                AUDITAR MENSAJES
+                <Inbox size={14} />
+                BANDEJA DE ENTRADA
               </button>
-            )}
-          </div>
-          <div className="flex gap-2">
-            {canBulkDeleteMessages && (
-              <>
-                <button
-                  onClick={handleDeleteSelected}
-                  disabled={selectedDocIds.filter((id) => filteredDocIdSet.has(id)).length === 0}
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${
-                    selectedDocIds.filter((id) => filteredDocIdSet.has(id)).length === 0
-                      ? "bg-slate-500/30 text-slate-400 cursor-not-allowed"
-                      : "bg-red-700 text-white hover:bg-red-800"
-                  }`}
-                >
-                  Eliminar Seleccionados
-                </button>
-                <button
-                  onClick={handleDeleteAllFiltered}
-                  disabled={filteredDocs.length === 0}
-                  className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${
-                    filteredDocs.length === 0
-                      ? "bg-slate-500/30 text-slate-400 cursor-not-allowed"
-                      : "bg-red-900 text-white hover:bg-red-950"
-                  }`}
-                >
-                  Eliminar Todo ({filteredDocs.length})
-                </button>
-              </>
-            )}
-            {hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD) && (
               <button
-                onClick={handleUploadClick}
-                className={`px-4 py-2 rounded-md text-sm font-medium ${darkMode ? "bg-green-600 text-white hover:bg-green-700" : "bg-green-700 text-white hover:bg-green-800"}`}
+                onClick={() => setDocView("sent")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "sent" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
               >
-                + Nuevo Documento
+                <Send size={14} />
+                ENVIADOS
               </button>
-            )}
+              {canUseAuditView && (
+                <button
+                  onClick={() => setDocView("audit")}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${docView === "audit" ? "bg-red-700 text-white" : darkMode ? "text-slate-400 hover:text-white" : "text-slate-800 hover:text-slate-950 hover:bg-white"}`}
+                >
+                  <Shield size={14} />
+                  AUDITAR MENSAJES
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {canBulkDeleteMessages && (
+                <>
+                  <button
+                    onClick={handleDeleteSelected}
+                    disabled={selectedDocIds.filter((id) => filteredDocIdSet.has(id)).length === 0}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${
+                      selectedDocIds.filter((id) => filteredDocIdSet.has(id)).length === 0
+                        ? "bg-slate-500/30 text-slate-400 cursor-not-allowed"
+                        : "bg-red-700 text-white hover:bg-red-800"
+                    }`}
+                  >
+                    Eliminar Seleccionados
+                  </button>
+                  <button
+                    onClick={handleDeleteAllFiltered}
+                    disabled={filteredDocs.length === 0}
+                    className={`px-4 py-2 rounded-md text-sm font-bold transition-colors ${
+                      filteredDocs.length === 0
+                        ? "bg-slate-500/30 text-slate-400 cursor-not-allowed"
+                        : "bg-red-900 text-white hover:bg-red-950"
+                    }`}
+                  >
+                    Eliminar Todo ({filteredDocs.length})
+                  </button>
+                </>
+              )}
+              {hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD) && (
+                <button
+                  onClick={handleUploadClick}
+                  className={`px-4 py-2 rounded-md text-sm font-medium ${darkMode ? "bg-green-600 text-white hover:bg-green-700" : "bg-green-700 text-white hover:bg-green-800"}`}
+                >
+                  + Nuevo Documento
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Filters */}
           <div
             className={`glass-reflect p-4 rounded-lg flex flex-wrap gap-4 items-end ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}
           >
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-              Búsqueda
-            </label>
-            <div
-              className={`flex items-center px-3 py-2 rounded-md border ${darkMode ? "bg-slate-950 border-slate-700" : "bg-white border-slate-300"}`}
-            >
-              <Search size={14} className="text-slate-500 mr-2" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por ID o Título..."
-                className="bg-transparent border-none outline-none text-sm w-full"
-              />
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Búsqueda
+              </label>
+              <div
+                className={`flex items-center px-3 py-2 rounded-md border ${darkMode ? "bg-slate-950 border-slate-700" : "bg-white border-slate-300"}`}
+              >
+                <Search size={14} className="text-slate-500 mr-2" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar por ID o Título..."
+                  className="bg-transparent border-none outline-none text-sm w-full"
+                />
+              </div>
             </div>
-          </div>
-          <div className="w-48">
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-              Estado
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className={`w-full px-3 py-2 rounded-md border text-sm outline-none cursor-pointer ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
-            >
-              <option value="all">Todos los Estados</option>
-              {docView !== "sent" ? (
-                <>
-                  <option value="leido">Leído</option>
-                  <option value="en-proceso">En Proceso</option>
-                </>
-              ) : (
-                <>
-                  <option value="recibido">Recibido</option>
-                  <option value="en-proceso">En Proceso</option>
-                </>
-              )}
-            </select>
-          </div>
-          {canAccessSecurityModule && (
             <div className="w-48">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                Gerencia
+                Estado
               </label>
               <select
-                value={filterDept}
-                onChange={(e) => setFilterDept(e.target.value)}
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
                 className={`w-full px-3 py-2 rounded-md border text-sm outline-none cursor-pointer ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
               >
-                <option value="all">Todas las Gerencias</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
+                <option value="all">Todos los Estados</option>
+                {docView !== "sent" ? (
+                  <>
+                    <option value="leido">Leído</option>
+                    <option value="en-proceso">En Proceso</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="recibido">Recibido</option>
+                    <option value="en-proceso">En Proceso</option>
+                  </>
+                )}
               </select>
             </div>
-          )}
+            {canAccessSecurityModule && (
+              <div className="w-48">
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                  Gerencia
+                </label>
+                <select
+                  value={filterDept}
+                  onChange={(e) => setFilterDept(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-md border text-sm outline-none cursor-pointer ${darkMode ? "bg-slate-950 border-slate-700 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}
+                >
+                  <option value="all">Todas las Gerencias</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Table */}
           <div className="overflow-x-auto no-scrollbar rounded-lg border border-slate-200/20 glass-reflect">
-          <table className={`w-full ${darkMode ? "bg-slate-900" : "bg-white"}`}>
+            <table className={`w-full ${darkMode ? "bg-slate-900" : "bg-white"}`}>
             <thead
               className={`${darkMode ? "bg-slate-950/50" : "bg-slate-50"} border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
             >
