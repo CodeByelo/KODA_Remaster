@@ -1,7 +1,7 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Send } from 'lucide-react';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
@@ -53,12 +53,18 @@ function parseFlexibleDateGlobal(value?: string) {
 }
 
 function MensajeriaChatClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [replyDraft, setReplyDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const canPlayAudioRef = useRef(false);
+  const lastMessageIdRef = useRef<number | null>(null);
+  const initialLoadRef = useRef(true);
+  const listEndRef = useRef<HTMLDivElement | null>(null);
 
   const conversationKey = searchParams.get('key') || '';
   const conversationLabel = searchParams.get('label') || 'Conversación';
@@ -211,6 +217,29 @@ function MensajeriaChatClient() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/notification_message.mp3');
+      audioRef.current.preload = 'auto';
+      audioRef.current.volume = 1;
+    }
+    const initAudio = async () => {
+      try {
+        if (!audioRef.current) return;
+        audioRef.current.muted = true;
+        await audioRef.current.play();
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.muted = false;
+        canPlayAudioRef.current = true;
+      } catch {
+        canPlayAudioRef.current = false;
+      }
+    };
+    void initAudio();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     const stored = localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY);
     setDarkMode(stored ? stored === 'dark' : true);
   }, []);
@@ -241,6 +270,13 @@ function MensajeriaChatClient() {
   }, []);
 
   useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshDocuments();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [refreshDocuments]);
+
+  useEffect(() => {
     const unreadIds = conversationDocs
       .filter((doc) => !doc.leido && canMarkDocAsRead(doc))
       .map((doc) => doc.id);
@@ -254,6 +290,27 @@ function MensajeriaChatClient() {
     );
     void Promise.allSettled(unreadIds.map((id) => markAsRead(id)));
   }, [canMarkDocAsRead, conversationDocs]);
+
+  useEffect(() => {
+    if (conversationDocs.length === 0) return;
+    const last = conversationDocs[conversationDocs.length - 1];
+    if (initialLoadRef.current) {
+      lastMessageIdRef.current = last.id;
+      initialLoadRef.current = false;
+      return;
+    }
+    if (lastMessageIdRef.current !== last.id) {
+      lastMessageIdRef.current = last.id;
+      const isMine = currentUserId && last.remitente_id && String(last.remitente_id) === currentUserId;
+      if (!isMine && audioRef.current && canPlayAudioRef.current) {
+        audioRef.current.currentTime = 0;
+        void audioRef.current.play().catch(() => {
+          canPlayAudioRef.current = false;
+        });
+      }
+    }
+    listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversationDocs, currentUserId]);
 
   const sendReply = async () => {
     const content = replyDraft.trim();
@@ -308,21 +365,23 @@ function MensajeriaChatClient() {
       redirectTo="/login"
     >
       <div className={`min-h-screen ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
-        <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => window.history.back()}
-                className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
-                  darkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                onClick={() => router.push('/dashboard?tab=documentos')}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider ${
+                  darkMode
+                    ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <ArrowLeft size={14} />
                 Volver
               </button>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-xl font-bold">Mensajería Interna</h1>
-                <p className="text-xs text-slate-400">
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Conversación con {conversationLabel} • {docView}
                 </p>
               </div>
@@ -334,7 +393,17 @@ function MensajeriaChatClient() {
               darkMode ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'
             }`}
           >
-            <div className={`flex-1 p-6 space-y-4 overflow-y-auto no-scrollbar ${darkMode ? '' : 'bg-slate-50'}`}>
+            <div className={`px-6 py-4 border-b ${darkMode ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-slate-50'}`}>
+              <div>
+                <h2 className={`text-base font-bold ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
+                  {conversationLabel}
+                </h2>
+                <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {conversationDocs.length} mensaje(s)
+                </p>
+              </div>
+            </div>
+            <div className={`flex-1 p-6 space-y-3 overflow-y-auto no-scrollbar ${darkMode ? '' : 'bg-slate-50'}`}>
               {conversationDocs.length === 0 && (
                 <div className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} italic`}>
                   No hay mensajes en esta conversación.
@@ -345,7 +414,7 @@ function MensajeriaChatClient() {
                 return (
                   <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                      className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
                         isMine
                           ? darkMode
                             ? 'bg-emerald-600 text-white rounded-br-none'
@@ -414,6 +483,7 @@ function MensajeriaChatClient() {
                   </div>
                 );
               })}
+              <div ref={listEndRef} />
             </div>
             <div
               className={`px-6 py-4 border-t ${
