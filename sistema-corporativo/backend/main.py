@@ -782,6 +782,8 @@ def _extract_storage_path(value: Optional[str], bucket_name: str) -> Optional[st
     raw = str(value).strip()
     if not raw:
         return None
+    if raw.startswith("/uploads/"):
+        return None
     # If stored as "bucket/path", strip bucket prefix.
     if raw.startswith(f"{bucket_name}/"):
         return raw[len(bucket_name) + 1 :]
@@ -841,6 +843,17 @@ def _ensure_storage_bucket(client, bucket_name: str) -> None:
         logger.error(f"No se pudo verificar buckets de Supabase: {list_error}")
 
 
+def _store_local_upload(data: bytes, ext: str, folder_prefix: str) -> str:
+    safe_prefix = folder_prefix.strip("/").replace("\\", "/")
+    base_dir = Path("uploads") / safe_prefix if safe_prefix else Path("uploads")
+    base_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid.uuid4()}{ext}"
+    file_path = base_dir / filename
+    file_path.write_bytes(data)
+    relative = f"{safe_prefix}/{filename}" if safe_prefix else filename
+    return f"/uploads/{relative}"
+
+
 async def _upload_to_supabase_storage(file: UploadFile, folder_prefix: str) -> str:
     bucket = DEFAULT_STORAGE_BUCKET
     client = get_supabase_admin_client()
@@ -850,15 +863,20 @@ async def _upload_to_supabase_storage(file: UploadFile, folder_prefix: str) -> s
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Archivo vacio")
-    result = client.storage.from_(bucket).upload(
-        storage_path,
-        data,
-        {"content-type": file.content_type or "application/octet-stream"},
-    )
-    if isinstance(result, dict) and result.get("error"):
-        raise HTTPException(status_code=500, detail=f"Error subiendo archivo: {result['error']}")
-    # For private buckets, we store the storage path and sign URLs when returning data.
-    return storage_path
+    try:
+        result = client.storage.from_(bucket).upload(
+            storage_path,
+            data,
+            {"content-type": file.content_type or "application/octet-stream"},
+        )
+        if isinstance(result, dict) and result.get("error"):
+            raise RuntimeError(result.get("error"))
+        # For private buckets, we store the storage path and sign URLs when returning data.
+        return storage_path
+    except Exception as upload_error:
+        logger.error(f"Fallo upload a Supabase (bucket '{bucket}'): {upload_error}")
+        # Fallback local storage when Supabase is unavailable/misconfigured.
+        return _store_local_upload(data, ext, folder_prefix)
 
 
 @app.get("/documentos/{id}/eventos")
