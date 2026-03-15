@@ -1810,7 +1810,6 @@ const DocumentManager: React.FC<{
     const [targetDeptIds, setTargetDeptIds] = useState<string[]>([]);
     const [sendMode, setSendMode] = useState<"user" | "dept">("user");
     const [messageContent, setMessageContent] = useState("");
-    const [showViewModal, setShowViewModal] = useState(false);
     const [selectedConversation, setSelectedConversation] = useState<{
       key: string;
       label: string;
@@ -2351,7 +2350,6 @@ const DocumentManager: React.FC<{
         docs: orderedDocs,
       });
       setReplyDraft("");
-      setShowViewModal(true);
 
       const unreadIds = orderedDocs
         .filter((d) => !d.leido && canMarkDocAsRead(d))
@@ -2474,6 +2472,11 @@ const DocumentManager: React.FC<{
       } finally {
         setReplySending(false);
       }
+    };
+
+    const closeConversationView = () => {
+      setSelectedConversation(null);
+      setReplyDraft("");
     };
 
     const getSignatureStatus = (status: string | null | undefined) => {
@@ -2787,7 +2790,136 @@ const DocumentManager: React.FC<{
           </div>
         )}
 
-        <div className="flex justify-between items-center mb-2">
+        {selectedConversation && (
+          <div
+            className={`rounded-2xl border overflow-hidden flex flex-col min-h-[70vh] ${darkMode ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200"}`}
+          >
+            <div className={`px-6 py-4 border-b flex flex-wrap items-center gap-3 ${darkMode ? "bg-slate-950/60 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
+              <button
+                onClick={closeConversationView}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${darkMode ? "bg-slate-800 text-slate-300 hover:bg-slate-700" : "bg-slate-200 text-slate-800 hover:bg-slate-300"}`}
+              >
+                Volver a bandeja
+              </button>
+              <div className="min-w-0">
+                <h2 className={`font-bold text-lg leading-tight truncate ${darkMode ? "text-white" : "text-slate-900"}`}>
+                  Conversación con {selectedConversation.label}
+                </h2>
+                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-600"}`}>
+                  {selectedConversation.docs.length} mensaje(s) • {docViewLabel}
+                </p>
+              </div>
+            </div>
+            <div className={`flex-1 p-6 space-y-4 overflow-y-auto no-scrollbar ${darkMode ? "bg-slate-950/30" : "bg-slate-50"}`}>
+              {selectedConversation.docs.map((msg) => {
+                const isMine = currentUserId && msg.remitente_id && String(msg.remitente_id) === currentUserId;
+                return (
+                  <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                        isMine
+                          ? darkMode
+                            ? "bg-emerald-600 text-white rounded-br-none"
+                            : "bg-emerald-500 text-white rounded-br-none"
+                          : darkMode
+                            ? "bg-slate-800 text-slate-100 rounded-bl-none"
+                            : "bg-white text-slate-700 border border-slate-200 rounded-bl-none"
+                      }`}
+                    >
+                      <div
+                        className={`text-[11px] mb-2 ${
+                          isMine
+                            ? darkMode
+                              ? "text-emerald-100/80"
+                              : "text-emerald-50/90"
+                            : darkMode
+                              ? "text-slate-400"
+                              : "text-slate-500"
+                        }`}
+                      >
+                        {msg.uploadedBy || "Remitente"} • {msg.uploadDate} {msg.uploadTime}
+                      </div>
+                      {msg.contenido ? (
+                        <div>{msg.contenido}</div>
+                      ) : (
+                        <div className="italic opacity-80">Sin contenido de mensaje en texto.</div>
+                      )}
+                      {(msg.fileUrl || (msg.archivos || []).length > 0) && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {msg.fileUrl && (
+                            <a
+                              href={msg.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                isMine
+                                  ? "border-white/30 text-white hover:bg-white/10"
+                                  : darkMode
+                                    ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
+                                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              Ver archivo
+                            </a>
+                          )}
+                          {(msg.archivos || []).map((file: string, idx: number) => (
+                            <a
+                              key={`${file}-${idx}`}
+                              href={file}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
+                                isMine
+                                  ? "border-white/30 text-white hover:bg-white/10"
+                                  : darkMode
+                                    ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
+                                    : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                              }`}
+                            >
+                              Adjunto {idx + 1}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className={`px-6 py-4 border-t ${darkMode ? "border-slate-800 bg-slate-950/40" : "border-slate-200 bg-white"}`}>
+              <div className="flex gap-2 items-end">
+                <textarea
+                  rows={2}
+                  value={replyDraft}
+                  onChange={(e) => setReplyDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void sendConversationReply();
+                    }
+                  }}
+                  placeholder="Escribe tu respuesta..."
+                  className={`flex-1 rounded-full px-4 py-2 text-sm outline-none resize-none ${darkMode ? "bg-slate-950 border border-slate-800 text-slate-200" : "bg-white border border-slate-300 text-slate-800"}`}
+                />
+                <button
+                  onClick={() => void sendConversationReply()}
+                  disabled={!replyDraft.trim() || replySending}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-colors ${
+                    replySending
+                      ? "bg-emerald-400"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title="Enviar"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className={selectedConversation ? "hidden" : "block"}>
+          <div className="flex justify-between items-center mb-2">
           <div
             className={`flex p-1 rounded-lg border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-200"}`}
           >
@@ -2851,12 +2983,11 @@ const DocumentManager: React.FC<{
               </button>
             )}
           </div>
-        </div>
 
-        {/* Filters */}
-        <div
-          className={`glass-reflect p-4 rounded-lg flex flex-wrap gap-4 items-end ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}
-        >
+          {/* Filters */}
+          <div
+            className={`glass-reflect p-4 rounded-lg flex flex-wrap gap-4 items-end ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}
+          >
           <div className="flex-1 min-w-[200px]">
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
               Búsqueda
@@ -2915,10 +3046,10 @@ const DocumentManager: React.FC<{
               </select>
             </div>
           )}
-        </div>
+          </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto no-scrollbar rounded-lg border border-slate-200/20 glass-reflect">
+          {/* Table */}
+          <div className="overflow-x-auto no-scrollbar rounded-lg border border-slate-200/20 glass-reflect">
           <table className={`w-full ${darkMode ? "bg-slate-900" : "bg-white"}`}>
             <thead
               className={`${darkMode ? "bg-slate-950/50" : "bg-slate-50"} border-b ${darkMode ? "border-slate-800" : "border-slate-200"}`}
@@ -3104,143 +3235,9 @@ const DocumentManager: React.FC<{
               </button>
             </div>
           )}
+          </div>
         </div>
 
-        {/* Modal de Lectura de Mensaje */}
-        {showViewModal && selectedConversation && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in zoom-in duration-200">
-            <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
-              <div className={`p-6 border-b flex justify-between items-center ${darkMode ? "bg-slate-950/50 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
-                <div>
-                  <h2 className={`font-bold text-lg leading-tight ${darkMode ? "text-white" : "text-slate-900"}`}>
-                    Conversacion con {selectedConversation.label}
-                  </h2>
-                  <p className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
-                    {selectedConversation.docs.length} mensaje(s)
-                  </p>
-                </div>
-                <button onClick={() => setShowViewModal(false)} className={`transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"}`}>
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="p-8 space-y-6">
-                <div className="space-y-4 max-h-[55vh] overflow-y-auto no-scrollbar pr-2">
-                  {selectedConversation.docs.map((msg) => {
-                    const isMine = currentUserId && msg.remitente_id && String(msg.remitente_id) === currentUserId;
-                    return (
-                      <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                        <div
-                          className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
-                            isMine
-                              ? darkMode
-                                ? "bg-emerald-600 text-white rounded-br-none"
-                                : "bg-emerald-500 text-white rounded-br-none"
-                              : darkMode
-                                ? "bg-slate-800 text-slate-100 rounded-bl-none"
-                                : "bg-white text-slate-700 border border-slate-200 rounded-bl-none"
-                          }`}
-                        >
-                          <div
-                            className={`text-[11px] mb-2 ${
-                              isMine
-                                ? darkMode
-                                  ? "text-emerald-100/80"
-                                  : "text-emerald-50/90"
-                                : darkMode
-                                  ? "text-slate-400"
-                                  : "text-slate-500"
-                            }`}
-                          >
-                            {msg.uploadedBy || "Remitente"} • {msg.uploadDate} {msg.uploadTime}
-                          </div>
-                          {msg.contenido ? (
-                            <div>{msg.contenido}</div>
-                          ) : (
-                            <div className="italic opacity-80">Sin contenido de mensaje en texto.</div>
-                          )}
-                          {(msg.fileUrl || (msg.archivos || []).length > 0) && (
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              {msg.fileUrl && (
-                                <a
-                                  href={msg.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                                    isMine
-                                      ? "border-white/30 text-white hover:bg-white/10"
-                                      : darkMode
-                                        ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
-                                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  Ver archivo
-                                </a>
-                              )}
-                              {(msg.archivos || []).map((file: string, idx: number) => (
-                                <a
-                                  key={`${file}-${idx}`}
-                                  href={file}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                                    isMine
-                                      ? "border-white/30 text-white hover:bg-white/10"
-                                      : darkMode
-                                        ? "border-slate-600 text-slate-200 hover:bg-slate-700/50"
-                                        : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                                  }`}
-                                >
-                                  Adjunto {idx + 1}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className={`pt-4 border-t ${darkMode ? "border-slate-800" : "border-slate-200"}`}>
-                  <div className="flex gap-2 items-end">
-                    <textarea
-                      rows={2}
-                      value={replyDraft}
-                      onChange={(e) => setReplyDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          void sendConversationReply();
-                        }
-                      }}
-                      placeholder="Escribe tu respuesta..."
-                      className={`flex-1 rounded-full px-4 py-2 text-sm outline-none resize-none ${darkMode ? "bg-slate-950 border border-slate-800 text-slate-200" : "bg-white border border-slate-300 text-slate-800"}`}
-                    />
-                    <button
-                      onClick={() => void sendConversationReply()}
-                      disabled={!replyDraft.trim() || replySending}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-colors ${
-                        replySending
-                          ? "bg-emerald-400"
-                          : "bg-emerald-600 hover:bg-emerald-700"
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      title="Enviar"
-                    >
-                      <Send size={18} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className={`p-6 border-t flex justify-end gap-3 ${darkMode ? "bg-slate-950/20 border-slate-800" : "bg-slate-50 border-slate-200"}`}>
-                <button
-                  onClick={() => setShowViewModal(false)}
-                  className={`px-6 py-2.5 rounded-lg text-xs font-bold transition-all ${darkMode ? "bg-slate-800 text-slate-400 hover:bg-slate-700" : "bg-slate-200 text-slate-800 hover:bg-slate-300"}`}
-                >
-                  CERRAR
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     )
   };

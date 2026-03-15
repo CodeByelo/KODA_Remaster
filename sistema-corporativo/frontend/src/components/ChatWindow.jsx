@@ -329,15 +329,23 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
     return (
         <AnimatePresence>
             <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 50 }}
-                transition={{ duration: 0.3 }}
-                className="fixed bottom-24 right-3 md:right-6 w-[min(96vw,420px)] h-[min(78vh,620px)] flex flex-col bg-gray-900/95 border border-red-500/30 rounded-2xl shadow-2xl overflow-hidden z-50"
-                style={{ backdropFilter: 'blur(12px)' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-3"
             >
-                {/* Encabezado */}
-                <div className="bg-gradient-to-r from-red-900/90 to-orange-900/90 p-4 border-b border-red-500/30 flex-shrink-0">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 30 }}
+                    transition={{ duration: 0.25 }}
+                    className="relative w-[min(96vw,440px)] h-[min(78vh,640px)] flex flex-col bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                    style={{ backdropFilter: 'blur(12px)' }}
+                >
+                    {/* Encabezado */}
+                    <div className="bg-gradient-to-r from-red-900/90 to-orange-900/90 p-4 border-b border-red-500/30 flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 rounded-full bg-black/20 overflow-hidden border border-white/20 relative">
@@ -376,29 +384,29 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                 </div>
 
                 {/* Contenido Principal changeable */}
-                <div className="flex-1 overflow-hidden relative bg-gray-950/50">
+                    <div className="flex-1 overflow-hidden relative bg-slate-950/40">
 
                     {/* VISTA: CHAT */}
                     {view === 'chat' && (
                         <div className="h-full flex flex-col">
-                            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                                 {messages.map((message) => (
                                     <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] rounded-2xl p-3 ${message.sender === 'user'
-                                            ? 'bg-red-700 text-white rounded-tr-none'
-                                            : 'bg-gray-800 text-gray-200 rounded-tl-none border border-gray-700'
+                                        <div className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-sm ${message.sender === 'user'
+                                            ? 'bg-emerald-600 text-white rounded-br-none ring-1 ring-emerald-400/30'
+                                            : 'bg-slate-800 text-slate-100 rounded-bl-none ring-1 ring-white/10'
                                             }`}>
-                                            <p className="whitespace-pre-wrap text-sm">{message.text}</p>
-                                            <span className="text-[10px] opacity-60 block text-right mt-1">{message.timestamp}</span>
+                                            <p className="whitespace-pre-wrap text-sm leading-snug">{message.text}</p>
+                                            <span className="text-[10px] opacity-70 block text-right mt-1">{message.timestamp}</span>
                                         </div>
                                     </div>
                                 ))}
                                 {isLoading && (
                                     <div className="flex justify-start">
-                                        <div className="bg-gray-800 p-3 rounded-2xl rounded-tl-none border border-gray-700 flex gap-2">
-                                            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
-                                            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce delay-75"></div>
-                                            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce delay-150"></div>
+                                        <div className="bg-slate-800 p-3 rounded-2xl rounded-bl-none ring-1 ring-white/10 flex gap-2">
+                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce delay-75"></div>
+                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce delay-150"></div>
                                         </div>
                                     </div>
                                 )}
@@ -406,19 +414,19 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                             </div>
 
                             {/* Input Area */}
-                            <div className="p-3 bg-gray-900/50 border-t border-gray-800">
+                            <div className="p-3 bg-slate-900/70 border-t border-white/10">
                                 <div className="flex gap-2">
                                     <textarea
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         onKeyPress={handleKeyPress}
                                         placeholder="Escribe tu mensaje..."
-                                        className="flex-1 bg-gray-800 border-none rounded-xl px-3 py-2 text-sm text-white focus:ring-1 focus:ring-red-500 resize-none h-[40px] scrollbar-hide"
+                                        className="flex-1 bg-slate-800/90 border-none rounded-full px-4 py-2 text-sm text-white focus:ring-1 focus:ring-emerald-400 resize-none h-[42px] scrollbar-hide"
                                     />
                                     <button
                                         onClick={handleSend}
                                         disabled={!input.trim() || isLoading}
-                                        className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                     >
                                         {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                     </button>
@@ -535,6 +543,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                         </div>
                     )}
                 </div>
+                </motion.div>
             </motion.div>
         </AnimatePresence>
     );
