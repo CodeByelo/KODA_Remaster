@@ -1465,9 +1465,11 @@ const PriorityMatrix: React.FC<{
                   </span>
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <button
+                  <a
+                    href={`/dashboard/seguimiento/${item.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     onClick={() => {
-                      setSelectedTrackingDoc(item);
                       void createSecurityLog({
                         evento: "SEGUIMIENTO_ABIERTO",
                         detalles: JSON.stringify({
@@ -1486,7 +1488,7 @@ const PriorityMatrix: React.FC<{
                   >
                     <Eye size={13} />
                     Ver
-                  </button>
+                  </a>
                 </td>
               </tr>
             );
