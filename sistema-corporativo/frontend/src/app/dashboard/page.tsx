@@ -102,6 +102,8 @@ const PieCompat = Pie as unknown as React.ComponentType<any>;
 const CellCompat = Cell as unknown as React.ComponentType<any>;
 const TooltipCompat = Tooltip as unknown as React.ComponentType<any>;
 const LegendCompat = Legend as unknown as React.ComponentType<any>;
+const BACKEND_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
 
 // ==========================================
 // TIPOS Y INTERFACES
@@ -165,6 +167,11 @@ function shiftHexColor(hex: string, amount: number): string {
   const nextG = clamp(g + amount);
   const nextB = clamp(b + amount);
   return `#${nextR.toString(16).padStart(2, "0")}${nextG.toString(16).padStart(2, "0")}${nextB.toString(16).padStart(2, "0")}`;
+}
+
+function resolveFileUrl(file?: string) {
+  if (!file) return "";
+  return file.startsWith("http") ? file : `${BACKEND_BASE_URL}${file}`;
 }
 
 function capitalizeDateParts(value: string): string {
@@ -1013,7 +1020,7 @@ const PriorityMatrix: React.FC<{
   const handleSendTrackingResponse = useCallback(
     async (docId: number) => {
       const content = trackingResponseDraft.trim();
-      if (!content) {
+      if (!content && trackingResponseFiles.length === 0) {
         void uiAlert("Escribe una respuesta antes de enviar.", "Control de seguimiento");
         return;
       }
@@ -1622,7 +1629,7 @@ const PriorityMatrix: React.FC<{
                                 {resp.archivos?.map((file: string, idx: number) => {
                                   const url = file.startsWith("http")
                                     ? file
-                                    : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${file}`;
+                                    : `${BACKEND_BASE_URL}${file}`;
                                   return (
                                     <a
                                       key={`${file}-${idx}`}
@@ -1759,7 +1766,7 @@ const PriorityMatrix: React.FC<{
                 {selectedTrackingDoc.fileUrl &&
                   !((selectedTrackingDoc.archivos || []).includes(selectedTrackingDoc.fileUrl)) && (
                   <a
-                    href={selectedTrackingDoc.fileUrl}
+                    href={resolveFileUrl(selectedTrackingDoc.fileUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => {
@@ -1782,7 +1789,7 @@ const PriorityMatrix: React.FC<{
                 {(selectedTrackingDoc.archivos || []).map((file: string, idx: number) => (
                   <a
                     key={`${file}-${idx}`}
-                    href={file}
+                    href={resolveFileUrl(file)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => {
@@ -4000,7 +4007,7 @@ export default function Dashboard() {
         const fileUrl = rawFileUrl
           ? (String(rawFileUrl).startsWith("http")
             ? rawFileUrl
-            : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${rawFileUrl}`)
+            : `${BACKEND_BASE_URL}${rawFileUrl}`)
           : undefined;
         const rawCorrelativo =
           d.correlativo ??
@@ -4048,7 +4055,7 @@ export default function Dashboard() {
           correlativo: correlativoValue,
           fileUrl: d.fileUrl || (d.archivos && d.archivos.length > 0 ? d.archivos[0] : undefined),
           archivos: (d.archivos || []).map((url: string) =>
-            url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${url}`
+            url.startsWith("http") ? url : `${BACKEND_BASE_URL}${url}`
           ),
           prioridad: d.prioridad || "media",
           tenant_id: d.tenant_id,
@@ -4060,12 +4067,12 @@ export default function Dashboard() {
           respuesta_usuario_nombre: d.respuesta_usuario_nombre || "",
           respuesta_fecha: d.respuesta_fecha || undefined,
           respuesta_archivos: (d.respuesta_archivos || []).map((url: string) =>
-            url.startsWith("http") ? url : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${url}`
+            url.startsWith("http") ? url : `${BACKEND_BASE_URL}${url}`
           ),
           respuesta_url_archivo: (d.respuesta_archivos && d.respuesta_archivos.length > 0)
             ? (String(d.respuesta_archivos[0]).startsWith("http")
               ? d.respuesta_archivos[0]
-              : `${process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com"}${d.respuesta_archivos[0]}`)
+              : `${BACKEND_BASE_URL}${d.respuesta_archivos[0]}`)
             : undefined,
           fecha_caducidad: d.fecha_caducidad || undefined,
         };
