@@ -2020,9 +2020,9 @@ const DocumentManager: React.FC<{
         return false;
       }
 
-      // Debug logs
-      console.log(`[FILTER] Doc: ${doc.name} | Receptor: ${doc.receptor_id} | Gerencia: ${doc.receptor_gerencia_id}`);
-      console.log(`[FILTER] User: ${user?.id} | Dept: ${userDept}`);
+      // Debug logs (remove or keep as needed)
+      // console.log(`[FILTER] Doc: ${doc.name} | Receptor: ${doc.receptor_id} | Gerencia: ${doc.receptor_gerencia_id}`);
+      // console.log(`[FILTER] User: ${user?.id} | Dept: ${userDept}`);
       const isOwnMessage =
         !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
 
@@ -2117,9 +2117,7 @@ const DocumentManager: React.FC<{
         const label = getConversationLabel(doc);
         const ts = getDocTimestamp(doc);
         const existing = map.get(key);
-        const isOwnMessage =
-          !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
-        const unread = !doc.leido && !isOwnMessage ? 1 : 0;
+        const unread = isIncomingDocumentForUser(doc) && !doc.leido ? 1 : 0;
         if (!existing) {
           map.set(key, {
             key,
@@ -2139,15 +2137,7 @@ const DocumentManager: React.FC<{
         }
       });
       return Array.from(map.values()).sort((a, b) => b.latestTs - a.latestTs);
-    }, [filteredDocs]);
-
-    const myRecentDocs = useMemo(() => {
-      if (!currentUserId) return [];
-      return [...documents]
-        .filter((doc) => doc.remitente_id && String(doc.remitente_id) === currentUserId)
-        .sort((a, b) => getDocTimestamp(b) - getDocTimestamp(a))
-        .slice(0, 5);
-    }, [currentUserId, documents]);
+    }, [filteredDocs, isIncomingDocumentForUser]);
 
     const filteredDocIds = useMemo(
       () => filteredDocs.map((doc) => String(doc.id)),
@@ -3107,56 +3097,6 @@ const DocumentManager: React.FC<{
             )}
           </div>
 
-          {myRecentDocs.length > 0 && (
-            <div className={`glass-reflect p-4 rounded-lg ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Mi actividad reciente
-                </div>
-                <div className={`text-[10px] ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
-                  Últimos envíos
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                {myRecentDocs.map((doc) => {
-                  const delivery = getDeliveryInfo(doc);
-                  const label = getConversationLabel(doc);
-                  const key = getConversationKey(doc);
-                  const toLabel = getRecipientDisplay(doc);
-                  return (
-                    <a
-                      key={`activity-${doc.id}`}
-                      href={`/dashboard/documentos/chat?${new URLSearchParams({
-                        key,
-                        label,
-                        view: "sent",
-                      }).toString()}`}
-                      className={`flex items-center justify-between gap-3 px-3 py-2 rounded-md transition-colors ${darkMode ? "hover:bg-slate-800/60" : "hover:bg-white"}`}
-                    >
-                      <div className="min-w-0">
-                        <div className={`text-sm truncate ${darkMode ? "text-slate-200" : "text-slate-800"}`}>
-                          {doc.name || "Mensaje"}
-                        </div>
-                        <div className={`text-[11px] truncate ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
-                          Para: {toLabel} • {doc.uploadDate} {doc.uploadTime}
-                        </div>
-                      </div>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${delivery.key === "direct"
-                        ? darkMode
-                          ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : darkMode
-                          ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
-                      }`}>
-                        {delivery.label}
-                      </span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Table */}
           <div className="overflow-x-auto no-scrollbar rounded-lg border border-slate-200/20 glass-reflect">
@@ -3868,8 +3808,8 @@ export default function Dashboard() {
   }, [hasPermission, user?.gerencia_depto, user?.gerencia_id, user?.id]);
 
   const unreadInboxCount = useMemo(
-    () => documents.filter((doc) => canSeeDocumentInInbox(doc) && !doc.leido).length,
-    [canSeeDocumentInInbox, documents],
+    () => documents.filter((doc) => isIncomingDocumentForUser(doc) && !doc.leido).length,
+    [documents, isIncomingDocumentForUser],
   );
 
   const fetchDocuments = useCallback(async () => {
