@@ -17,6 +17,7 @@ type Document = {
   receivedBy?: string;
   receptor_id?: string;
   receptor_gerencia_id?: number;
+  receptor_gerencia_nombre?: string;
   remitente_id?: string;
   receptor_gerencia_id_usuario?: number;
   receptor_gerencia_nombre_usuario?: string;
