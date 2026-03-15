@@ -129,6 +129,30 @@ function MensajeriaChatClient() {
       .sort((a, b) => getDocTimestamp(a) - getDocTimestamp(b));
   }, [conversationKey, documents, getConversationKey, getDocTimestamp]);
 
+  const getDeliveryInfo = useCallback((doc: Document) => {
+    if (doc.receptor_id) {
+      return { key: 'direct', label: 'Directo' };
+    }
+    if (doc.receptor_gerencia_id || doc.receptor_gerencia_nombre || doc.targetDepartment) {
+      return { key: 'dept', label: 'Gerencia' };
+    }
+    return { key: 'unknown', label: 'Sin destino' };
+  }, []);
+
+  const getRecipientDisplay = useCallback((doc: Document) => {
+    if (doc.receptor_id) {
+      return doc.receivedBy !== 'Pendiente' ? doc.receivedBy : 'Usuario';
+    }
+    return (
+      doc.receptor_gerencia_nombre ||
+      doc.receptor_gerencia_nombre_usuario ||
+      doc.targetDepartment ||
+      'Gerencia'
+    );
+  }, []);
+
+  const lastConversationDoc = conversationDocs.length > 0 ? conversationDocs[conversationDocs.length - 1] : null;
+
   const refreshDocuments = useCallback(async () => {
     try {
       const data = await getDocumentos();
@@ -407,6 +431,27 @@ function MensajeriaChatClient() {
                 <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   {conversationDocs.length} mensaje(s)
                 </p>
+                {lastConversationDoc && (
+                  <div className={`text-[11px] mt-1 ${darkMode ? 'text-slate-500' : 'text-slate-600'}`}>
+                    <span className="font-semibold">
+                      {docView === 'sent' ? 'Para' : 'De'}:
+                    </span>{' '}
+                    {docView === 'sent'
+                      ? getRecipientDisplay(lastConversationDoc)
+                      : lastConversationDoc.uploadedBy || 'Remitente'}
+                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                      getDeliveryInfo(lastConversationDoc).key === 'direct'
+                        ? darkMode
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : darkMode
+                          ? 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                      {getDeliveryInfo(lastConversationDoc).label}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div className={`flex-1 p-6 space-y-3 overflow-y-auto no-scrollbar ${darkMode ? '' : 'bg-slate-50'}`}>
@@ -441,7 +486,7 @@ function MensajeriaChatClient() {
                               : 'text-slate-500'
                         }`}
                       >
-                        {msg.uploadedBy || 'Remitente'} • {msg.uploadDate} {msg.uploadTime}
+                        {msg.uploadedBy || 'Remitente'} -> {getRecipientDisplay(msg)} | {getDeliveryInfo(msg).label} | {msg.uploadDate} {msg.uploadTime}
                       </div>
                       {msg.contenido ? (
                         <div>{msg.contenido}</div>
@@ -450,7 +495,7 @@ function MensajeriaChatClient() {
                       )}
                       {(msg.fileUrl || (msg.archivos || []).length > 0) && (
                         <div className="flex flex-wrap gap-2 mt-3">
-                          {msg.fileUrl && (
+                          {msg.fileUrl && !((msg.archivos || []).includes(msg.fileUrl)) && (
                             <a
                               href={msg.fileUrl}
                               target="_blank"

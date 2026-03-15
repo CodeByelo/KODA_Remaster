@@ -1875,10 +1875,10 @@ const DocumentManager: React.FC<{
     }, [correlativo, user?.gerencia_depto, userDept]);
 
     useEffect(() => {
-      if (docView !== "sent" && filterStatus === "recibido") {
+      if (docView === "sent" && (filterStatus === "leido" || filterStatus === "nuevo")) {
         setFilterStatus("all");
       }
-      if (docView === "sent" && filterStatus === "leido") {
+      if (docView !== "sent" && filterStatus === "recibido") {
         setFilterStatus("all");
       }
     }, [docView, filterStatus]);
@@ -1894,17 +1894,25 @@ const DocumentManager: React.FC<{
 
     const normalizeMessagingStatus = useCallback((doc: Document, view: "inbox" | "sent" | "audit"): string => {
       const raw = String(doc.signatureStatus || "").toLowerCase().trim();
+      const isOwnMessage =
+        !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
 
-      if (view !== "sent" && doc.leido) return "leido";
-      if (view === "sent" && doc.leido) return "recibido";
+      if (view === "inbox") {
+        if (!doc.leido && !isOwnMessage) return "nuevo";
+        if (doc.leido) return "leido";
+      }
+      if (view === "sent") {
+        if (doc.leido) return "recibido";
+        return "enviado";
+      }
 
       if (raw === "en-proceso" || raw === "en proceso" || raw === "en_proceso") return "en-proceso";
       if (raw === "recibido") return "recibido";
-      if (raw === "leido" || raw === "Leído") return "leido";
+      if (raw === "leido" || raw === "leído") return "leido";
       if (raw === "pendiente" || raw === "aprobado" || raw === "rechazado" || raw === "omitido") return "en-proceso";
 
       return "en-proceso";
-    }, []);
+    }, [user?.id]);
 
     const docViewLabel =
       docView === "inbox"
@@ -1972,6 +1980,28 @@ const DocumentManager: React.FC<{
       );
     };
 
+    const getDeliveryInfo = (doc: Document) => {
+      if (doc.receptor_id) {
+        return { key: "direct", label: "Directo" };
+      }
+      if (doc.receptor_gerencia_id || doc.receptor_gerencia_nombre || doc.targetDepartment) {
+        return { key: "dept", label: "Gerencia" };
+      }
+      return { key: "unknown", label: "Sin destino" };
+    };
+
+    const getRecipientDisplay = (doc: Document) => {
+      if (doc.receptor_id) {
+        return doc.receivedBy !== "Pendiente" ? doc.receivedBy : "Usuario";
+      }
+      return (
+        doc.receptor_gerencia_nombre ||
+        doc.receptor_gerencia_nombre_usuario ||
+        doc.targetDepartment ||
+        "Gerencia"
+      );
+    };
+
     const filteredDocs = documents.filter((doc) => {
       const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
       const canViewDept = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_DEPT);
@@ -1993,6 +2023,8 @@ const DocumentManager: React.FC<{
       // Debug logs
       console.log(`[FILTER] Doc: ${doc.name} | Receptor: ${doc.receptor_id} | Gerencia: ${doc.receptor_gerencia_id}`);
       console.log(`[FILTER] User: ${user?.id} | Dept: ${userDept}`);
+      const isOwnMessage =
+        !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
 
       if (docView === "audit") {
         if (!canUseAuditView) return false;
@@ -2020,6 +2052,7 @@ const DocumentManager: React.FC<{
 
       if (docView === "inbox") {
         // BANDEJA DE ENTRADA
+        if (isOwnMessage) return false;
         if (canViewAll) return true;
 
         // Coincidencia por receptor_id
@@ -2084,7 +2117,9 @@ const DocumentManager: React.FC<{
         const label = getConversationLabel(doc);
         const ts = getDocTimestamp(doc);
         const existing = map.get(key);
-        const unread = !doc.leido ? 1 : 0;
+        const isOwnMessage =
+          !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
+        const unread = !doc.leido && !isOwnMessage ? 1 : 0;
         if (!existing) {
           map.set(key, {
             key,
@@ -2105,6 +2140,14 @@ const DocumentManager: React.FC<{
       });
       return Array.from(map.values()).sort((a, b) => b.latestTs - a.latestTs);
     }, [filteredDocs]);
+
+    const myRecentDocs = useMemo(() => {
+      if (!currentUserId) return [];
+      return [...documents]
+        .filter((doc) => doc.remitente_id && String(doc.remitente_id) === currentUserId)
+        .sort((a, b) => getDocTimestamp(b) - getDocTimestamp(a))
+        .slice(0, 5);
+    }, [currentUserId, documents]);
 
     const filteredDocIds = useMemo(
       () => filteredDocs.map((doc) => String(doc.id)),
@@ -2493,6 +2536,18 @@ const DocumentManager: React.FC<{
       const statusLower = String(status).toLowerCase().trim();
 
       switch (statusLower) {
+        case "nuevo":
+          return {
+            color: darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-700",
+            icon: AlertCircle,
+            label: "Nuevo",
+          };
+        case "enviado":
+          return {
+            color: darkMode ? "bg-indigo-500/10 text-indigo-400" : "bg-indigo-50 text-indigo-700",
+            icon: Clock,
+            label: "Enviado",
+          };
         case "pendiente":
           return {
             color: darkMode ? "bg-amber-500/10 text-amber-400" : "bg-amber-50 text-amber-700",
@@ -3018,11 +3073,13 @@ const DocumentManager: React.FC<{
                 <option value="all">Todos los Estados</option>
                 {docView !== "sent" ? (
                   <>
+                    <option value="nuevo">Nuevo</option>
                     <option value="leido">Leído</option>
                     <option value="en-proceso">En Proceso</option>
                   </>
                 ) : (
                   <>
+                    <option value="enviado">Enviado</option>
                     <option value="recibido">Recibido</option>
                     <option value="en-proceso">En Proceso</option>
                   </>
@@ -3049,6 +3106,57 @@ const DocumentManager: React.FC<{
               </div>
             )}
           </div>
+
+          {myRecentDocs.length > 0 && (
+            <div className={`glass-reflect p-4 rounded-lg ${darkMode ? "bg-slate-900/50 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Mi actividad reciente
+                </div>
+                <div className={`text-[10px] ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
+                  Últimos envíos
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                {myRecentDocs.map((doc) => {
+                  const delivery = getDeliveryInfo(doc);
+                  const label = getConversationLabel(doc);
+                  const key = getConversationKey(doc);
+                  const toLabel = getRecipientDisplay(doc);
+                  return (
+                    <a
+                      key={`activity-${doc.id}`}
+                      href={`/dashboard/documentos/chat?${new URLSearchParams({
+                        key,
+                        label,
+                        view: "sent",
+                      }).toString()}`}
+                      className={`flex items-center justify-between gap-3 px-3 py-2 rounded-md transition-colors ${darkMode ? "hover:bg-slate-800/60" : "hover:bg-white"}`}
+                    >
+                      <div className="min-w-0">
+                        <div className={`text-sm truncate ${darkMode ? "text-slate-200" : "text-slate-800"}`}>
+                          {doc.name || "Mensaje"}
+                        </div>
+                        <div className={`text-[11px] truncate ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
+                          Para: {toLabel} • {doc.uploadDate} {doc.uploadTime}
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${delivery.key === "direct"
+                        ? darkMode
+                          ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                          : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : darkMode
+                          ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}>
+                        {delivery.label}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Table */}
           <div className="overflow-x-auto no-scrollbar rounded-lg border border-slate-200/20 glass-reflect">
@@ -3081,7 +3189,7 @@ const DocumentManager: React.FC<{
                   Enviado Por
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                  Recibido Por
+                  {docView === "sent" ? "Enviado A" : "Recibido Por"}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
                   Estado
@@ -3100,6 +3208,19 @@ const DocumentManager: React.FC<{
                 const isUnread = docView === "inbox" && group.unreadCount > 0;
                 const groupDocIds = group.docs.map((d) => String(d.id));
                 const isGroupSelected = groupDocIds.every((id) => selectedDocIds.includes(id));
+                const deliveryInfo = getDeliveryInfo(doc);
+                const deliveryBadgeStyle =
+                  deliveryInfo.key === "direct"
+                    ? darkMode
+                      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : deliveryInfo.key === "dept"
+                      ? darkMode
+                        ? "bg-blue-500/15 text-blue-300 border-blue-500/30"
+                        : "bg-blue-50 text-blue-700 border-blue-200"
+                      : darkMode
+                        ? "bg-slate-500/10 text-slate-400 border-slate-600/30"
+                        : "bg-slate-50 text-slate-600 border-slate-200";
 
                 return (
                   <tr
@@ -3157,7 +3278,10 @@ const DocumentManager: React.FC<{
                       <div className="flex items-center gap-2">
                         <Building2 size={12} className={darkMode ? "text-slate-500" : "text-slate-600"} />
                         <span className={`text-xs truncate max-w-[150px] ${darkMode ? "text-slate-400" : "text-slate-700"}`}>
-                          {doc.receivedBy !== "Pendiente" ? doc.receivedBy : doc.targetDepartment}
+                          {getRecipientDisplay(doc)}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border ${deliveryBadgeStyle}`}>
+                          {deliveryInfo.label}
                         </span>
                       </div>
                       <div className={`text-[10px] truncate max-w-[160px] ${darkMode ? "text-slate-500" : "text-slate-600"}`}>
@@ -3723,6 +3847,10 @@ export default function Dashboard() {
   const canSeeDocumentInInbox = useCallback((doc: Document) => {
     const canViewAll = hasPermission(PERMISSIONS_MASTER.DOCS_VIEW_ALL);
     if (canViewAll) return true;
+
+    const isOwnMessage =
+      !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
+    if (isOwnMessage) return false;
 
     const isDirectRecipient =
       !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
