@@ -33,6 +33,7 @@ type Document = {
 };
 
 const API_FALLBACK = 'https://corpoelect-backend.onrender.com';
+const DASHBOARD_THEME_STORAGE_KEY = 'dashboard_theme_2026';
 
 function parseFlexibleDateGlobal(value?: string) {
   if (!value) return null;
@@ -57,6 +58,7 @@ function MensajeriaChatClient() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [replyDraft, setReplyDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   const conversationKey = searchParams.get('key') || '';
   const conversationLabel = searchParams.get('label') || 'Conversación';
@@ -208,6 +210,37 @@ function MensajeriaChatClient() {
   }, [refreshDocuments]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY);
+    setDarkMode(stored ? stored === 'dark' : true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === DASHBOARD_THEME_STORAGE_KEY) {
+        setDarkMode(event.newValue ? event.newValue === 'dark' : true);
+      }
+    };
+    const handleVisibility = () => {
+      const stored = localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY);
+      setDarkMode(stored ? stored === 'dark' : true);
+    };
+    window.addEventListener('storage', handleStorage);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     const unreadIds = conversationDocs
       .filter((doc) => !doc.leido && canMarkDocAsRead(doc))
       .map((doc) => doc.id);
@@ -274,16 +307,18 @@ function MensajeriaChatClient() {
       allowedRoles={['CEO', 'Administrativo', 'Usuario', 'Desarrollador', 'Gerente']}
       redirectTo="/login"
     >
-      <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className={`min-h-screen ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
         <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => window.close()}
-                className="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+                onClick={() => window.history.back()}
+                className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
+                  darkMode ? 'bg-slate-800 hover:bg-slate-700 text-slate-100' : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                }`}
               >
                 <ArrowLeft size={14} />
-                Cerrar ventana
+                Volver
               </button>
               <div>
                 <h1 className="text-xl font-bold">Mensajería Interna</h1>
@@ -294,10 +329,16 @@ function MensajeriaChatClient() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col min-h-[70vh]">
-            <div className="flex-1 p-6 space-y-4 overflow-y-auto no-scrollbar">
+          <div
+            className={`rounded-2xl border overflow-hidden flex flex-col min-h-[70vh] ${
+              darkMode ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'
+            }`}
+          >
+            <div className={`flex-1 p-6 space-y-4 overflow-y-auto no-scrollbar ${darkMode ? '' : 'bg-slate-50'}`}>
               {conversationDocs.length === 0 && (
-                <div className="text-slate-400 italic">No hay mensajes en esta conversación.</div>
+                <div className={`${darkMode ? 'text-slate-400' : 'text-slate-500'} italic`}>
+                  No hay mensajes en esta conversación.
+                </div>
               )}
               {conversationDocs.map((msg) => {
                 const isMine = currentUserId && msg.remitente_id && String(msg.remitente_id) === currentUserId;
@@ -306,11 +347,25 @@ function MensajeriaChatClient() {
                     <div
                       className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
                         isMine
-                          ? 'bg-emerald-600 text-white rounded-br-none'
-                          : 'bg-slate-800 text-slate-100 rounded-bl-none'
+                          ? darkMode
+                            ? 'bg-emerald-600 text-white rounded-br-none'
+                            : 'bg-emerald-500 text-white rounded-br-none'
+                          : darkMode
+                            ? 'bg-slate-800 text-slate-100 rounded-bl-none'
+                            : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'
                       }`}
                     >
-                      <div className={`text-[11px] mb-2 ${isMine ? 'text-emerald-100/80' : 'text-slate-400'}`}>
+                      <div
+                        className={`text-[11px] mb-2 ${
+                          isMine
+                            ? darkMode
+                              ? 'text-emerald-100/80'
+                              : 'text-emerald-50/90'
+                            : darkMode
+                              ? 'text-slate-400'
+                              : 'text-slate-500'
+                        }`}
+                      >
                         {msg.uploadedBy || 'Remitente'} • {msg.uploadDate} {msg.uploadTime}
                       </div>
                       {msg.contenido ? (
@@ -328,7 +383,9 @@ function MensajeriaChatClient() {
                               className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
                                 isMine
                                   ? 'border-white/30 text-white hover:bg-white/10'
-                                  : 'border-slate-600 text-slate-200 hover:bg-slate-700/50'
+                                  : darkMode
+                                    ? 'border-slate-600 text-slate-200 hover:bg-slate-700/50'
+                                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
                               }`}
                             >
                               Ver archivo
@@ -343,7 +400,9 @@ function MensajeriaChatClient() {
                               className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
                                 isMine
                                   ? 'border-white/30 text-white hover:bg-white/10'
-                                  : 'border-slate-600 text-slate-200 hover:bg-slate-700/50'
+                                  : darkMode
+                                    ? 'border-slate-600 text-slate-200 hover:bg-slate-700/50'
+                                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
                               }`}
                             >
                               Adjunto {idx + 1}
@@ -356,7 +415,11 @@ function MensajeriaChatClient() {
                 );
               })}
             </div>
-            <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40">
+            <div
+              className={`px-6 py-4 border-t ${
+                darkMode ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-white'
+              }`}
+            >
               <div className="flex gap-2 items-end">
                 <textarea
                   rows={2}
@@ -369,7 +432,9 @@ function MensajeriaChatClient() {
                     }
                   }}
                   placeholder="Escribe tu respuesta..."
-                  className="flex-1 rounded-full px-4 py-2 text-sm outline-none resize-none bg-slate-950 border border-slate-800 text-slate-200"
+                  className={`flex-1 rounded-full px-4 py-2 text-sm outline-none resize-none ${
+                    darkMode ? 'bg-slate-950 border border-slate-800 text-slate-200' : 'bg-white border border-slate-300 text-slate-800'
+                  }`}
                 />
                 <button
                   onClick={() => void sendReply()}
