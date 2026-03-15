@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Paperclip, Send, X } from 'lucide-react';
 import { RoleGuard } from '../../../../components/RoleGuard';
 import { useAuth } from '../../../../hooks/useAuth';
-import { getDocumentos, markAsRead, uploadDocumento } from '../../../../lib/api';
+import { getDocumentos, markAsRead, uploadDocumento, createSecurityLog } from '../../../../lib/api';
 import { uiAlert } from '../../../../lib/ui-dialog';
 
 type Document = {
@@ -501,6 +501,17 @@ function MensajeriaChatClient() {
                               href={msg.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => {
+                                void createSecurityLog({
+                                  evento: 'DOCUMENTO_DESCARGA',
+                                  detalles: JSON.stringify({
+                                    action: 'DOWNLOAD_PRIMARY',
+                                    documento_id: msg.id,
+                                  }),
+                                  estado: 'info',
+                                  page: '/dashboard/documentos/chat',
+                                });
+                              }}
                               className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
                                 isMine
                                   ? 'border-white/30 text-white hover:bg-white/10'
@@ -518,6 +529,18 @@ function MensajeriaChatClient() {
                               href={file}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => {
+                                void createSecurityLog({
+                                  evento: 'DOCUMENTO_DESCARGA',
+                                  detalles: JSON.stringify({
+                                    action: 'DOWNLOAD_ATTACHMENT',
+                                    documento_id: msg.id,
+                                    index: idx + 1,
+                                  }),
+                                  estado: 'info',
+                                  page: '/dashboard/documentos/chat',
+                                });
+                              }}
                               className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
                                 isMine
                                   ? 'border-white/30 text-white hover:bg-white/10'

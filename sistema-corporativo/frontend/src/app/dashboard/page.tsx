@@ -91,6 +91,7 @@ import {
   getOrgManagementDetails,
   saveOrgStructure,
   saveOrgManagementDetails,
+  createSecurityLog,
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
 import { uiAlert, uiConfirm, uiPrompt } from "../../lib/ui-dialog";
@@ -890,6 +891,7 @@ const PriorityMatrix: React.FC<{
     created_at: string;
   }>>([]);
   const [selectedTrackingDoc, setSelectedTrackingDoc] = useState<any | null>(null);
+  const [trackingContentOpen, setTrackingContentOpen] = useState(false);
   const [updatingTrackingStatus, setUpdatingTrackingStatus] = useState(false);
 
   const getStatusColor = (status: string) => {
@@ -1208,6 +1210,7 @@ const PriorityMatrix: React.FC<{
     if (selectedTrackingDoc) {
       setTrackingResponseDraft("");
       setTrackingResponseFiles([]);
+      setTrackingContentOpen(false);
     }
   }, [selectedTrackingDoc]);
 
@@ -1456,7 +1459,19 @@ const PriorityMatrix: React.FC<{
                 </td>
                 <td className="px-4 py-3 text-center">
                   <button
-                    onClick={() => setSelectedTrackingDoc(item)}
+                    onClick={() => {
+                      setSelectedTrackingDoc(item);
+                      void createSecurityLog({
+                        evento: "SEGUIMIENTO_ABIERTO",
+                        detalles: JSON.stringify({
+                          action: "OPEN_TRACKING",
+                          documento_id: item.id,
+                          correlativo: item.correlativo,
+                        }),
+                        estado: "info",
+                        page: "/dashboard?tab=seguimiento",
+                      });
+                    }}
                     className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold border ${darkMode
                       ? "border-slate-700 text-slate-300 hover:bg-slate-800"
                       : "border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -1531,8 +1546,30 @@ const PriorityMatrix: React.FC<{
               </div>
 
               {selectedTrackingDoc.contenido ? (
-                <div className={`rounded-lg border p-4 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-                  {selectedTrackingDoc.contenido}
+                <div className={`rounded-lg border p-4 flex items-center justify-between ${darkMode ? "border-slate-800 bg-slate-950" : "border-slate-200 bg-slate-50"}`}>
+                  <div className={`text-sm ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    Contenido del mensaje
+                  </div>
+                  <button
+                    onClick={() => {
+                      setTrackingContentOpen(true);
+                      void createSecurityLog({
+                        evento: "DOCUMENTO_CONTENIDO_ABIERTO",
+                        detalles: JSON.stringify({
+                          action: "OPEN_CONTENT",
+                          documento_id: selectedTrackingDoc.id,
+                          correlativo: selectedTrackingDoc.correlativo,
+                        }),
+                        estado: "info",
+                        page: "/dashboard?tab=seguimiento",
+                      });
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${darkMode
+                      ? "border-slate-700 text-slate-200 hover:bg-slate-800"
+                      : "border-slate-300 text-slate-700 hover:bg-white"}`}
+                  >
+                    Ver contenido
+                  </button>
                 </div>
               ) : (
                 <p className="text-sm text-slate-500 italic">Sin contenido de mensaje en texto.</p>
@@ -1638,7 +1675,7 @@ const PriorityMatrix: React.FC<{
                         value={trackingResponseDraft}
                         onChange={(e) => setTrackingResponseDraft(e.target.value)}
                         placeholder="Escribe la respuesta..."
-                        className={`w-full rounded-full border px-4 py-2 text-sm outline-none resize-none ${darkMode ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-300 text-slate-800"}`}
+                        className={`w-full rounded-full border px-4 py-2 text-sm outline-none resize-none text-center ${darkMode ? "bg-slate-950 border-slate-800 text-slate-200" : "bg-white border-slate-300 text-slate-800"}`}
                       />
                       <div className="space-y-1">
                         <input
@@ -1719,11 +1756,24 @@ const PriorityMatrix: React.FC<{
                     {updatingTrackingStatus ? "Guardando..." : "FINALIZADO"}
                   </button>
                 )}
-                {selectedTrackingDoc.fileUrl && (
+                {selectedTrackingDoc.fileUrl &&
+                  !((selectedTrackingDoc.archivos || []).includes(selectedTrackingDoc.fileUrl)) && (
                   <a
                     href={selectedTrackingDoc.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      void createSecurityLog({
+                        evento: "DOCUMENTO_DESCARGA",
+                        detalles: JSON.stringify({
+                          action: "DOWNLOAD_PRIMARY",
+                          documento_id: selectedTrackingDoc.id,
+                          correlativo: selectedTrackingDoc.correlativo,
+                        }),
+                        estado: "info",
+                        page: "/dashboard?tab=seguimiento",
+                      });
+                    }}
                     className={`px-3 py-2 rounded-md text-sm font-semibold border ${darkMode ? "border-blue-700 text-blue-300 hover:bg-blue-900/20" : "border-blue-300 text-blue-700 hover:bg-blue-50"}`}
                   >
                     Ver archivo principal
@@ -1735,6 +1785,19 @@ const PriorityMatrix: React.FC<{
                     href={file}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      void createSecurityLog({
+                        evento: "DOCUMENTO_DESCARGA",
+                        detalles: JSON.stringify({
+                          action: "DOWNLOAD_ATTACHMENT",
+                          documento_id: selectedTrackingDoc.id,
+                          correlativo: selectedTrackingDoc.correlativo,
+                          index: idx + 1,
+                        }),
+                        estado: "info",
+                        page: "/dashboard?tab=seguimiento",
+                      });
+                    }}
                     className={`px-3 py-2 rounded-md text-sm font-semibold border ${darkMode ? "border-slate-700 text-slate-300 hover:bg-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-50"}`}
                   >
                     Adjunto {idx + 1}
@@ -1746,6 +1809,30 @@ const PriorityMatrix: React.FC<{
         </div>
       );
         })()
+      )}
+
+      {trackingContentOpen && selectedTrackingDoc && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className={`w-full max-w-2xl rounded-xl border shadow-2xl ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+            <div className={`p-4 border-b flex items-center justify-between ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
+              <div>
+                <h3 className={`font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
+                  Contenido del mensaje
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">{selectedTrackingDoc.title}</p>
+              </div>
+              <button
+                onClick={() => setTrackingContentOpen(false)}
+                className={`p-2 rounded-md ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={`p-5 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+              {selectedTrackingDoc.contenido}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1818,6 +1905,7 @@ const DocumentManager: React.FC<{
     const [replyDraft, setReplyDraft] = useState("");
     const [replySending, setReplySending] = useState(false);
     const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+    const deptLogReadyRef = useRef(false);
     const canAccessSecurityModule =
       hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
       userRole === "Administrativo" ||
@@ -1882,6 +1970,25 @@ const DocumentManager: React.FC<{
         setFilterStatus("all");
       }
     }, [docView, filterStatus]);
+
+    useEffect(() => {
+      if (!deptLogReadyRef.current) {
+        deptLogReadyRef.current = true;
+        return;
+      }
+      if (!filterDept || filterDept === "all") return;
+      void createSecurityLog({
+        evento: "GERENCIA_SELECCIONADA",
+        detalles: JSON.stringify({
+          action: "SELECT_DEPT_FILTER",
+          gerencia: filterDept,
+          user_id: user?.id || null,
+          view: docView,
+        }),
+        estado: "info",
+        page: "/dashboard?tab=documentos",
+      });
+    }, [filterDept, docView, user?.id]);
 
     useEffect(() => {
       setSelectedDocIds([]);
@@ -3253,6 +3360,20 @@ const DocumentManager: React.FC<{
                             label: group.label,
                             view: docView,
                           }).toString()}`}
+                          onClick={() => {
+                            void createSecurityLog({
+                              evento: "CONVERSACION_ABIERTA",
+                              detalles: JSON.stringify({
+                                action: "OPEN_CONVERSATION",
+                                documento_id: doc.id,
+                                correlativo: doc.correlativo,
+                                key: group.key,
+                                view: docView,
+                              }),
+                              estado: "info",
+                              page: "/dashboard?tab=documentos",
+                            });
+                          }}
                           className={`p-2 rounded-md transition-colors inline-flex ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
                           title="Ver conversacion"
                         >
@@ -3263,6 +3384,18 @@ const DocumentManager: React.FC<{
                             href={doc.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => {
+                              void createSecurityLog({
+                                evento: "DOCUMENTO_DESCARGA",
+                                detalles: JSON.stringify({
+                                  action: "DOWNLOAD_PRIMARY",
+                                  documento_id: doc.id,
+                                  correlativo: doc.correlativo,
+                                }),
+                                estado: "info",
+                                page: "/dashboard?tab=documentos",
+                              });
+                            }}
                             className={`p-2 rounded-md transition-colors ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
                             title="Descargar PDF"
                           >

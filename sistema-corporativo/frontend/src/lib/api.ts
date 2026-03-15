@@ -119,6 +119,7 @@ export interface SecurityLog {
     ip_address?: string;
     fecha_hora: string;
     user_id?: string;
+    gerencia_id?: number;
 }
 
 // ==========================================

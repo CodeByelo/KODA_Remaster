@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 import uuid
@@ -8,6 +8,63 @@ from auth.supabase_auth import get_current_user
 from datetime import datetime
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+async def _ensure_security_events_table(conn) -> None:
+    await conn.execute("""
+        CREATE TABLE IF NOT EXISTS security_events (
+            id BIGSERIAL PRIMARY KEY,
+            tenant_id UUID,
+            user_id UUID,
+            username TEXT,
+            evento TEXT NOT NULL,
+            detalles TEXT,
+            estado TEXT DEFAULT 'info',
+            page TEXT,
+            ip_origen TEXT,
+            gerencia_id INTEGER,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+    """)
+
+
+async def _log_security_event(conn, *, tenant_id, user_id, username, evento, detalles=None, estado="info", page=None, ip_origen=None, gerencia_id=None):
+    await _ensure_security_events_table(conn)
+    await conn.execute(
+        """
+        INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen, gerencia_id)
+        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9)
+        """,
+        tenant_id,
+        user_id,
+        username or "anon",
+        evento,
+        detalles,
+        estado,
+        page,
+        ip_origen,
+        gerencia_id,
+    )
+
+
+def _extract_client_ip(request: Request) -> Optional[str]:
+    candidates = [
+        request.headers.get("cf-connecting-ip"),
+        request.headers.get("x-real-ip"),
+    ]
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        candidates.extend([part.strip() for part in xff.split(",") if part.strip()])
+    if request.client and request.client.host:
+        candidates.append(request.client.host)
+    for raw in candidates:
+        if not raw:
+            continue
+        ip = raw
+        if ":" in ip and "." not in ip:
+            ip = ip.split("%")[0]
+        return ip
+    return None
 
 @router.get("/me")
 async def get_user_profile(
@@ -53,7 +110,7 @@ class UserLogin(BaseModel):
     password: str
 
 @router.post("/register")
-async def register(user_data: UserRegister, conn = Depends(get_db_connection)):
+async def register(user_data: UserRegister, request: Request, conn = Depends(get_db_connection)):
     try:
         existing = await conn.fetchrow(
             "SELECT id FROM profiles WHERE username = $1 OR email = $2", 
@@ -83,17 +140,43 @@ async def register(user_data: UserRegister, conn = Depends(get_db_connection)):
             user_data.email, hashed_pw, 3, g_id, True
         )
         
+        await _log_security_event(
+            conn,
+            tenant_id=None,
+            user_id=row["id"],
+            username=row["email"],
+            evento="REGISTER",
+            detalles=f"Registro de usuario {row['email']}",
+            estado="success",
+            page="/auth/register",
+            ip_origen=_extract_client_ip(request),
+            gerencia_id=g_id,
+        )
         return {
             "message": "User registered successfully",
             "user_id": str(row['id']),
             "email": row['email']
         }
     except Exception as e:
+        try:
+            await _log_security_event(
+                conn,
+                tenant_id=None,
+                user_id=None,
+                username=user_data.email,
+                evento="REGISTER_FAILED",
+                detalles=str(e),
+                estado="error",
+                page="/auth/register",
+                ip_origen=_extract_client_ip(request),
+            )
+        except Exception:
+            pass
         print(f"Error registering user: {e}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login")
-async def login(login_data: UserLogin, conn = Depends(get_db_connection)):
+async def login(login_data: UserLogin, request: Request, conn = Depends(get_db_connection)):
     query = """
         SELECT p.id, p.username, p.nombre, p.apellido, p.password_hash, p.email, 
                p.rol_id, r.nombre_rol, p.tenant_id, p.gerencia_id, g.nombre as gerencia_nombre
@@ -109,6 +192,18 @@ async def login(login_data: UserLogin, conn = Depends(get_db_connection)):
     user = await conn.fetchrow(query, identifier)
 
     if not user or not verify_password(login_data.password, user['password_hash']):
+        await _log_security_event(
+            conn,
+            tenant_id=None,
+            user_id=None,
+            username=identifier,
+            evento="LOGIN_FAILED",
+            detalles="Credenciales incorrectas",
+            estado="warning",
+            page="/auth/login",
+            ip_origen=_extract_client_ip(request),
+            gerencia_id=user["gerencia_id"] if user else None,
+        )
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
     access_token = create_access_token(
@@ -123,6 +218,18 @@ async def login(login_data: UserLogin, conn = Depends(get_db_connection)):
     # Actualizar última conexión
     await conn.execute("UPDATE profiles SET ultima_conexion = NOW() WHERE id = $1", user['id'])
     
+    await _log_security_event(
+        conn,
+        tenant_id=user["tenant_id"],
+        user_id=user["id"],
+        username=user["username"],
+        evento="LOGIN",
+        detalles=f"Login exitoso ({user['username']})",
+        estado="success",
+        page="/auth/login",
+        ip_origen=_extract_client_ip(request),
+        gerencia_id=user["gerencia_id"],
+    )
     return {
         "access_token": access_token, 
         "token_type": "bearer",
@@ -139,5 +246,24 @@ async def login(login_data: UserLogin, conn = Depends(get_db_connection)):
     }
 
 @router.post("/logout")
-async def logout():
+async def logout(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    try:
+        await _log_security_event(
+            conn,
+            tenant_id=current_user.get("tenant_id"),
+            user_id=current_user.get("sub"),
+            username=current_user.get("username") or current_user.get("email"),
+            evento="LOGOUT",
+            detalles="Logout de usuario",
+            estado="info",
+            page="/auth/logout",
+            ip_origen=_extract_client_ip(request),
+            gerencia_id=current_user.get("gerencia_id"),
+        )
+    except Exception:
+        pass
     return {"message": "Logged out successfully"}

@@ -82,6 +82,62 @@ MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "5"))
 ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}
 DEFAULT_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "documentos")
 
+
+def _safe_json_dumps(payload: dict) -> str:
+    try:
+        return json.dumps(payload, ensure_ascii=False, default=str)
+    except Exception:
+        return json.dumps({"raw": str(payload)}, ensure_ascii=False)
+
+
+async def _resolve_user_context(conn, user_id: Optional[str]):
+    if not user_id:
+        return None, None, None
+    try:
+        row = await conn.fetchrow(
+            "SELECT username, gerencia_id, tenant_id FROM profiles WHERE id = $1::uuid",
+            user_id,
+        )
+        if not row:
+            return None, None, None
+        return row.get("username"), row.get("gerencia_id"), row.get("tenant_id")
+    except Exception:
+        return None, None, None
+
+
+async def _log_security_event(
+    conn,
+    *,
+    tenant_id: Optional[str],
+    user_id: Optional[str],
+    username: Optional[str],
+    evento: str,
+    detalles: Optional[str] = None,
+    estado: str = "info",
+    page: Optional[str] = None,
+    ip_origen: Optional[str] = None,
+    gerencia_id: Optional[int] = None,
+) -> None:
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen, gerencia_id)
+            VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9)
+            """,
+            tenant_id,
+            user_id,
+            username or "anon",
+            evento,
+            detalles,
+            estado,
+            page,
+            ip_origen,
+            gerencia_id,
+        )
+    except Exception:
+        pass
+
 # ===================================================================
 # CONFIGURACIÓN DE LOGGING ESTRUCTURADO JSON ENTERPRISE
 # ===================================================================
@@ -196,6 +252,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Registro centralizado de accesos (historiales de accesos).
+@app.middleware("http")
+async def audit_access_middleware(request: Request, call_next):
+    response = await call_next(request)
+    try:
+        path = request.url.path
+        if request.method == "OPTIONS":
+            return response
+        if path.startswith("/health") or path.startswith("/db-check"):
+            return response
+        if path.startswith("/uploads"):
+            return response
+        if path.startswith("/security/logs"):
+            return response
+
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return response
+
+        token = auth_header.split(" ", 1)[1]
+        try:
+            payload = jwt.decode(token, os.getenv("JWT_SECRET", DEFAULT_JWT_SECRET), algorithms=["HS256"])
+        except Exception:
+            return response
+
+        user_id = payload.get("sub")
+        tenant_id = payload.get("tenant_id")
+        username = payload.get("username") or payload.get("user") or payload.get("email")
+        gerencia_id = payload.get("gerencia_id")
+        ip = _extract_client_ip(request)
+
+        if async_db.pool is None:
+            return response
+
+        async with async_db.pool.acquire() as conn:
+            if not username or gerencia_id is None or tenant_id is None:
+                fetched_username, fetched_gerencia_id, fetched_tenant_id = await _resolve_user_context(conn, user_id)
+                if not username:
+                    username = fetched_username
+                if gerencia_id is None:
+                    gerencia_id = fetched_gerencia_id
+                if tenant_id is None:
+                    tenant_id = fetched_tenant_id
+
+            detalles = _safe_json_dumps({
+                "action": "ACCESS",
+                "method": request.method,
+                "path": path,
+                "query": request.url.query,
+                "status_code": response.status_code,
+                "gerencia_id": gerencia_id,
+            })
+            await _log_security_event(
+                conn,
+                tenant_id=str(tenant_id) if tenant_id else None,
+                user_id=str(user_id) if user_id else None,
+                username=username,
+                evento="ACCESS",
+                detalles=detalles,
+                estado="info" if response.status_code < 400 else "warning",
+                page=path,
+                ip_origen=ip,
+                gerencia_id=int(gerencia_id) if gerencia_id is not None else None,
+            )
+    except Exception:
+        pass
+    return response
+
 # Servir archivos estáticos para adjuntos
 uploads_dir = Path("uploads")
 uploads_dir.mkdir(exist_ok=True)
@@ -244,6 +368,7 @@ async def startup():
                     estado TEXT DEFAULT 'info',
                     page TEXT,
                     ip_origen TEXT,
+                    gerencia_id INTEGER,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
@@ -383,10 +508,38 @@ async def register_user(
             hashed_pw, user.rol_id or default_rol, g_id, True, tenant_id
         )
         
+        try:
+            await _log_security_event(
+                conn,
+                tenant_id=row.get("tenant_id"),
+                user_id=row.get("id"),
+                username=row.get("username") or row.get("email"),
+                evento="REGISTER",
+                detalles=f"Registro de usuario {row.get('email')}",
+                estado="success",
+                page="/api/register",
+                ip_origen=None,
+            )
+        except Exception:
+            pass
         return dict(row)
     except HTTPException:
         raise
     except Exception as e:
+        try:
+            await _log_security_event(
+                conn,
+                tenant_id=None,
+                user_id=None,
+                username=user.email,
+                evento="REGISTER_FAILED",
+                detalles=str(e),
+                estado="error",
+                page="/api/register",
+                ip_origen=None,
+            )
+        except Exception:
+            pass
         logger.error(f"Registration error: {e}")
         raise HTTPException(status_code=500, detail=f"Error interno durante el registro: {str(e)}")
 
@@ -678,6 +831,7 @@ async def _ensure_security_events_table(conn) -> None:
             estado TEXT DEFAULT 'info',
             page TEXT,
             ip_origen TEXT,
+            gerencia_id INTEGER,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     """)
@@ -2778,11 +2932,12 @@ async def create_security_log(
 
     row = await conn.fetchrow(
         """
-        INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen)
-        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8)
-        RETURNING id, tenant_id, user_id, username, evento, detalles, estado, page, ip_origen, created_at
+        INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page, ip_origen, gerencia_id)
+        VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, tenant_id, user_id, username, evento, detalles, estado, page, ip_origen, gerencia_id, created_at
         """,
-        tenant_id, user_id, username, payload.evento, payload.detalles, payload.estado, payload.page, ip
+        tenant_id, user_id, username, payload.evento, payload.detalles, payload.estado, payload.page, ip,
+        current_user.get("gerencia_id"),
     )
     return dict(row)
 
@@ -2796,7 +2951,7 @@ async def list_security_logs(
     tenant_id = current_user.get("tenant_id")
     rows = await conn.fetch(
         """
-        SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id
+        SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id, gerencia_id
         FROM security_events
         WHERE ($1::uuid IS NULL OR tenant_id = $1::uuid)
         ORDER BY created_at DESC
@@ -2817,7 +2972,7 @@ async def list_security_logs_by_user(
     tenant_id = current_user.get("tenant_id")
     rows = await conn.fetch(
         """
-        SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id
+        SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id, gerencia_id
         FROM security_events
         WHERE user_id = $1::uuid AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
         ORDER BY created_at DESC
