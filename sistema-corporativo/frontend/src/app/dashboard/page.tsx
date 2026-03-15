@@ -2345,6 +2345,17 @@ const DocumentManager: React.FC<{
         return aTs - bTs;
       });
 
+      const params = new URLSearchParams({
+        key,
+        label,
+        view: docView,
+      });
+      const chatUrl = `/dashboard/documentos/chat?${params.toString()}`;
+      const popup = window.open(chatUrl, "_blank", "noopener,noreferrer");
+      if (!popup) {
+        void uiAlert("Tu navegador bloqueó la ventana emergente. Permite pop-ups para abrir la conversación.", "Mensajería");
+      }
+
       const unreadIds = orderedDocs
         .filter((d) => !d.leido && canMarkDocAsRead(d))
         .map((d) => d.id);
@@ -2371,13 +2382,6 @@ const DocumentManager: React.FC<{
         console.error("Error marking conversation as read", e);
         refreshDocs();
       }
-
-      const params = new URLSearchParams({
-        key,
-        label,
-        view: docView,
-      });
-      window.open(`/dashboard/documentos/chat?${params.toString()}`, "_blank", "noopener,noreferrer");
     };
 
     const getDocumentTypeIcon = (category?: string, hasFile?: boolean) => {
