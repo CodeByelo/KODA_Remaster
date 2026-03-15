@@ -487,7 +487,7 @@ function MensajeriaChatClient() {
                               : 'text-slate-500'
                         }`}
                       >
-                        {msg.uploadedBy || 'Remitente'} -> {getRecipientDisplay(msg)} | {getDeliveryInfo(msg).label} | {msg.uploadDate} {msg.uploadTime}
+                        {msg.uploadedBy || 'Remitente'} {'?'} {getRecipientDisplay(msg)} | {getDeliveryInfo(msg).label} | {msg.uploadDate} {msg.uploadTime}
                       </div>
                       {msg.contenido ? (
                         <div>{msg.contenido}</div>
