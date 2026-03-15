@@ -2344,12 +2344,6 @@ const DocumentManager: React.FC<{
         const bTs = getDocTimestamp(b);
         return aTs - bTs;
       });
-      setSelectedConversation({
-        key,
-        label,
-        docs: orderedDocs,
-      });
-      setReplyDraft("");
 
       const unreadIds = orderedDocs
         .filter((d) => !d.leido && canMarkDocAsRead(d))
@@ -2377,6 +2371,13 @@ const DocumentManager: React.FC<{
         console.error("Error marking conversation as read", e);
         refreshDocs();
       }
+
+      const params = new URLSearchParams({
+        key,
+        label,
+        view: docView,
+      });
+      window.open(`/dashboard/documentos/chat?${params.toString()}`, "_blank", "noopener,noreferrer");
     };
 
     const getDocumentTypeIcon = (category?: string, hasFile?: boolean) => {
