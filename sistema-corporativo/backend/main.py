@@ -763,9 +763,88 @@ async def _log_document_event(
     )
 
 
+def _extract_storage_buckets(payload) -> List[Dict[str, Any]]:
+    if isinstance(payload, list):
+        return [b for b in payload if isinstance(b, dict)]
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, list):
+            return [b for b in data if isinstance(b, dict)]
+        buckets = payload.get("buckets")
+        if isinstance(buckets, list):
+            return [b for b in buckets if isinstance(b, dict)]
+    return []
+
+
+def _extract_storage_path(value: Optional[str], bucket_name: str) -> Optional[str]:
+    if not value:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    # If stored as "bucket/path", strip bucket prefix.
+    if raw.startswith(f"{bucket_name}/"):
+        return raw[len(bucket_name) + 1 :]
+    # If stored as a full URL, try to extract from Supabase storage URL patterns.
+    if raw.startswith("http") and "/storage/v1/object/" in raw:
+        try:
+            tail = raw.split("/storage/v1/object/", 1)[1]
+            # tail could be "public/bucket/path" or "sign/bucket/path"
+            parts = tail.split("/", 2)
+            if len(parts) >= 3:
+                _, bucket, path = parts[0], parts[1], parts[2]
+                if bucket == bucket_name:
+                    # Strip query params from signed URLs.
+                    return path.split("?", 1)[0]
+        except Exception:
+            return None
+    # Assume it's already a storage path (e.g., "documentos/uuid.pdf").
+    return raw
+
+
+def _extract_signed_url(result: Any) -> Optional[str]:
+    if isinstance(result, str):
+        return result
+    if isinstance(result, dict):
+        for key in ("signedURL", "signedUrl", "signed_url"):
+            if key in result and result[key]:
+                return result[key]
+        data = result.get("data")
+        if isinstance(data, dict):
+            for key in ("signedURL", "signedUrl", "signed_url"):
+                if key in data and data[key]:
+                    return data[key]
+    return None
+
+
+def _create_signed_url(client, bucket_name: str, storage_path: str, expires_in: int) -> Optional[str]:
+    try:
+        result = client.storage.from_(bucket_name).create_signed_url(storage_path, expires_in)
+        return _extract_signed_url(result)
+    except Exception as e:
+        logger.error(f"No se pudo firmar URL para '{storage_path}': {e}")
+        return None
+
+
+def _ensure_storage_bucket(client, bucket_name: str) -> None:
+    try:
+        buckets_payload = client.storage.list_buckets()
+        buckets = _extract_storage_buckets(buckets_payload)
+        if any(b.get("name") == bucket_name for b in buckets):
+            return
+        try:
+            client.storage.create_bucket(bucket_name, {"public": False})
+            logger.warning(f"Bucket '{bucket_name}' creado automaticamente en Supabase Storage (private).")
+        except Exception as create_error:
+            logger.error(f"No se pudo crear el bucket '{bucket_name}': {create_error}")
+    except Exception as list_error:
+        logger.error(f"No se pudo verificar buckets de Supabase: {list_error}")
+
+
 async def _upload_to_supabase_storage(file: UploadFile, folder_prefix: str) -> str:
     bucket = DEFAULT_STORAGE_BUCKET
     client = get_supabase_admin_client()
+    _ensure_storage_bucket(client, bucket)
     ext = Path(file.filename).suffix.lower()
     storage_path = f"{folder_prefix}/{uuid.uuid4()}{ext}"
     data = await file.read()
@@ -778,10 +857,8 @@ async def _upload_to_supabase_storage(file: UploadFile, folder_prefix: str) -> s
     )
     if isinstance(result, dict) and result.get("error"):
         raise HTTPException(status_code=500, detail=f"Error subiendo archivo: {result['error']}")
-    public = client.storage.from_(bucket).get_public_url(storage_path)
-    if isinstance(public, dict):
-        return public.get("publicUrl") or public.get("public_url") or storage_path
-    return public
+    # For private buckets, we store the storage path and sign URLs when returning data.
+    return storage_path
 
 
 @app.get("/documentos/{id}/eventos")
@@ -1070,6 +1147,8 @@ async def list_documentos(
 ):
     try:
         await _ensure_documento_respuestas_tables(conn)
+        storage_client = get_supabase_admin_client()
+        signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "3600"))
         tenant_id = current_user.get("tenant_id")
         user_id_raw = current_user.get("sub")
         if not user_id_raw:
@@ -1178,6 +1257,22 @@ async def list_documentos(
             # Asegurar que archivos no sea None
             if d.get("archivos") is None:
                 d["archivos"] = [d["fileUrl"]] if d.get("fileUrl") else []
+            if d.get("respuesta_archivos") is None:
+                d["respuesta_archivos"] = []
+
+            def sign_value(value: Optional[str]) -> Optional[str]:
+                path = _extract_storage_path(value, DEFAULT_STORAGE_BUCKET)
+                if not path:
+                    return value
+                signed = _create_signed_url(storage_client, DEFAULT_STORAGE_BUCKET, path, signed_ttl)
+                return signed or value
+
+            if d.get("fileUrl"):
+                d["fileUrl"] = sign_value(d.get("fileUrl"))
+            if d.get("archivos"):
+                d["archivos"] = [sign_value(v) for v in d["archivos"] if v]
+            if d.get("respuesta_archivos"):
+                d["respuesta_archivos"] = [sign_value(v) for v in d["respuesta_archivos"] if v]
             result.append(d)
         return result
     except Exception as e:
@@ -1732,6 +1827,8 @@ async def listar_respuestas_documento(
 ):
     try:
         await _ensure_documento_respuestas_tables(conn)
+        storage_client = get_supabase_admin_client()
+        signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "3600"))
         tenant_id = current_user.get("tenant_id")
         user_id = current_user.get("sub")
         if not user_id:
@@ -1760,7 +1857,22 @@ async def listar_respuestas_documento(
             id,
             tenant_id,
         )
-        return [dict(r) for r in rows]
+        signed_rows = []
+        for r in rows:
+            d = dict(r)
+            archivos = d.get("archivos") or []
+            if archivos:
+                signed_archivos = []
+                for value in archivos:
+                    path = _extract_storage_path(value, DEFAULT_STORAGE_BUCKET)
+                    if not path:
+                        signed_archivos.append(value)
+                        continue
+                    signed = _create_signed_url(storage_client, DEFAULT_STORAGE_BUCKET, path, signed_ttl)
+                    signed_archivos.append(signed or value)
+                d["archivos"] = signed_archivos
+            signed_rows.append(d)
+        return signed_rows
     except HTTPException:
         raise
     except Exception as e:
