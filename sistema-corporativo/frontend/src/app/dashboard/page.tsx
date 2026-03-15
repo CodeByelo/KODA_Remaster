@@ -1,6 +1,5 @@
 ﻿"use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
 import {
   Home,
   BarChart2,
@@ -1781,7 +1780,6 @@ const DocumentManager: React.FC<{
   gerencias,
   refreshDocs,
 }) => {
-    const router = useRouter();
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [filterDept, setFilterDept] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState("");
@@ -2352,7 +2350,7 @@ const DocumentManager: React.FC<{
         label,
         view: docView,
       });
-      router.push(`/dashboard/documentos/chat?${params.toString()}`);
+      window.location.href = `/dashboard/documentos/chat?${params.toString()}`;
 
       const unreadIds = orderedDocs
         .filter((d) => !d.leido && canMarkDocAsRead(d))
@@ -3177,13 +3175,17 @@ const DocumentManager: React.FC<{
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => viewConversation(group.key, group.label, group.docs)}
-                          className={`p-2 rounded-md transition-colors ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
+                        <a
+                          href={`/dashboard/documentos/chat?${new URLSearchParams({
+                            key: group.key,
+                            label: group.label,
+                            view: docView,
+                          }).toString()}`}
+                          className={`p-2 rounded-md transition-colors inline-flex ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-slate-100 text-slate-600"}`}
                           title="Ver conversacion"
                         >
                           <Eye size={16} />
-                        </button>
+                        </a>
                         {doc.fileUrl && (
                           <a
                             href={doc.fileUrl}
