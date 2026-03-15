@@ -2117,7 +2117,15 @@ const DocumentManager: React.FC<{
         const label = getConversationLabel(doc);
         const ts = getDocTimestamp(doc);
         const existing = map.get(key);
-        const unread = isIncomingDocumentForUser(doc) && !doc.leido ? 1 : 0;
+        const isDirectRecipient =
+          !!doc.receptor_id && !!user?.id && String(doc.receptor_id) === String(user.id);
+        const isDeptRecipient =
+          !!doc.receptor_gerencia_id &&
+          !!user?.gerencia_id &&
+          String(doc.receptor_gerencia_id) === String(user.gerencia_id);
+        const isOwnMessage =
+          !!doc.remitente_id && !!user?.id && String(doc.remitente_id) === String(user.id);
+        const unread = (isDirectRecipient || isDeptRecipient) && !isOwnMessage && !doc.leido ? 1 : 0;
         if (!existing) {
           map.set(key, {
             key,
@@ -2137,7 +2145,7 @@ const DocumentManager: React.FC<{
         }
       });
       return Array.from(map.values()).sort((a, b) => b.latestTs - a.latestTs);
-    }, [filteredDocs, isIncomingDocumentForUser]);
+    }, [filteredDocs, user?.gerencia_id, user?.id]);
 
     const filteredDocIds = useMemo(
       () => filteredDocs.map((doc) => String(doc.id)),
