@@ -26,10 +26,14 @@ export default function NewTicketPage() {
     return String(user?.gerencia_depto || '').toLowerCase().includes('tecnolog');
   }, [user?.gerencia_depto]);
 
+  const isTechUser = useMemo(() => {
+    return String(user?.gerencia_depto || '').toLowerCase().includes('tecnolog');
+  }, [user?.gerencia_depto]);
+
   const effectivePriority = useMemo(() => {
-    if (String(user?.role || '').toLowerCase() === 'usuario') return 'MEDIA';
+    if (!isTechUser) return 'MEDIA';
     return priority;
-  }, [priority, user?.role]);
+  }, [priority, isTechUser]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -75,9 +79,7 @@ export default function NewTicketPage() {
         setDescription(String(ticket.descripcion || ''));
         const p = String(ticket.prioridad || 'media').toUpperCase();
         setPriority(p === 'ALTA' || p === 'BAJA' || p === 'MEDIA' ? p : 'MEDIA');
-        if (isTechUser) {
-          setObservations(String(ticket.observaciones || ''));
-        }
+        setObservations(String(ticket.observaciones || ''));
       } catch (error) {
         console.error('Error cargando ticket:', error);
         void uiAlert('No se pudo cargar el ticket.', 'Error');
@@ -108,7 +110,7 @@ export default function NewTicketPage() {
         await updateTicket(editingTicketId, {
           titulo: title.trim(),
           descripcion: description.trim(),
-          prioridad: effectivePriority.toLowerCase(),
+          ...(isTechUser ? { prioridad: effectivePriority.toLowerCase() } : {}),
           ...(isTechUser ? { observaciones: observations.trim() } : {}),
         });
         await uiAlert('Ticket actualizado correctamente.', 'Éxito');
@@ -160,6 +162,7 @@ export default function NewTicketPage() {
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                disabled={isEditing}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
@@ -171,6 +174,7 @@ export default function NewTicketPage() {
                 rows={6}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                disabled={isEditing}
                 className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
               />
             </div>
@@ -189,7 +193,7 @@ export default function NewTicketPage() {
                 <select
                   value={effectivePriority}
                   onChange={(e) => setPriority(e.target.value as 'ALTA' | 'MEDIA' | 'BAJA')}
-                  disabled={String(user?.role || '').toLowerCase() === 'usuario'}
+                  disabled={!isTechUser}
                   className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                 >
                   <option value="ALTA">Alta</option>
@@ -199,17 +203,16 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {isTechUser && (
-              <div>
-                <label className="block mb-1 text-sm font-semibold">Observaciones (Soporte Técnico)</label>
-                <textarea
-                  rows={4}
-                  value={observations}
-                  onChange={(e) => setObservations(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-                />
-              </div>
-            )}
+            <div>
+              <label className="block mb-1 text-sm font-semibold">Observaciones (Soporte Técnico)</label>
+              <textarea
+                rows={4}
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                disabled={!isTechUser}
+                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+              />
+            </div>
 
             <div className="flex justify-end gap-3 pt-2">
               <button

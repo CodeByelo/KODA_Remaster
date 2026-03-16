@@ -6,6 +6,7 @@ import {
     getAllUsers,
     getAnnouncement,
     getSecurityLogs,
+    purgeSecurityLogs,
     saveAnnouncement,
     saveOrgStructure,
     unlockUser,
@@ -294,6 +295,22 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const goToUserAudit = (userId: string | number) => {
         const target = `/dashboard/security/user/${encodeURIComponent(String(userId))}`;
         window.location.href = target;
+    };
+
+    const handlePurgeLogs = async () => {
+        const ok = await uiConfirm(
+            "¿Seguro que deseas limpiar TODOS los logs de seguridad? Esta acción no se puede deshacer.",
+            "Limpiar logs",
+        );
+        if (!ok) return;
+        try {
+            await purgeSecurityLogs();
+            setLogs([]);
+            void uiAlert("Logs limpiados correctamente.", "Seguridad");
+        } catch (error: any) {
+            console.error("Error limpiando logs", error);
+            void uiAlert(error?.message || "No se pudieron limpiar los logs.", "Seguridad");
+        }
     };
 
     return (
@@ -643,15 +660,25 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             <div>
                                 <div className={`p-4 border-b flex justify-between items-center ${darkMode ? 'border-zinc-800' : 'border-slate-100'}`}>
                                     <h3 className={`font-bold ${theme.text}`}>Registro de Actividad Reciente</h3>
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                        <input
-                                            type="text"
-                                            value={logSearch}
-                                            onChange={(e) => setLogSearch(e.target.value)}
-                                            placeholder="Buscar evento..."
-                                            className={`pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
-                                        />
+                                    <div className="flex items-center gap-3">
+                                        {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
+                                            <button
+                                                onClick={handlePurgeLogs}
+                                                className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                                            >
+                                                Limpiar Logs
+                                            </button>
+                                        )}
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                            <input
+                                                type="text"
+                                                value={logSearch}
+                                                onChange={(e) => setLogSearch(e.target.value)}
+                                                placeholder="Buscar evento..."
+                                                className={`pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="overflow-x-auto max-w-full">

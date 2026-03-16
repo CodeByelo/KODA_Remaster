@@ -80,3 +80,21 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    return await proxyRequest("/security/logs", {
+      method: "DELETE",
+      headers: await backendHeaders(request),
+    });
+  } catch (error) {
+    console.error("Security logs DELETE proxy error:", error);
+    return NextResponse.json(
+      {
+        detail:
+          "Error en el proxy de logs. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
+      },
+      { status: 500 },
+    );
+  }
+}

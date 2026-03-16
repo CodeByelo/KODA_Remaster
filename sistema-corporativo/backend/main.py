@@ -268,6 +268,10 @@ async def audit_access_middleware(request: Request, call_next):
             return response
 
         auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            session_cookie = request.cookies.get("session")
+            if session_cookie:
+                auth_header = f"Bearer {session_cookie}"
         if not auth_header or not auth_header.startswith("Bearer "):
             return response
 
@@ -295,6 +299,8 @@ async def audit_access_middleware(request: Request, call_next):
                     gerencia_id = fetched_gerencia_id
                 if tenant_id is None:
                     tenant_id = fetched_tenant_id
+            if not username and user_id:
+                username = f"user:{user_id}"
 
             detalles = _safe_json_dumps({
                 "action": "ACCESS",
@@ -655,6 +661,8 @@ async def login_compat(
             "role": user["nombre_rol"],
             "tenant_id": str(user["tenant_id"]) if user["tenant_id"] else None,
             "gerencia_id": user["gerencia_id"],
+            "username": user["username"],
+            "email": user["email"],
         }
     )
 
@@ -2127,6 +2135,125 @@ async def delete_documento(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.delete("/documentos/prioridad/control")
+async def purge_control_documents(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection)
+):
+    try:
+        role_norm = _normalize_text(current_user.get("role"))
+        if role_norm not in {"desarrollador", "dev", "developer"}:
+            raise HTTPException(status_code=403, detail="Solo Desarrollador puede limpiar seguimiento")
+
+        tenant_id = current_user.get("tenant_id")
+        user_id = current_user.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Usuario no identificado")
+        if not tenant_id:
+            tenant_id = await conn.fetchval(
+                "SELECT tenant_id FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+
+        doc_rows = await conn.fetch(
+            """
+            SELECT id, url_archivo
+            FROM documentos
+            WHERE prioridad = 'control'
+              AND ($1::uuid IS NULL OR tenant_id = $1::uuid OR tenant_id IS NULL)
+            """,
+            tenant_id,
+        )
+        doc_ids = [r.get("id") for r in doc_rows if r.get("id")]
+        if not doc_ids:
+            return {"status": "success", "deleted": 0}
+
+        # Collect attachment URLs for cleanup
+        file_urls = [r.get("url_archivo") for r in doc_rows if r.get("url_archivo")]
+        adjuntos = await conn.fetch(
+            "SELECT url_archivo FROM documento_adjuntos WHERE documento_id = ANY($1::uuid[])",
+            doc_ids,
+        )
+        file_urls.extend([r.get("url_archivo") for r in adjuntos if r.get("url_archivo")])
+        respuesta_adjuntos = await conn.fetch(
+            """
+            SELECT a.url_archivo
+            FROM documento_respuesta_adjuntos a
+            JOIN documento_respuestas r ON a.respuesta_id = r.id
+            WHERE r.documento_id = ANY($1::uuid[])
+            """,
+            doc_ids,
+        )
+        file_urls.extend([r.get("url_archivo") for r in respuesta_adjuntos if r.get("url_archivo")])
+
+        await conn.execute(
+            "DELETE FROM document_events WHERE documento_id = ANY($1::uuid[])",
+            doc_ids,
+        )
+        await conn.execute(
+            """
+            DELETE FROM documento_respuesta_adjuntos
+            WHERE respuesta_id IN (
+                SELECT id FROM documento_respuestas WHERE documento_id = ANY($1::uuid[])
+            )
+            """,
+            doc_ids,
+        )
+        await conn.execute(
+            "DELETE FROM documento_respuestas WHERE documento_id = ANY($1::uuid[])",
+            doc_ids,
+        )
+        await conn.execute(
+            "DELETE FROM documento_adjuntos WHERE documento_id = ANY($1::uuid[])",
+            doc_ids,
+        )
+        await conn.execute(
+            "DELETE FROM documentos WHERE id = ANY($1::uuid[])",
+            doc_ids,
+        )
+
+        # Best-effort cleanup in Supabase Storage
+        try:
+            storage_client = get_supabase_admin_client()
+            bucket = DEFAULT_STORAGE_BUCKET
+            storage_paths = []
+            for url in file_urls:
+                path = _extract_storage_path(url, bucket)
+                if path:
+                    storage_paths.append(path)
+            if storage_paths:
+                # Remove duplicates to avoid errors
+                unique_paths = list(dict.fromkeys(storage_paths))
+                storage_client.storage.from_(bucket).remove(unique_paths)
+        except Exception:
+            pass
+
+        try:
+            await _ensure_security_events_table(conn)
+            username = await conn.fetchval(
+                "SELECT username FROM profiles WHERE id = $1::uuid",
+                user_id,
+            )
+            await conn.execute(
+                """
+                INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+                VALUES ($1::uuid, $2::uuid, $3, 'CONTROL_SEGUIMIENTO_PURGADO', $4, 'warning', '/dashboard?tab=seguimiento')
+                """,
+                tenant_id,
+                user_id,
+                username or "dev",
+                f"Se eliminaron {len(doc_ids)} documentos de control de seguimiento",
+            )
+        except Exception:
+            pass
+
+        return {"status": "success", "deleted": len(doc_ids)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/gerencias")
 async def list_gerencias(
     current_user: dict = Depends(get_current_user),
@@ -2946,15 +3073,18 @@ async def list_security_logs(
 ):
     await _ensure_security_events_table(conn)
     tenant_id = current_user.get("tenant_id")
+    role = str(current_user.get("role") or "").strip().lower()
+    allow_null_tenant = role in {"desarrollador", "dev", "developer", "administrativo", "admin", "administrador", "ceo"}
     rows = await conn.fetch(
         """
         SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id, gerencia_id
         FROM security_events
-        WHERE ($1::uuid IS NULL OR tenant_id = $1::uuid)
+        WHERE ($1::uuid IS NULL OR tenant_id = $1::uuid OR ($2::bool IS TRUE AND tenant_id IS NULL))
         ORDER BY created_at DESC
         LIMIT 2000
         """,
         tenant_id,
+        allow_null_tenant,
     )
     return [dict(r) for r in rows]
 
@@ -2967,18 +3097,62 @@ async def list_security_logs_by_user(
 ):
     await _ensure_security_events_table(conn)
     tenant_id = current_user.get("tenant_id")
+    role = str(current_user.get("role") or "").strip().lower()
+    allow_null_tenant = role in {"desarrollador", "dev", "developer", "administrativo", "admin", "administrador", "ceo"}
     rows = await conn.fetch(
         """
         SELECT id, username, evento, detalles, estado, ip_origen as ip_address, created_at as fecha_hora, user_id, gerencia_id
         FROM security_events
-        WHERE user_id = $1::uuid AND ($2::uuid IS NULL OR tenant_id = $2::uuid)
+        WHERE user_id = $1::uuid AND ($2::uuid IS NULL OR tenant_id = $2::uuid OR ($3::bool IS TRUE AND tenant_id IS NULL))
         ORDER BY created_at DESC
         LIMIT 2000
         """,
         user_id,
         tenant_id,
+        allow_null_tenant,
     )
     return [dict(r) for r in rows]
+
+
+@app.delete("/security/logs")
+async def purge_security_logs(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    role = str(current_user.get("role") or "").strip().lower()
+    is_dev = role in {"desarrollador", "dev", "developer"}
+    if not is_dev:
+        raise HTTPException(status_code=403, detail="Solo Desarrollador puede limpiar los logs.")
+
+    await _ensure_security_events_table(conn)
+    tenant_id = current_user.get("tenant_id")
+
+    if tenant_id:
+        await conn.execute(
+            "DELETE FROM security_events WHERE tenant_id = $1::uuid",
+            tenant_id,
+        )
+    else:
+        await conn.execute("DELETE FROM security_events")
+
+    try:
+        await _log_security_event(
+            conn,
+            tenant_id=str(tenant_id) if tenant_id else None,
+            user_id=str(current_user.get("sub")) if current_user.get("sub") else None,
+            username=current_user.get("username") or current_user.get("email") or "dev",
+            evento="LOGS_PURGED",
+            detalles="Limpieza total de logs ejecutada por Desarrollador",
+            estado="warning",
+            page="/dashboard/security",
+            ip_origen=_extract_client_ip(request),
+            gerencia_id=current_user.get("gerencia_id"),
+        )
+    except Exception:
+        pass
+
+    return {"status": "ok", "message": "Logs limpiados"}
 
 
 @app.get("/tickets", dependencies=[Depends(get_tenant_context)])

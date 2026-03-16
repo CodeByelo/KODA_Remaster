@@ -87,6 +87,7 @@ import {
   getTickets,
   markAsRead,
   deleteDocumento,
+  purgeControlSeguimiento,
   getAnnouncement,
   getOrgStructure,
   getOrgManagementDetails,
@@ -1300,6 +1301,30 @@ const PriorityMatrix: React.FC<{
     );
   }, [selectedTrackingDoc, user?.id]);
 
+  const canPurgeTracking = useMemo(() => {
+    const role = String(userRole || "").toLowerCase();
+    return role === "desarrollador" || role === "developer" || role === "dev";
+  }, [userRole]);
+
+  const handlePurgeTracking = useCallback(async () => {
+    const ok = await uiConfirm(
+      "Esto eliminará TODOS los documentos con prioridad de control de seguimiento. Esta acción no se puede deshacer. ¿Deseas continuar?",
+      "Limpiar Control de Seguimiento",
+    );
+    if (!ok) return;
+    try {
+      const res = await purgeControlSeguimiento();
+      await refreshDocs();
+      void uiAlert(
+        `Se eliminaron ${res?.deleted ?? 0} documentos de seguimiento.`,
+        "Control de seguimiento",
+      );
+    } catch (error) {
+      console.error("Error limpiando seguimiento:", error);
+      void uiAlert("No se pudo limpiar el control de seguimiento.", "Error");
+    }
+  }, [refreshDocs]);
+
   const filteredTracking = useMemo(() => {
     const normalizedSearch = trackingSearch.trim().toLowerCase();
     return mappedTracking
@@ -1370,17 +1395,30 @@ const PriorityMatrix: React.FC<{
           </select>
         </div>
       </div>
-      {hasPermission(PERMISSIONS_MASTER.PRIORITIES_EXPORT) && (
-        <div className="flex justify-end mb-2">
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${darkMode
-              ? "border-slate-700 text-slate-300 hover:bg-slate-800"
-              : "border-slate-300 text-slate-700 hover:bg-slate-50"
-              }`}
-          >
-            <Download size={16} className="inline mr-2" />
-            Exportar
-          </button>
+      {(canPurgeTracking || hasPermission(PERMISSIONS_MASTER.PRIORITIES_EXPORT)) && (
+        <div className="flex justify-end mb-2 gap-2">
+          {canPurgeTracking && (
+            <button
+              onClick={() => void handlePurgeTracking()}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${darkMode
+                ? "border-red-700 text-red-300 hover:bg-red-900/30"
+                : "border-red-300 text-red-700 hover:bg-red-50"
+                }`}
+            >
+              Limpiar Seguimiento
+            </button>
+          )}
+          {hasPermission(PERMISSIONS_MASTER.PRIORITIES_EXPORT) && (
+            <button
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${darkMode
+                ? "border-slate-700 text-slate-300 hover:bg-slate-800"
+                : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                }`}
+            >
+              <Download size={16} className="inline mr-2" />
+              Exportar
+            </button>
+          )}
         </div>
       )}
       <div className="overflow-x-auto">
@@ -3791,6 +3829,11 @@ const ChartsModule: React.FC<{
                       justifyContent: "center",
                       gap: 12,
                     }}
+                    formatter={(value: string, _entry: any, index: number) => {
+                      const item = docStatusData[index];
+                      const count = item ? item.value : 0;
+                      return `${value} (${count})`;
+                    }}
                   />
                 </PieChartCompat>
               </ResponsiveContainerCompat>
@@ -3839,6 +3882,11 @@ const ChartsModule: React.FC<{
                       display: "flex",
                       justifyContent: "center",
                       gap: 12,
+                    }}
+                    formatter={(value: string, _entry: any, index: number) => {
+                      const item = ticketPriorityData[index];
+                      const count = item ? item.value : 0;
+                      return `${value} (${count})`;
                     }}
                   />
                 </PieChartCompat>

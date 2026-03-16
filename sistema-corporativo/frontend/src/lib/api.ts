@@ -259,6 +259,14 @@ export async function markAsRead(documentId: string | number): Promise<ApiDocume
     return handleResponse<ApiDocument>(res);
 }
 
+export async function purgeControlSeguimiento(): Promise<{ status: string; deleted: number }> {
+    const res = await fetch(`${BASE_URL}/documentos/prioridad/control`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ status: string; deleted: number }>(res);
+}
+
 export async function deleteDocumento(documentId: string | number): Promise<{ status: string }> {
     const res = await fetch(`${BASE_URL}/documentos/${documentId}`, {
         method: "DELETE",
@@ -463,6 +471,14 @@ export async function createSecurityLog(payload: {
         body: JSON.stringify(payload),
     });
     return handleResponse<SecurityLog>(res);
+}
+
+export async function purgeSecurityLogs(): Promise<{ status: string; message: string }> {
+    const res = await fetch(`/api/security/logs`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ status: string; message: string }>(res);
 }
 
 // ==========================================

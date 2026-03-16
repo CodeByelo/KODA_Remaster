@@ -211,7 +211,9 @@ async def login(login_data: UserLogin, request: Request, conn = Depends(get_db_c
             "sub": str(user['id']), 
             "role": user['nombre_rol'],
             "tenant_id": str(user['tenant_id']) if user['tenant_id'] else None,
-            "gerencia_id": user['gerencia_id']
+            "gerencia_id": user['gerencia_id'],
+            "username": user["username"],
+            "email": user["email"],
         }
     )
     
