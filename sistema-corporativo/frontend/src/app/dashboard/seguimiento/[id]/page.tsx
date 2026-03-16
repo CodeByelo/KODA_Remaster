@@ -106,6 +106,48 @@ function getTrackingStatus(item: { rawStatus?: string; deadlineRaw?: string; fec
   return "en-proceso";
 }
 
+function formatTrackingEvent(ev: { action?: string; details?: string }) {
+  const actionRaw = String(ev.action || "").trim();
+  const detailsRaw = String(ev.details || "").trim();
+  const normalizedAction = actionRaw
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  let label = actionRaw || "EVENTO";
+  let detail = detailsRaw || "";
+
+  if (
+    normalizedAction === "status changed" ||
+    normalizedAction === "status change" ||
+    normalizedAction === "status changed" ||
+    normalizedAction.includes("status")
+  ) {
+    label = "CAMBIO DE ESTADO";
+  }
+
+  const lowerDetails = detailsRaw.toLowerCase();
+  if (lowerDetails.includes("en-aclaracion") || lowerDetails.includes("en aclaracion")) {
+    label = "ACLARACION SOLICITADA";
+  }
+
+  const commentMatch =
+    detailsRaw.match(/comentario[:=]\s*'?(.*?)'?(?:\s*\||$)/i) ||
+    detailsRaw.match(/comment[:=]\s*'?(.*?)'?(?:\s*\||$)/i);
+  if (commentMatch && commentMatch[1]) {
+    detail = `Aclaración: ${commentMatch[1].replace(/^['"]|['"]$/g, "")}`;
+  } else {
+    const statusMatch = detailsRaw.match(/estado[:=]\s*'?(.*?)'?(?:\s*\||$)/i);
+    if (statusMatch && statusMatch[1]) {
+      detail = `Estado: ${statusMatch[1].replace(/^['"]|['"]$/g, "")}`;
+    }
+  }
+
+  return { label, detail };
+}
+
 function mapDocumentToTracking(doc: any): TrackingDocument {
   let uploadDate = "N/A";
   if (doc.fecha_creacion || doc.uploadDate) {
@@ -289,6 +331,11 @@ function SeguimientoDetailClient() {
       !!doc.remitente_id && currentUserId && String(doc.remitente_id) === currentUserId;
     return isDirectRecipient || isDeptRecipient || isSender;
   }, [doc, user?.gerencia_id, user?.id]);
+
+  const canFinalizeTracking = useMemo(() => {
+    if (!doc || !user?.id) return false;
+    return !!doc.remitente_id && String(doc.remitente_id) === String(user.id);
+  }, [doc, user?.id]);
 
   const handleMarkFinalized = useCallback(
     async (docIdValue: string | number) => {
@@ -591,18 +638,21 @@ function SeguimientoDetailClient() {
             <div className={`rounded-lg border p-3 text-xs space-y-2 ${
               darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"
             }`}>
-              {trackingEvents.map((ev) => (
-                <div key={ev.id} className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold">{ev.action}</div>
-                    {ev.details ? <div className="text-[11px] opacity-80">{ev.details}</div> : null}
+              {trackingEvents.map((ev) => {
+                const formatted = formatTrackingEvent(ev);
+                return (
+                  <div key={ev.id} className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold">{formatted.label}</div>
+                      {formatted.detail ? <div className="text-[11px] opacity-80">{formatted.detail}</div> : null}
+                    </div>
+                    <div className="text-[10px] opacity-70 text-right">
+                      <div>{ev.actor_username || "sistema"}</div>
+                      <div>{new Date(ev.created_at).toLocaleString("es-ES")}</div>
+                    </div>
                   </div>
-                  <div className="text-[10px] opacity-70 text-right">
-                    <div>{ev.actor_username || "sistema"}</div>
-                    <div>{new Date(ev.created_at).toLocaleString("es-ES")}</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-sm text-slate-500 italic">Sin historial.</div>
@@ -610,7 +660,7 @@ function SeguimientoDetailClient() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {computedStatus === "respondido" && (
+          {computedStatus === "respondido" && canFinalizeTracking && (
             <button
               onClick={() => void handleRequestClarification(doc.id)}
               disabled={updatingTrackingStatus}
@@ -623,7 +673,7 @@ function SeguimientoDetailClient() {
               Solicitar aclaracion
             </button>
           )}
-          {computedStatus !== "finalizado" && (
+          {computedStatus !== "finalizado" && canFinalizeTracking && (
             <button
               onClick={async () => {
                 if (!doc.respuesta_contenido) {

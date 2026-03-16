@@ -967,6 +967,48 @@ const PriorityMatrix: React.FC<{
     [],
   );
 
+  const formatTrackingEvent = useCallback((ev: { action?: string; details?: string }) => {
+    const actionRaw = String(ev.action || "").trim();
+    const detailsRaw = String(ev.details || "").trim();
+    const normalizedAction = actionRaw
+      .toLowerCase()
+      .replaceAll("_", " ")
+      .replaceAll("-", " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let label = actionRaw || "EVENTO";
+    let detail = detailsRaw || "";
+
+    if (
+      normalizedAction === "status changed" ||
+      normalizedAction === "status change" ||
+      normalizedAction === "status changed" ||
+      normalizedAction.includes("status")
+    ) {
+      label = "CAMBIO DE ESTADO";
+    }
+
+    const lowerDetails = detailsRaw.toLowerCase();
+    if (lowerDetails.includes("en-aclaracion") || lowerDetails.includes("en aclaracion")) {
+      label = "ACLARACION SOLICITADA";
+    }
+
+    const commentMatch =
+      detailsRaw.match(/comentario[:=]\s*'?(.*?)'?(?:\s*\||$)/i) ||
+      detailsRaw.match(/comment[:=]\s*'?(.*?)'?(?:\s*\||$)/i);
+    if (commentMatch && commentMatch[1]) {
+      detail = `Aclaración: ${commentMatch[1].replace(/^['"]|['"]$/g, "")}`;
+    } else {
+      const statusMatch = detailsRaw.match(/estado[:=]\s*'?(.*?)'?(?:\s*\||$)/i);
+      if (statusMatch && statusMatch[1]) {
+        detail = `Estado: ${statusMatch[1].replace(/^['"]|['"]$/g, "")}`;
+      }
+    }
+
+    return { label, detail };
+  }, []);
+
   const handleMarkFinalized = useCallback(
     async (docId: number) => {
       try {
@@ -1250,6 +1292,14 @@ const PriorityMatrix: React.FC<{
     };
   }, [selectedTrackingDoc]);
 
+  const canFinalizeTracking = useMemo(() => {
+    if (!selectedTrackingDoc || !user?.id) return false;
+    return (
+      !!selectedTrackingDoc.remitente_id &&
+      String(selectedTrackingDoc.remitente_id) === String(user.id)
+    );
+  }, [selectedTrackingDoc, user?.id]);
+
   const filteredTracking = useMemo(() => {
     const normalizedSearch = trackingSearch.trim().toLowerCase();
     return mappedTracking
@@ -1458,7 +1508,7 @@ const PriorityMatrix: React.FC<{
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(
+                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase whitespace-nowrap min-w-[120px] text-center ${getStatusColor(
                       computedStatus,
                     )}`}
                   >
@@ -1717,18 +1767,21 @@ const PriorityMatrix: React.FC<{
                 </div>
                 {trackingEvents.length > 0 ? (
                   <div className={`rounded-lg border p-3 text-xs space-y-2 ${darkMode ? "border-slate-800 bg-slate-950 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-                    {trackingEvents.map((ev) => (
+                    {trackingEvents.map((ev) => {
+                      const formatted = formatTrackingEvent(ev);
+                      return (
                       <div key={ev.id} className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="font-semibold">{ev.action}</div>
-                          {ev.details ? <div className="text-[11px] opacity-80">{ev.details}</div> : null}
+                          <div className="font-semibold">{formatted.label}</div>
+                          {formatted.detail ? <div className="text-[11px] opacity-80">{formatted.detail}</div> : null}
                         </div>
                         <div className="text-[10px] opacity-70 text-right">
                           <div>{ev.actor_username || "sistema"}</div>
                           <div>{new Date(ev.created_at).toLocaleString("es-ES")}</div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-sm text-slate-500 italic">Sin historial.</div>
@@ -1736,7 +1789,7 @@ const PriorityMatrix: React.FC<{
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {modalComputedStatus === "respondido" && (
+                {modalComputedStatus === "respondido" && canFinalizeTracking && (
                   <button
                     onClick={() => void handleRequestClarification(selectedTrackingDoc.id)}
                     disabled={updatingTrackingStatus}
@@ -1747,7 +1800,7 @@ const PriorityMatrix: React.FC<{
                     Solicitar aclaracion
                   </button>
                 )}
-                {modalComputedStatus !== "finalizado" && (
+                {modalComputedStatus !== "finalizado" && canFinalizeTracking && (
                   <button
                     onClick={async () => {
                       if (!selectedTrackingDoc.respuesta_contenido) {

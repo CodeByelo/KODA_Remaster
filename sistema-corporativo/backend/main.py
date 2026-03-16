@@ -1029,8 +1029,7 @@ async def _upload_to_supabase_storage(file: UploadFile, folder_prefix: str) -> s
         return storage_path
     except Exception as upload_error:
         logger.error(f"Fallo upload a Supabase (bucket '{bucket}'): {upload_error}")
-        # Fallback local storage when Supabase is unavailable/misconfigured.
-        return _store_local_upload(data, ext, folder_prefix)
+        raise HTTPException(status_code=503, detail="No se pudo almacenar el archivo en Supabase Storage")
 
 
 @app.get("/documentos/{id}/eventos")
@@ -1320,7 +1319,7 @@ async def list_documentos(
     try:
         await _ensure_documento_respuestas_tables(conn)
         storage_client = get_supabase_admin_client()
-        signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "3600"))
+        signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "900"))
         tenant_id = current_user.get("tenant_id")
         user_id_raw = current_user.get("sub")
         if not user_id_raw:
@@ -1775,10 +1774,8 @@ async def update_doc_status(
         )
         if not doc:
             raise HTTPException(status_code=404, detail="Documento no encontrado")
-        role_norm = _normalize_text(current_user.get("role"))
-        is_privileged = role_norm in {"desarrollador", "dev", "developer", "administrativo", "admin", "administrador", "ceo"}
         is_sender = doc.get("remitente_id") and str(doc.get("remitente_id")) == str(user_id)
-        if nuevo_estado in {"finalizado", "en-aclaracion"} and not (is_sender or is_privileged):
+        if nuevo_estado in {"finalizado", "en-aclaracion"} and not is_sender:
             raise HTTPException(status_code=403, detail="No autorizado para este cambio de estado")
         if nuevo_estado == "finalizado":
             has_response = await conn.fetchval(
@@ -2000,7 +1997,7 @@ async def listar_respuestas_documento(
     try:
         await _ensure_documento_respuestas_tables(conn)
         storage_client = get_supabase_admin_client()
-        signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "3600"))
+        signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "900"))
         tenant_id = current_user.get("tenant_id")
         user_id = current_user.get("sub")
         if not user_id:
