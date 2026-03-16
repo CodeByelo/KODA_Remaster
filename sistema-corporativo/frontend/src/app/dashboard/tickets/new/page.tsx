@@ -26,10 +26,6 @@ export default function NewTicketPage() {
     return String(user?.gerencia_depto || '').toLowerCase().includes('tecnolog');
   }, [user?.gerencia_depto]);
 
-  const isTechUser = useMemo(() => {
-    return String(user?.gerencia_depto || '').toLowerCase().includes('tecnolog');
-  }, [user?.gerencia_depto]);
-
   const effectivePriority = useMemo(() => {
     if (!isTechUser) return 'MEDIA';
     return priority;
