@@ -4359,7 +4359,7 @@ export default function Dashboard() {
       chatOpenTimerRef.current = window.setTimeout(() => {
         setIsChatOpening(false);
         setIsChatOpen(true);
-      }, 3700);
+      }, 2500);
     }
   }, [isChatOpen, isChatOpening]);
 
