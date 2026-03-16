@@ -1,5 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Home,
   BarChart2,
@@ -45,7 +46,6 @@ import {
   Sparkles,
   Inbox,
   Send,
-  MessageSquare,
 } from "lucide-react";
 
 // OK: Importa los componentes del bot al inicio
@@ -4346,6 +4346,30 @@ export default function Dashboard() {
 
   // OK: Añade el estado para el bot de ayuda
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatOpening, setIsChatOpening] = useState(false);
+  const chatOpenTimerRef = useRef<number | null>(null);
+
+  const openChatAnimated = useCallback(() => {
+    if (isChatOpen || isChatOpening) return;
+    setIsChatOpening(true);
+    if (typeof window !== "undefined" && chatOpenTimerRef.current) {
+      window.clearTimeout(chatOpenTimerRef.current);
+    }
+    if (typeof window !== "undefined") {
+      chatOpenTimerRef.current = window.setTimeout(() => {
+        setIsChatOpening(false);
+        setIsChatOpen(true);
+      }, 700);
+    }
+  }, [isChatOpen, isChatOpening]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && chatOpenTimerRef.current) {
+        window.clearTimeout(chatOpenTimerRef.current);
+      }
+    };
+  }, []);
 
   // ESTADO DE ANUNCIOS (Dashboard General)
   const [announcement, setAnnouncement] = useState<AnnouncementData>({
@@ -5059,7 +5083,7 @@ export default function Dashboard() {
             >
               <div className="mb-3">
                 <BotButton
-                  onOpenChat={() => setIsChatOpen(true)}
+                  onOpenChat={openChatAnimated}
                   variant="sidebar"
                   collapsed={collapsed}
                 />
@@ -5104,20 +5128,6 @@ export default function Dashboard() {
               </h2>
             </div>
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
-              {collapsed && (
-                <button
-                  onClick={() => setIsChatOpen(true)}
-                  className={`h-9 w-9 rounded-full border flex items-center justify-center transition-colors ${
-                    darkMode
-                      ? "border-slate-800 text-slate-300 hover:bg-slate-800"
-                      : "border-slate-300 text-slate-700 hover:bg-slate-100"
-                  }`}
-                  title="Asistente CORPOELEC"
-                  aria-label="Asistente CORPOELEC"
-                >
-                  <MessageSquare size={16} />
-                </button>
-              )}
               <ThemeToggle
                 darkMode={darkMode}
                 onToggle={() => setDarkMode(!darkMode)}
@@ -5235,6 +5245,35 @@ export default function Dashboard() {
           </div>
         </main>
 
+        <AnimatePresence>
+          {isChatOpening && (
+            <motion.div
+              className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1.15, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 220, damping: 18 }}
+                className="relative w-48 h-48 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-2xl shadow-red-500/30 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-red-500/20 to-transparent" />
+                <div className="absolute inset-3 rounded-full overflow-hidden">
+                  <video
+                    src="/CorpiVideo.mp4"
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <ChatWindow
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}
