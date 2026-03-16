@@ -188,8 +188,13 @@ function MensajeriaChatClient() {
           .replaceAll(' ', '-');
 
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || API_FALLBACK;
-        const normalizeUrl = (url?: string) =>
-          url ? (url.startsWith('http') ? url : `${baseUrl}${url}`) : undefined;
+        const normalizeUrl = (url?: string) => {
+          if (!url) return undefined;
+          if (url.startsWith('http')) return url;
+          const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+          const path = url.startsWith('/') ? url : `/${url}`;
+          return `${base}${path}`;
+        };
 
         const rawCorrelativo =
           d.correlativo ??
@@ -487,7 +492,7 @@ function MensajeriaChatClient() {
                               : 'text-slate-500'
                         }`}
                       >
-                        {msg.uploadedBy || 'Remitente'} {'?'} {getRecipientDisplay(msg)} | {getDeliveryInfo(msg).label} | {msg.uploadDate} {msg.uploadTime}
+                        {msg.uploadedBy || 'Remitente'} | {getRecipientDisplay(msg)} | {getDeliveryInfo(msg).label} | {msg.uploadDate} {msg.uploadTime}
                       </div>
                       {msg.contenido ? (
                         <div>{msg.contenido}</div>

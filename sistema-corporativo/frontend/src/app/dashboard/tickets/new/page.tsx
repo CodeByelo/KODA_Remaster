@@ -22,6 +22,9 @@ export default function NewTicketPage() {
   const [observations, setObservations] = useState('');
   const [editingTicketId, setEditingTicketId] = useState<number | null>(null);
   const isEditing = editingTicketId !== null;
+  const isTechUser = useMemo(() => {
+    return String(user?.gerencia_depto || '').toLowerCase().includes('tecnolog');
+  }, [user?.gerencia_depto]);
 
   const effectivePriority = useMemo(() => {
     if (String(user?.role || '').toLowerCase() === 'usuario') return 'MEDIA';
@@ -72,7 +75,9 @@ export default function NewTicketPage() {
         setDescription(String(ticket.descripcion || ''));
         const p = String(ticket.prioridad || 'media').toUpperCase();
         setPriority(p === 'ALTA' || p === 'BAJA' || p === 'MEDIA' ? p : 'MEDIA');
-        setObservations(String(ticket.observaciones || ''));
+        if (isTechUser) {
+          setObservations(String(ticket.observaciones || ''));
+        }
       } catch (error) {
         console.error('Error cargando ticket:', error);
         void uiAlert('No se pudo cargar el ticket.', 'Error');
@@ -104,7 +109,7 @@ export default function NewTicketPage() {
           titulo: title.trim(),
           descripcion: description.trim(),
           prioridad: effectivePriority.toLowerCase(),
-          observaciones: observations.trim(),
+          ...(isTechUser ? { observaciones: observations.trim() } : {}),
         });
         await uiAlert('Ticket actualizado correctamente.', 'Éxito');
       } else {
@@ -112,7 +117,7 @@ export default function NewTicketPage() {
           titulo: title.trim(),
           descripcion: description.trim(),
           prioridad: effectivePriority.toLowerCase(),
-          observaciones: observations.trim(),
+          ...(isTechUser ? { observaciones: observations.trim() } : {}),
         });
         await uiAlert('Ticket creado correctamente.', 'Éxito');
       }
@@ -194,15 +199,17 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block mb-1 text-sm font-semibold">Observaciones</label>
-              <textarea
-                rows={4}
-                value={observations}
-                onChange={(e) => setObservations(e.target.value)}
-                className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-              />
-            </div>
+            {isTechUser && (
+              <div>
+                <label className="block mb-1 text-sm font-semibold">Observaciones (Soporte Técnico)</label>
+                <textarea
+                  rows={4}
+                  value={observations}
+                  onChange={(e) => setObservations(e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-2">
               <button

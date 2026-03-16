@@ -3779,7 +3779,19 @@ const ChartsModule: React.FC<{
                       color: darkMode ? "#f1f5f9" : "#1e293b",
                     }}
                   />
-                  <LegendCompat />
+                  <LegendCompat
+                    verticalAlign="bottom"
+                    align="center"
+                    layout="horizontal"
+                    iconType="square"
+                    iconSize={10}
+                    wrapperStyle={{
+                      paddingTop: 8,
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: 12,
+                    }}
+                  />
                 </PieChartCompat>
               </ResponsiveContainerCompat>
             </div>
@@ -3802,7 +3814,7 @@ const ChartsModule: React.FC<{
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
-                    label
+                    label={false}
                     dataKey="value"
                   >
                     {ticketPriorityData.map((entry, index) => (
@@ -3816,7 +3828,19 @@ const ChartsModule: React.FC<{
                       color: darkMode ? "#f1f5f9" : "#1e293b",
                     }}
                   />
-                  <LegendCompat verticalAlign="bottom" height={36} />
+                  <LegendCompat
+                    verticalAlign="bottom"
+                    align="center"
+                    layout="horizontal"
+                    iconType="square"
+                    iconSize={10}
+                    wrapperStyle={{
+                      paddingTop: 8,
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: 12,
+                    }}
+                  />
                 </PieChartCompat>
               </ResponsiveContainerCompat>
             </div>

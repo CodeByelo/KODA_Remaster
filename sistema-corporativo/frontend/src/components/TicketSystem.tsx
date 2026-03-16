@@ -283,7 +283,7 @@ export default function TicketSystem({
                 titulo: newTitle,
                 descripcion: newDesc,
                 prioridad: toApiPriority(newPriority),
-                observaciones: newObservations,
+                ...(isTechUser ? { observaciones: newObservations } : {}),
             });
             logAction('EDICION', newTitle, 'info');
             await refreshFromServer();
@@ -301,7 +301,7 @@ export default function TicketSystem({
                 titulo: newTitle,
                 descripcion: newDesc,
                 prioridad: toApiPriority(userRole === 'Usuario' ? 'MEDIA' : newPriority),
-                observaciones: newObservations,
+                ...(isTechUser ? { observaciones: newObservations } : {}),
             });
             await refreshFromServer();
             logAction('CREACION', newTitle, 'success');
@@ -570,21 +570,17 @@ export default function TicketSystem({
                                         <option value="BAJA">Baja</option>
                                     </select>
                                 </div>
+                                {isTechUser && (
                                 <div className="md:col-span-2">
-                                <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Observaciones (Soporte Técnico)</label>
-                                <textarea
-                                    rows={4}
-                                    value={newObservations}
-                                    onChange={(e) => setNewObservations(e.target.value)}
-                                    disabled={!canOperateTicketFlow}
-                                    className={`w-full px-4 py-3 rounded-lg border outline-none ${theme.input}`}
-                                />
-                                {!canOperateTicketFlow && (
-                                    <p className={`text-[10px] mt-1 uppercase font-bold ${theme.muted}`}>
-                                        Solo Tecnología, Administración o Desarrollo pueden registrar observaciones
-                                    </p>
-                                )}
+                                    <label className={`block text-xs font-bold uppercase mb-1.5 tracking-wider ${theme.muted}`}>Observaciones (Soporte Técnico)</label>
+                                    <textarea
+                                        rows={4}
+                                        value={newObservations}
+                                        onChange={(e) => setNewObservations(e.target.value)}
+                                        className={`w-full px-4 py-3 rounded-lg border outline-none ${theme.input}`}
+                                    />
                                 </div>
+                                )}
                             </div>
                             <div className="flex gap-3 pt-6 sticky bottom-0 bg-inherit">
                                 <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 rounded-lg font-bold text-xs tracking-widest border ${theme.secondaryButton}`}>
