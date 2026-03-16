@@ -34,7 +34,29 @@ type Document = {
 };
 
 const API_FALLBACK = 'https://corpoelect-backend.onrender.com';
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_API_URL || API_FALLBACK;
 const DASHBOARD_THEME_STORAGE_KEY = 'dashboard_theme_2026';
+
+function extractBackendPath(value: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.startsWith('http')) {
+    try {
+      const u = new URL(raw);
+      return String(u.pathname || '').replace(/^\//, '');
+    } catch {
+      return '';
+    }
+  }
+  return raw.startsWith('/') ? raw.slice(1) : raw;
+}
+
+function isDirectlyOpenableUrl(value: string): boolean {
+  const raw = String(value || '').trim();
+  if (!raw.startsWith('http')) return false;
+  if (raw.includes('/storage/v1/object/')) return true;
+  return false;
+}
 
 function parseFlexibleDateGlobal(value?: string) {
   if (!value) return null;
@@ -74,6 +96,52 @@ function MensajeriaChatClient() {
   const docView = searchParams.get('view') || 'inbox';
 
   const currentUserId = user?.id ? String(user.id) : '';
+
+  const openDocumento = useCallback(async (fileUrl: string) => {
+    const raw = String(fileUrl || '').trim();
+    if (!raw) return;
+    if (typeof window === 'undefined') return;
+
+    if (isDirectlyOpenableUrl(raw)) {
+      window.open(raw, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const token = localStorage.getItem('sgd_token');
+    if (!token) {
+      void uiAlert('Sesión no válida. Inicia sesión de nuevo.', 'Adjuntos');
+      return;
+    }
+
+    const backendPath = extractBackendPath(raw);
+    if (!backendPath) {
+      void uiAlert('No se pudo interpretar la ruta del adjunto.', 'Adjuntos');
+      return;
+    }
+
+    try {
+      const base = BACKEND_BASE_URL.endsWith('/') ? BACKEND_BASE_URL.slice(0, -1) : BACKEND_BASE_URL;
+      const res = await fetch(
+        `${base}/documentos/archivo?path=${encodeURIComponent(backendPath)}&format=json`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: 'no-store',
+        },
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(txt || `Error ${res.status}`);
+      }
+      const data = (await res.json()) as { url?: string };
+      if (!data?.url) throw new Error('Respuesta inválida del servidor');
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (error: any) {
+      console.error('No se pudo abrir el documento:', error);
+      void uiAlert('No se pudo abrir el documento. Intenta de nuevo.', 'Adjuntos');
+    }
+  }, []);
 
   const getDocTimestamp = useCallback((doc: Document) => {
     const combined = [doc.uploadDate, doc.uploadTime].filter(Boolean).join(' ');
@@ -187,7 +255,7 @@ function MensajeriaChatClient() {
           .replaceAll('_', '-')
           .replaceAll(' ', '-');
 
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || API_FALLBACK;
+        const baseUrl = BACKEND_BASE_URL;
         const normalizeUrl = (url?: string) => {
           if (!url) return undefined;
           if (url.startsWith('http')) return url;
@@ -502,10 +570,8 @@ function MensajeriaChatClient() {
                       {(msg.fileUrl || (msg.archivos || []).length > 0) && (
                         <div className="flex flex-wrap gap-2 mt-3">
                           {msg.fileUrl && !((msg.archivos || []).includes(msg.fileUrl)) && (
-                            <a
-                              href={msg.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
                               onClick={() => {
                                 void createSecurityLog({
                                   evento: 'DOCUMENTO_DESCARGA',
@@ -516,6 +582,7 @@ function MensajeriaChatClient() {
                                   estado: 'info',
                                   page: '/dashboard/documentos/chat',
                                 });
+                                void openDocumento(msg.fileUrl || '');
                               }}
                               className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
                                 isMine
@@ -526,14 +593,12 @@ function MensajeriaChatClient() {
                               }`}
                             >
                               Ver archivo
-                            </a>
+                            </button>
                           )}
                           {(msg.archivos || []).map((file: string, idx: number) => (
-                            <a
+                            <button
+                              type="button"
                               key={`${file}-${idx}`}
-                              href={file}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               onClick={() => {
                                 void createSecurityLog({
                                   evento: 'DOCUMENTO_DESCARGA',
@@ -545,6 +610,7 @@ function MensajeriaChatClient() {
                                   estado: 'info',
                                   page: '/dashboard/documentos/chat',
                                 });
+                                void openDocumento(file);
                               }}
                               className={`px-3 py-1.5 rounded-md text-xs font-semibold border ${
                                 isMine
@@ -555,7 +621,7 @@ function MensajeriaChatClient() {
                               }`}
                             >
                               Adjunto {idx + 1}
-                            </a>
+                            </button>
                           ))}
                         </div>
                       )}

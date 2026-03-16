@@ -176,6 +176,27 @@ function resolveFileUrl(file?: string) {
   return file.startsWith("http") ? file : `${BACKEND_BASE_URL}${file}`;
 }
 
+function extractBackendPath(value: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http")) {
+    try {
+      const u = new URL(raw);
+      return String(u.pathname || "").replace(/^\//, "");
+    } catch {
+      return "";
+    }
+  }
+  return raw.startsWith("/") ? raw.slice(1) : raw;
+}
+
+function isDirectlyOpenableUrl(value: string): boolean {
+  const raw = String(value || "").trim();
+  if (!raw.startsWith("http")) return false;
+  if (raw.includes("/storage/v1/object/")) return true;
+  return false;
+}
+
 function capitalizeDateParts(value: string): string {
   return String(value || "").replace(/(^|[\s,])(\p{L})/gu, (_match, prefix, letter: string) => {
     return `${prefix}${letter.toUpperCase()}`;
@@ -902,6 +923,48 @@ const PriorityMatrix: React.FC<{
   const [selectedTrackingDoc, setSelectedTrackingDoc] = useState<any | null>(null);
   const [trackingContentOpen, setTrackingContentOpen] = useState(false);
   const [updatingTrackingStatus, setUpdatingTrackingStatus] = useState(false);
+
+  const openDocumento = useCallback(async (fileUrl: string) => {
+    const raw = String(fileUrl || "").trim();
+    if (!raw) return;
+    if (typeof window === "undefined") return;
+
+    const resolved = resolveFileUrl(raw);
+    if (isDirectlyOpenableUrl(resolved)) {
+      window.open(resolved, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const token = localStorage.getItem("sgd_token");
+    if (!token) {
+      void uiAlert("Sesión no válida. Inicia sesión de nuevo.", "Adjuntos");
+      return;
+    }
+
+    const backendPath = extractBackendPath(resolved);
+    if (!backendPath) {
+      void uiAlert("No se pudo interpretar la ruta del adjunto.", "Adjuntos");
+      return;
+    }
+
+    try {
+      const base = BACKEND_BASE_URL.endsWith("/") ? BACKEND_BASE_URL.slice(0, -1) : BACKEND_BASE_URL;
+      const res = await fetch(
+        `${base}/documentos/archivo?path=${encodeURIComponent(backendPath)}&format=json`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || `Error ${res.status}`);
+      }
+      const data = (await res.json()) as { url?: string };
+      if (!data?.url) throw new Error("Respuesta inválida del servidor");
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("No se pudo abrir el documento:", error);
+      void uiAlert("No se pudo abrir el documento. Intenta de nuevo.", "Adjuntos");
+    }
+  }, []);
 
   const getStatusColor = (status: string) => {
     const normalized = String(status || "").toLowerCase();
@@ -1857,10 +1920,8 @@ const PriorityMatrix: React.FC<{
                 )}
                 {selectedTrackingDoc.fileUrl &&
                   !((selectedTrackingDoc.archivos || []).includes(selectedTrackingDoc.fileUrl)) && (
-                  <a
-                    href={resolveFileUrl(selectedTrackingDoc.fileUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
                     onClick={() => {
                       void createSecurityLog({
                         evento: "DOCUMENTO_DESCARGA",
@@ -1872,18 +1933,17 @@ const PriorityMatrix: React.FC<{
                         estado: "info",
                         page: "/dashboard?tab=seguimiento",
                       });
+                      void openDocumento(selectedTrackingDoc.fileUrl || "");
                     }}
                     className={`px-3 py-2 rounded-md text-sm font-semibold border ${darkMode ? "border-blue-700 text-blue-300 hover:bg-blue-900/20" : "border-blue-300 text-blue-700 hover:bg-blue-50"}`}
                   >
                     Ver archivo principal
-                  </a>
+                  </button>
                 )}
                 {(selectedTrackingDoc.archivos || []).map((file: string, idx: number) => (
-                  <a
+                  <button
+                    type="button"
                     key={`${file}-${idx}`}
-                    href={resolveFileUrl(file)}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     onClick={() => {
                       void createSecurityLog({
                         evento: "DOCUMENTO_DESCARGA",
@@ -1896,11 +1956,12 @@ const PriorityMatrix: React.FC<{
                         estado: "info",
                         page: "/dashboard?tab=seguimiento",
                       });
+                      void openDocumento(file);
                     }}
                     className={`px-3 py-2 rounded-md text-sm font-semibold border ${darkMode ? "border-slate-700 text-slate-300 hover:bg-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-50"}`}
                   >
                     Adjunto {idx + 1}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>

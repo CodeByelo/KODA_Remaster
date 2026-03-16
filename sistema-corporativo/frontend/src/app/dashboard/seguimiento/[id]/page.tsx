@@ -50,6 +50,27 @@ function resolveFileUrl(file?: string) {
   return file.startsWith("http") ? file : `${BACKEND_BASE_URL}${file}`;
 }
 
+function extractBackendPath(value: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http")) {
+    try {
+      const u = new URL(raw);
+      return String(u.pathname || "").replace(/^\//, "");
+    } catch {
+      return "";
+    }
+  }
+  return raw.startsWith("/") ? raw.slice(1) : raw;
+}
+
+function isDirectlyOpenableUrl(value: string): boolean {
+  const raw = String(value || "").trim();
+  if (!raw.startsWith("http")) return false;
+  if (raw.includes("/storage/v1/object/")) return true;
+  return false;
+}
+
 function parseFlexibleDateGlobal(value?: string) {
   if (!value || value === "N/A") return null;
   const normalized = String(value).trim();
@@ -229,6 +250,51 @@ function SeguimientoDetailClient() {
   const [trackingResponseDraft, setTrackingResponseDraft] = useState("");
   const [trackingResponseFiles, setTrackingResponseFiles] = useState<File[]>([]);
   const [updatingTrackingStatus, setUpdatingTrackingStatus] = useState(false);
+
+  const openDocumento = useCallback(async (fileUrl: string) => {
+    const raw = String(fileUrl || "").trim();
+    if (!raw) return;
+    if (typeof window === "undefined") return;
+
+    const resolved = resolveFileUrl(raw);
+    if (isDirectlyOpenableUrl(resolved)) {
+      window.open(resolved, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const token = localStorage.getItem("sgd_token");
+    if (!token) {
+      void uiAlert("Sesión no válida. Inicia sesión de nuevo.", "Adjuntos");
+      return;
+    }
+
+    const backendPath = extractBackendPath(resolved);
+    if (!backendPath) {
+      void uiAlert("No se pudo interpretar la ruta del adjunto.", "Adjuntos");
+      return;
+    }
+
+    try {
+      const base = BACKEND_BASE_URL.endsWith("/") ? BACKEND_BASE_URL.slice(0, -1) : BACKEND_BASE_URL;
+      const res = await fetch(
+        `${base}/documentos/archivo?path=${encodeURIComponent(backendPath)}&format=json`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        },
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(txt || `Error ${res.status}`);
+      }
+      const data = (await res.json()) as { url?: string };
+      if (!data?.url) throw new Error("Respuesta inválida del servidor");
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("No se pudo abrir el documento:", error);
+      void uiAlert("No se pudo abrir el documento. Intenta de nuevo.", "Adjuntos");
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -693,10 +759,8 @@ function SeguimientoDetailClient() {
             </button>
           )}
           {doc.fileUrl && !(doc.archivos || []).includes(doc.fileUrl) && (
-            <a
-              href={resolveFileUrl(doc.fileUrl)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               onClick={() => {
                 void createSecurityLog({
                   evento: "DOCUMENTO_DESCARGA",
@@ -708,20 +772,19 @@ function SeguimientoDetailClient() {
                   estado: "info",
                   page: "/dashboard/seguimiento/[id]",
                 });
+                void openDocumento(doc.fileUrl || "");
               }}
               className={`px-3 py-2 rounded-md text-sm font-semibold border ${
                 darkMode ? "border-blue-700 text-blue-300 hover:bg-blue-900/20" : "border-blue-300 text-blue-700 hover:bg-blue-50"
               }`}
             >
               Ver archivo principal
-            </a>
+            </button>
           )}
           {(doc.archivos || []).map((file: string, idx: number) => (
-            <a
+            <button
+              type="button"
               key={`${file}-${idx}`}
-              href={resolveFileUrl(file)}
-              target="_blank"
-              rel="noopener noreferrer"
               onClick={() => {
                 void createSecurityLog({
                   evento: "DOCUMENTO_DESCARGA",
@@ -734,6 +797,7 @@ function SeguimientoDetailClient() {
                   estado: "info",
                   page: "/dashboard/seguimiento/[id]",
                 });
+                void openDocumento(file);
               }}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold border ${
                 darkMode ? "border-slate-700 text-slate-300 hover:bg-slate-800" : "border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -741,7 +805,7 @@ function SeguimientoDetailClient() {
             >
               <FileText size={14} />
               Adjunto {idx + 1}
-            </a>
+            </button>
           ))}
         </div>
       </div>

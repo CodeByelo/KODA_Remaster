@@ -16,7 +16,7 @@ print(f"📁 Existe: {env_path.exists()}\n")
 load_dotenv(dotenv_path=env_path)
 DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "")
 
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Query
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -1488,6 +1488,7 @@ async def list_documentos(
 @app.get("/documentos/archivo", dependencies=[Depends(get_tenant_context)])
 async def get_documento_archivo(
     path: str,
+    format: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user),
     conn = Depends(get_db_connection),
 ):
@@ -1570,6 +1571,8 @@ async def get_documento_archivo(
     signed = _create_signed_url(storage_client, DEFAULT_STORAGE_BUCKET, storage_path, signed_ttl)
     if not signed:
         raise HTTPException(status_code=503, detail="No se pudo firmar la URL del archivo")
+    if str(format or "").lower() == "json":
+        return {"url": signed}
     return RedirectResponse(url=signed, status_code=302)
 
 from fastapi import UploadFile, File as FastAPIFile, Form
