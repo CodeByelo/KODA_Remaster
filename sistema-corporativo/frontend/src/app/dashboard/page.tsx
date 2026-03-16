@@ -940,8 +940,8 @@ const PriorityMatrix: React.FC<{
       const [dd, mm, yyyy] = normalized.split("/");
       return new Date(`${yyyy}-${mm}-${dd}T00:00:00`).getTime();
     }
-    const ts = Date.parse(normalized);
-    return Number.isNaN(ts) ? 0 : ts;
+    const parsed = parseFlexibleDateGlobal(normalized);
+    return parsed ? parsed.getTime() : 0;
   };
 
   const getTrackingStatus = useCallback(
