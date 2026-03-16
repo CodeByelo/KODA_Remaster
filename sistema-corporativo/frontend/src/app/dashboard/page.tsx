@@ -5121,10 +5121,6 @@ export default function Dashboard() {
                 className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-800"} truncate`}
               >
                 Sistema de Gestión Documentos{" "}
-                <span className={`mx-2 ${darkMode ? "text-slate-500" : "text-slate-600"}`}>|</span>{" "}
-                <span className={`font-normal ${darkMode ? "text-slate-500" : "text-slate-700"}`}>
-                  Alfa 2026 V-1.0
-                </span>
               </h2>
             </div>
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
