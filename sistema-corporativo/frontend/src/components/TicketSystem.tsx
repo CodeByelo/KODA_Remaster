@@ -147,6 +147,36 @@ export default function TicketSystem({
         return 'abierto';
     };
 
+    const translateHistoryAction = (value?: string) => {
+        const raw = String(value || '').trim();
+        if (!raw) return '-';
+        const normalized = raw.toLowerCase();
+        if (normalized.includes('cambio de estado')) return raw.toUpperCase();
+        switch (normalized) {
+            case 'created':
+                return 'CREADO';
+            case 'deleted':
+                return 'ELIMINADO';
+            case 'updated':
+                return 'ACTUALIZADO';
+            case 'resolved':
+                return 'RESUELTO';
+            case 'reopened':
+                return 'REABIERTO';
+            case 'assigned':
+                return 'ASIGNADO';
+            case 'status_changed':
+            case 'status-changed':
+            case 'status change':
+            case 'status changed':
+                return 'CAMBIO DE ESTADO';
+            case 'commented':
+                return 'COMENTARIO';
+            default:
+                return raw.toUpperCase();
+        }
+    };
+
     const logAction = async (
         action: string,
         ticketTitle: string,
@@ -623,7 +653,7 @@ export default function TicketSystem({
                                         {historyRows.map((row) => (
                                             <tr key={row.id} className={`border-t ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
                                                 <td className={`px-3 py-2 ${theme.text}`}>#{row.ticket_id}</td>
-                                                <td className={`px-3 py-2 ${theme.text}`}>{row.action}</td>
+                                                <td className={`px-3 py-2 ${theme.text}`}>{translateHistoryAction(row.action)}</td>
                                                 <td className={`px-3 py-2 ${theme.text}`}>{row.actor_username || 'sistema'}</td>
                                                 <td className={`px-3 py-2 ${theme.text}`}>{row.details || row.observaciones || '-'}</td>
                                                 <td className={`px-3 py-2 ${theme.text}`}>{new Date(row.created_at).toLocaleString('es-ES')}</td>

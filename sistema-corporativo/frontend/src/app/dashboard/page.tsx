@@ -45,6 +45,7 @@ import {
   Sparkles,
   Inbox,
   Send,
+  MessageSquare,
 } from "lucide-react";
 
 // OK: Importa los componentes del bot al inicio
@@ -1467,8 +1468,6 @@ const PriorityMatrix: React.FC<{
                 <td className="px-4 py-3 text-center">
                   <a
                     href={`/dashboard/seguimiento/${item.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     onClick={() => {
                       void createSecurityLog({
                         evento: "SEGUIMIENTO_ABIERTO",
@@ -5058,6 +5057,13 @@ export default function Dashboard() {
             <div
               className={`p-3 border-t ${darkMode ? "border-slate-800" : "border-slate-200"}`}
             >
+              <div className="mb-3">
+                <BotButton
+                  onOpenChat={() => setIsChatOpen(true)}
+                  variant="sidebar"
+                  collapsed={collapsed}
+                />
+              </div>
               <button
                 onClick={() => setCollapsed(!collapsed)}
                 className={`
@@ -5098,6 +5104,20 @@ export default function Dashboard() {
               </h2>
             </div>
             <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
+              {collapsed && (
+                <button
+                  onClick={() => setIsChatOpen(true)}
+                  className={`h-9 w-9 rounded-full border flex items-center justify-center transition-colors ${
+                    darkMode
+                      ? "border-slate-800 text-slate-300 hover:bg-slate-800"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                  }`}
+                  title="Asistente CORPOELEC"
+                  aria-label="Asistente CORPOELEC"
+                >
+                  <MessageSquare size={16} />
+                </button>
+              )}
               <ThemeToggle
                 darkMode={darkMode}
                 onToggle={() => setDarkMode(!darkMode)}
@@ -5215,8 +5235,6 @@ export default function Dashboard() {
           </div>
         </main>
 
-        {/* OK: Integra el bot de ayuda al final del componente */}
-        <BotButton onOpenChat={() => setIsChatOpen(true)} />
         <ChatWindow
           isOpen={isChatOpen}
           onClose={() => setIsChatOpen(false)}

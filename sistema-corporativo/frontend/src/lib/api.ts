@@ -181,7 +181,7 @@ export async function uploadDocumento(formData: FormData): Promise<ApiDocument> 
  * Actualiza el estado de un documento (aprobado, rechazado, en-proceso, etc.)
  */
 export async function updateDocumentStatus(
-    documentId: number,
+    documentId: string | number,
     newStatus: string,
     comment?: string
 ): Promise<ApiDocument> {
@@ -194,7 +194,7 @@ export async function updateDocumentStatus(
 }
 
 export async function respondDocumento(
-    documentId: number,
+    documentId: string | number,
     contenido: string,
     archivos: File[] = [],
 ): Promise<{ status: string }> {
@@ -223,7 +223,7 @@ export interface ApiDocumentoRespuesta {
     archivos?: string[];
 }
 
-export async function getDocumentoRespuestas(documentId: number): Promise<ApiDocumentoRespuesta[]> {
+export async function getDocumentoRespuestas(documentId: string | number): Promise<ApiDocumentoRespuesta[]> {
     const res = await fetch(`${BASE_URL}/documentos/${documentId}/respuestas`, {
         headers: getAuthHeaders(),
         cache: "no-store",
@@ -240,7 +240,7 @@ export interface ApiDocumentoEvento {
     created_at: string;
 }
 
-export async function getDocumentoEventos(documentId: number): Promise<ApiDocumentoEvento[]> {
+export async function getDocumentoEventos(documentId: string | number): Promise<ApiDocumentoEvento[]> {
     const res = await fetch(`${BASE_URL}/documentos/${documentId}/eventos`, {
         headers: getAuthHeaders(),
         cache: "no-store",

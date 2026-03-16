@@ -18,7 +18,7 @@ import {
 import { uiAlert, uiPrompt } from "../../../../lib/ui-dialog";
 
 type TrackingDocument = {
-  id: number;
+  id: string | number;
   title: string;
   correlativo: string;
   sentBy: string;
@@ -176,7 +176,7 @@ function SeguimientoDetailClient() {
   const { user } = useAuth();
 
   const docIdRaw = params?.id;
-  const docId = Array.isArray(docIdRaw) ? Number(docIdRaw[0]) : Number(docIdRaw);
+  const docId = Array.isArray(docIdRaw) ? String(docIdRaw[0]) : String(docIdRaw || "");
 
   const [darkMode, setDarkMode] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -202,7 +202,7 @@ function SeguimientoDetailClient() {
   }, []);
 
   const refreshDoc = useCallback(async () => {
-    if (!Number.isFinite(docId)) {
+    if (!docId || docId === "undefined" || docId === "null") {
       setErrorMsg("Documento invalido.");
       setLoading(false);
       return;
@@ -211,7 +211,7 @@ function SeguimientoDetailClient() {
       setLoading(true);
       const data = await getDocumentos();
       const mapped = data.map(mapDocumentToTracking);
-      const found = mapped.find((item) => item.id === docId) || null;
+      const found = mapped.find((item) => String(item.id) === docId) || null;
       setDoc(found);
       setErrorMsg(found ? null : "Documento no encontrado.");
     } catch (error) {
@@ -291,7 +291,7 @@ function SeguimientoDetailClient() {
   }, [doc, user?.gerencia_id, user?.id]);
 
   const handleMarkFinalized = useCallback(
-    async (docIdValue: number) => {
+    async (docIdValue: string | number) => {
       try {
         setUpdatingTrackingStatus(true);
         await updateDocumentStatus(docIdValue, "finalizado");
@@ -313,7 +313,7 @@ function SeguimientoDetailClient() {
   );
 
   const handleRequestClarification = useCallback(
-    async (docIdValue: number) => {
+    async (docIdValue: string | number) => {
       const note = await uiPrompt(
         "Describe que falta o que debe aclararse.",
         "",
@@ -342,7 +342,7 @@ function SeguimientoDetailClient() {
   );
 
   const handleSendTrackingResponse = useCallback(
-    async (docIdValue: number) => {
+    async (docIdValue: string | number) => {
       const content = trackingResponseDraft.trim();
       if (!content && trackingResponseFiles.length === 0) {
         void uiAlert("Escribe una respuesta antes de enviar.", "Control de seguimiento");
