@@ -4359,7 +4359,7 @@ export default function Dashboard() {
       chatOpenTimerRef.current = window.setTimeout(() => {
         setIsChatOpening(false);
         setIsChatOpen(true);
-      }, 700);
+      }, 3700);
     }
   }, [isChatOpen, isChatOpening]);
 
@@ -5255,10 +5255,10 @@ export default function Dashboard() {
             >
               <motion.div
                 initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1.15, opacity: 1 }}
+                animate={{ scale: 1.25, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 220, damping: 18 }}
-                className="relative w-48 h-48 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-2xl shadow-red-500/30 overflow-hidden"
+                className="relative w-60 h-60 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-2xl shadow-red-500/30 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-red-500/20 to-transparent" />
                 <div className="absolute inset-3 rounded-full overflow-hidden">
