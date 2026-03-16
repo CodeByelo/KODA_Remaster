@@ -17,6 +17,7 @@ load_dotenv(dotenv_path=env_path)
 DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "")
 
 from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
@@ -946,24 +947,48 @@ def _extract_storage_path(value: Optional[str], bucket_name: str) -> Optional[st
         return None
     if raw.startswith("/uploads/"):
         return None
-    # If stored as "bucket/path", strip bucket prefix.
-    if raw.startswith(f"{bucket_name}/"):
-        return raw[len(bucket_name) + 1 :]
-    # If stored as a full URL, try to extract from Supabase storage URL patterns.
-    if raw.startswith("http") and "/storage/v1/object/" in raw:
+    raw_no_qs = raw.split("?", 1)[0]
+
+    # If stored as a full URL, try to extract from known URL patterns.
+    if raw_no_qs.startswith("http"):
+        # Supabase storage URL patterns:
+        #   .../storage/v1/object/public/<bucket>/<path>
+        #   .../storage/v1/object/sign/<bucket>/<path>?...
+        if "/storage/v1/object/" in raw_no_qs:
+            try:
+                tail = raw_no_qs.split("/storage/v1/object/", 1)[1]
+                parts = tail.split("/", 2)
+                if len(parts) >= 3:
+                    _, bucket, path = parts[0], parts[1], parts[2]
+                    if bucket == bucket_name:
+                        return path
+            except Exception:
+                return None
+
+        # Backwards-compatible: backend proxy style URLs like:
+        #   https://<api-host>/<bucket>/<path>
         try:
-            tail = raw.split("/storage/v1/object/", 1)[1]
-            # tail could be "public/bucket/path" or "sign/bucket/path"
-            parts = tail.split("/", 2)
-            if len(parts) >= 3:
-                _, bucket, path = parts[0], parts[1], parts[2]
-                if bucket == bucket_name:
-                    # Strip query params from signed URLs.
-                    return path.split("?", 1)[0]
+            from urllib.parse import urlparse
+
+            parsed = urlparse(raw_no_qs)
+            url_path = parsed.path or ""
+            marker = f"/{bucket_name}/"
+            idx = url_path.find(marker)
+            if idx != -1:
+                candidate = url_path[idx + 1 :].lstrip("/")
+                return candidate or None
         except Exception:
             return None
-    # Assume it's already a storage path (e.g., "documentos/uuid.pdf").
-    return raw
+
+        # Unknown remote URL; do not treat as a storage object path.
+        return None
+
+    # Normalize local-ish paths.
+    if raw_no_qs.startswith("/"):
+        raw_no_qs = raw_no_qs[1:]
+    if not raw_no_qs:
+        return None
+    return raw_no_qs
 
 
 def _extract_signed_url(result: Any) -> Optional[str]:
@@ -1458,6 +1483,94 @@ async def list_documentos(
         logger.error(f"Error listando correos/documentos: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/documentos/archivo", dependencies=[Depends(get_tenant_context)])
+async def get_documento_archivo(
+    path: str,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    raw = str(path or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Archivo requerido")
+    if raw.startswith("http"):
+        raise HTTPException(status_code=400, detail="Path invalido")
+    if raw.startswith("/"):
+        raw = raw[1:]
+    if ".." in raw:
+        raise HTTPException(status_code=400, detail="Path invalido")
+    if not raw.startswith("documentos/"):
+        raise HTTPException(status_code=403, detail="Ruta no permitida")
+
+    user_id_raw = current_user.get("sub")
+    if not user_id_raw:
+        raise HTTPException(status_code=401, detail="Usuario no identificado")
+    user_id = uuid.UUID(str(user_id_raw))
+    tenant_id = current_user.get("tenant_id")
+    user_gerencia_id = await conn.fetchval(
+        "SELECT gerencia_id FROM profiles WHERE id = $1::uuid",
+        user_id,
+    )
+    is_privileged = await _is_privileged_user(conn, current_user)
+    role_norm = _normalize_text(current_user.get("role"))
+    is_manager = role_norm in {"gerente", "manager"}
+
+    access_row = await conn.fetchrow(
+        """
+        SELECT d.id
+        FROM documentos d
+        LEFT JOIN documento_adjuntos da ON da.documento_id = d.id
+        LEFT JOIN documento_respuestas dr ON dr.documento_id = d.id
+        LEFT JOIN documento_respuesta_adjuntos ra ON ra.respuesta_id = dr.id
+        LEFT JOIN profiles p_rem ON d.remitente_id = p_rem.id
+        LEFT JOIN profiles p_rec ON d.receptor_id = p_rec.id
+        WHERE (
+            d.url_archivo = $1
+            OR da.url_archivo = $1
+            OR ra.url_archivo = $1
+        )
+        AND (
+            $5::boolean = TRUE
+            OR d.remitente_id = $2::uuid
+            OR d.receptor_id = $2::uuid
+            OR ($3::int IS NOT NULL AND d.receptor_gerencia_id = $3::int)
+            OR (
+                $4::boolean = TRUE
+                AND $3::int IS NOT NULL
+                AND (
+                    p_rem.gerencia_id = $3::int
+                    OR p_rec.gerencia_id = $3::int
+                    OR d.receptor_gerencia_id = $3::int
+                )
+            )
+        )
+        AND (
+            $6::uuid IS NULL
+            OR d.tenant_id = $6::uuid
+            OR d.tenant_id IS NULL
+        )
+        LIMIT 1
+        """,
+        raw,
+        user_id,
+        user_gerencia_id,
+        is_manager,
+        is_privileged,
+        tenant_id,
+    )
+    if not access_row:
+        raise HTTPException(status_code=403, detail="Sin acceso al archivo")
+
+    storage_client = get_supabase_admin_client()
+    signed_ttl = int(os.getenv("SUPABASE_SIGNED_URL_EXPIRES", "900"))
+    storage_path = _extract_storage_path(raw, DEFAULT_STORAGE_BUCKET)
+    if not storage_path:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    signed = _create_signed_url(storage_client, DEFAULT_STORAGE_BUCKET, storage_path, signed_ttl)
+    if not signed:
+        raise HTTPException(status_code=503, detail="No se pudo firmar la URL del archivo")
+    return RedirectResponse(url=signed, status_code=302)
 
 from fastapi import UploadFile, File as FastAPIFile, Form
 
