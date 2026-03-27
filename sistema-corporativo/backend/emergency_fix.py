@@ -4,7 +4,10 @@ import os
 import sys
 
 async def run():
-    url = "postgresql://postgres.vodjntmxirkkylawwgsm:HDHH3nry1910%2A%2A@aws-0-us-west-2.pooler.supabase.com:6543/postgres?sslmode=require"
+    url = os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
+    if not url:
+        print("Missing DATABASE_URL (preferred) or SUPABASE_DB_URL.")
+        return
     print(f"Connecting to database...")
     try:
         conn = await asyncio.wait_for(asyncpg.connect(url), timeout=20)

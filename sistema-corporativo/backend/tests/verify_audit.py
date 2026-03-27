@@ -3,8 +3,9 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-# Mock env for testing
-os.environ["SUPABASE_DB_URL"] = "postgresql://postgres.vodjntmxirkkylawwgsm:HDHH3nry1910%2A%2A@aws-0-us-west-2.pooler.supabase.com:6543/postgres?sslmode=require"
+# Usa DATABASE_URL o SUPABASE_DB_URL desde variables de entorno.
+if not os.getenv("DATABASE_URL") and not os.getenv("SUPABASE_DB_URL"):
+    raise RuntimeError("Configura DATABASE_URL (preferido) o SUPABASE_DB_URL antes de ejecutar este script.")
 
 # Add path to import database
 sys.path.append(os.path.join(os.getcwd(), "backend"))

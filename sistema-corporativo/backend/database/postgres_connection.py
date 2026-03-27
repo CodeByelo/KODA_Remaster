@@ -7,7 +7,7 @@ settings = get_supabase_settings()
 def get_db_connection():
     try:
         conn = psycopg2.connect(
-            settings.supabase_db_url,
+            settings.resolved_database_url,
             cursor_factory=RealDictCursor,
             sslmode='require',
             connect_timeout=5

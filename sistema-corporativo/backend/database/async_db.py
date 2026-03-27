@@ -17,13 +17,13 @@ async def init_db_pool():
         if pool is not None:
             return
 
-        db_url = os.getenv("SUPABASE_DB_URL")
+        db_url = os.getenv("DATABASE_URL") or os.getenv("SUPABASE_DB_URL")
         print(f"\n>>> DB_URL: {'EXISTS' if db_url else 'NONE'}")
 
         for attempt in range(5):
             try:
                 if not db_url:
-                    raise ValueError("SUPABASE_DB_URL no configurada")
+                    raise ValueError("DATABASE_URL/SUPABASE_DB_URL no configurada")
 
                 logger.info(f"Intento {attempt + 1}/5")
                 min_pool_size = int(os.getenv("DB_POOL_MIN_SIZE", "5"))
@@ -58,7 +58,7 @@ async def db_session():
         await init_db_pool()
 
     if pool is None:
-        raise RuntimeError("DB pool no inicializado; revisa SUPABASE_DB_URL/DB_SSL_MODE")
+        raise RuntimeError("DB pool no inicializado; revisa DATABASE_URL (o SUPABASE_DB_URL)/DB_SSL_MODE")
 
     async with pool.acquire() as conn:
         tenant_id = get_current_tenant_id()
