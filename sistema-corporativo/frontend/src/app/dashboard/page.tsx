@@ -4342,17 +4342,19 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Pre-warm: ping al backend lo antes posible para evitar cold-start de Render
   useEffect(() => {
-    if (mounted) {
-      fetchDocuments();
-      fetchUsers();
-      fetchGerencias();
-      fetchTickets();
-    }
-  }, [mounted, fetchDocuments, fetchUsers, fetchGerencias, fetchTickets]);
+    fetch('/api/health').catch(() => {});
+  }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    fetchDocuments();
+    fetchUsers();
+    fetchGerencias();
+    fetchTickets();
+  }, [fetchDocuments, fetchUsers, fetchGerencias, fetchTickets]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -4393,7 +4395,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [mounted]);
+  }, []);
 
   const handleSaveManagementDetails = useCallback(async (name: string, nextFunctions: string[]) => {
     const nextMap = {
@@ -4414,8 +4416,6 @@ export default function Dashboard() {
   }, [managementDetailsMap]);
 
   useEffect(() => {
-    if (!mounted) return;
-
     const syncDocs = () => {
       if (document.visibilityState !== "visible") return;
       fetchDocuments();
@@ -4436,11 +4436,9 @@ export default function Dashboard() {
       window.removeEventListener("focus", syncDocs);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [mounted, fetchDocuments]);
+  }, [fetchDocuments]);
 
   useEffect(() => {
-    if (!mounted) return;
-
     const syncTickets = () => {
       if (document.visibilityState !== "visible") return;
       fetchTickets();
@@ -4461,11 +4459,11 @@ export default function Dashboard() {
       window.removeEventListener("focus", syncTickets);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [mounted, fetchTickets]);
+  }, [fetchTickets]);
 
   // Refetch when switching to important tabs to ensure data is always up to date
   useEffect(() => {
-    if (mounted && (activeTab === "graficos" || activeTab === "prioridades" || activeTab === "tickets")) {
+    if (activeTab === "graficos" || activeTab === "prioridades" || activeTab === "tickets") {
       void fetchTickets();
       void fetchDocuments();
     }
@@ -4478,7 +4476,6 @@ export default function Dashboard() {
   const [orgStructure, setOrgStructure] = useState<OrgCategory[]>([]);
 
   useEffect(() => {
-    if (!mounted) return;
     let cancelled = false;
     (async () => {
       let data: OrgCategory[] = [];
@@ -4528,7 +4525,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, userRole, user?.id, canEditOrgStructure]);
+  }, [userRole, user?.id, canEditOrgStructure]);
 
   // OK: Añade el estado para el bot de ayuda
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -4570,7 +4567,6 @@ export default function Dashboard() {
 
   // Persistencia de anuncios
   useEffect(() => {
-    if (!mounted) return;
     let cancelled = false;
     (async () => {
       try {
@@ -4607,7 +4603,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [mounted, userRole]); // Re-run if userRole changes
+  }, [userRole]); // Re-run if userRole changes
 
   // Sync en modo manual: el anuncio se refresca al recargar pagina.
 
@@ -4683,102 +4679,118 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     if (userRole === "Usuario") {
+      const myTickets = tickets.filter((t) => t.ownerId === user?.id);
+      const myTicketsOpen = myTickets.filter((t) => t.status === "ABIERTO").length;
+      const myTicketsResolved = myTickets.filter((t) => t.status === "RESUELTO").length;
+      const myDocsReceived = documents.filter((d) => canSeeDocumentInInbox(d)).length;
+      const myDocsSent = documents.filter(
+        (d) => !!d.remitente_id && String(d.remitente_id) === String(user?.id),
+      ).length;
       return [
         {
           title: "Mis Tickets",
-          value: "3",
-          subtext: "2 Abiertos / 1 Resuelto",
+          value: String(myTickets.length),
+          subtext: `${myTicketsOpen} Abiertos / ${myTicketsResolved} Resueltos`,
           icon: Tag,
-          trend: "Limite: 3 activos",
+          trend: "Activos",
         },
         {
           title: "Mis Documentos",
-          value: "12",
-          subtext: "5 Recibidos / 7 Enviados",
+          value: String(myDocsReceived + myDocsSent),
+          subtext: `${myDocsReceived} Recibidos / ${myDocsSent} Enviados`,
           icon: FileText,
-          trend: "+2 hoy",
+          trend: "Total",
         },
         {
-          title: "Mensajes Bot",
-          value: "15",
-          subtext: "Historial de chat",
+          title: "No Leídos",
+          value: String(unreadInboxCount),
+          subtext: "En bandeja de entrada",
           icon: Bell,
-          trend: "Soporte activo",
+          trend: unreadInboxCount > 0 ? "Pendientes" : "Al día",
         },
         {
           title: "Nivel de Acceso",
           value: "Estándar",
-          subtext: "Usuario TIC",
+          subtext: user?.gerencia_depto || "Usuario TIC",
           icon: Shield,
           trend: "Verificado",
         },
       ];
     }
 
-    // Role check for full stats access
     if (userRole === "CEO" || userRole === "Desarrollador") {
+      const totalDocs = documents.length;
+      const pendingDocs = documents.filter(
+        (d) => d.signatureStatus === "en-proceso" || d.signatureStatus === "pendiente",
+      ).length;
+      const totalTicketsOpen = tickets.filter((t) => t.status === "ABIERTO").length;
       return [
         {
-          title: "Consumo Eléctrico",
-          value: "1,245 MW",
-          subtext: "Total Nacional",
-          icon: Zap,
-          trend: "+5.2%",
-          trendPositive: false,
-        },
-        {
-          title: "Personal Activo",
-          value: "4,820",
-          subtext: "En 12 plantas",
+          title: "Usuarios Activos",
+          value: String(users.length),
+          subtext: "Registrados en sistema",
           icon: Users,
-          trend: "+12",
+          trend: "Total",
           trendPositive: true,
         },
         {
-          title: "Disponibilidad",
-          value: "94.8%",
-          subtext: "Media industrial",
-          icon: Activity,
-          trend: "+0.3%",
+          title: "Documentos",
+          value: String(totalDocs),
+          subtext: `${pendingDocs} en proceso`,
+          icon: FileText,
+          trend: "Total",
           trendPositive: true,
         },
         {
-          title: "Presupuesto",
-          value: "$2.4M",
-          subtext: "Ejecución Q1 2026",
-          icon: TrendingUp,
-          trend: "75%",
-          trendPositive: true,
+          title: "Tickets Abiertos",
+          value: String(totalTicketsOpen),
+          subtext: `De ${tickets.length} totales`,
+          icon: Tag,
+          trend: totalTicketsOpen === 0 ? "Sin pendientes" : "Pendientes",
+          trendPositive: totalTicketsOpen === 0,
+        },
+        {
+          title: "No Leídos",
+          value: String(unreadInboxCount),
+          subtext: "En bandeja de entrada",
+          icon: Bell,
+          trend: unreadInboxCount > 0 ? "Pendientes" : "Al día",
+          trendPositive: unreadInboxCount === 0,
         },
       ];
     }
 
-    // Default for Administrativo
+    // Administrativo / Gerente
+    const totalTickets = tickets.length;
+    const openTickets = tickets.filter((t) => t.status === "ABIERTO").length;
+    const pendingDocs = documents.filter(
+      (d) => d.signatureStatus === "en-proceso" || d.signatureStatus === "pendiente",
+    ).length;
     return [
       {
         title: "Tickets Totales",
-        value: "124",
-        subtext: "García asigned",
+        value: String(totalTickets),
+        subtext: `${openTickets} abiertos`,
         icon: Tag,
-        trend: "+15 hoy",
+        trend: openTickets > 0 ? `${openTickets} pendientes` : "Al día",
       },
       {
         title: "Docs. Pendientes",
-        value: "45",
-        subtext: "Requieren firma",
+        value: String(pendingDocs),
+        subtext: "En proceso",
         icon: FileText,
-        trend: "Urgente",
+        trend: pendingDocs > 0 ? "Requieren atención" : "Al día",
       },
       {
-        title: "Incidentes",
-        value: "3",
-        subtext: "Reportados hoy",
-        icon: AlertTriangle,
-        trend: "-50%",
-        trendPositive: true,
+        title: "No Leídos",
+        value: String(unreadInboxCount),
+        subtext: "En bandeja de entrada",
+        icon: Bell,
+        trend: unreadInboxCount > 0 ? "Nuevos mensajes" : "Al día",
+        trendPositive: unreadInboxCount === 0,
       },
     ];
-  }, [userRole]);
+  }, [userRole, tickets, documents, users, user?.id, user?.gerencia_depto, unreadInboxCount, canSeeDocumentInInbox]);
 
   const toggleCategory = (index: number) => {
     setExpandedCategories((prev) =>
