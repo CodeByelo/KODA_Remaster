@@ -5023,6 +5023,22 @@ export default function Dashboard() {
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl pointer-events-none" />
             </div>
 
+            {/* STATS CARDS */}
+            <div className={`grid grid-cols-2 ${stats.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
+              {stats.map((s, i) => (
+                <StatCard
+                  key={i}
+                  title={s.title}
+                  value={s.value}
+                  subtext={s.subtext}
+                  icon={s.icon}
+                  darkMode={darkMode}
+                  trend={s.trend}
+                  trendPositive={(s as any).trendPositive}
+                />
+              ))}
+            </div>
+
             {/* MANAGEMENT HISTORY / STRUCTURE GRID */}
             <div
               className={`rounded-2xl border ${darkMode ? "bg-zinc-900/30 border-zinc-800" : "bg-white border-slate-200"} overflow-hidden`}
