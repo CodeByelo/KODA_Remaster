@@ -12,7 +12,6 @@ import {
   X,
   Map as MapIcon,
   RefreshCw,
-  AlertTriangle,
   FileDown,
 } from 'lucide-react';
 import { getHojasDeRuta, createHojaDeRuta, deleteHojaDeRuta, ApiHojaDeRuta } from '../../../lib/api';
@@ -196,7 +195,7 @@ function generateHojaDeRutaPDF(data: {
   }
 }
 
-// ─── Temporizador con colores ─────────────────────────────────────────────────
+// ─── Temporizador con reloj SVG (igual que Control de Seguimiento) ────────────
 function useTicker() {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -218,46 +217,74 @@ const TimerBadge: React.FC<TimerBadgeProps> = ({ createdAt, fechaLimite, darkMod
   const end = new Date(fechaLimite).getTime();
   const total = end - start;
   const remaining = end - now;
+  const elapsed = Math.max(0, now - start);
+  const progress = total > 0 ? Math.min(1, Math.max(0, elapsed / total)) : 1;
 
-  if (remaining <= 0) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-red-900/40 text-red-400 border border-red-800">
-        <AlertTriangle size={11} />
-        Vencida
-      </span>
-    );
+  const radius = 15;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - progress);
+
+  const isOverdue = remaining <= 0;
+  const remainingHours = remaining / (1000 * 60 * 60);
+  const pct = total > 0 ? remaining / total : 0;
+  const isCritical = !isOverdue && remainingHours <= 24;
+  const isNearDue = !isOverdue && !isCritical && pct <= 0.5;
+
+  const ringColor = isOverdue || isCritical ? '#ef4444' : isNearDue ? '#f59e0b' : '#22c55e';
+
+  let label = '';
+  if (isOverdue) {
+    label = 'Vencida';
+  } else {
+    const days = Math.floor(remainingHours / 24);
+    const hours = Math.floor(remainingHours % 24);
+    const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    if (days > 0) label = `${days}d`;
+    else if (hours > 0) label = `${hours}h`;
+    else label = `${mins}m`;
   }
 
-  const remainingHours = remaining / (1000 * 60 * 60);
-  const pct = total > 0 ? remaining / total : 1;
-
-  let color: 'green' | 'yellow' | 'red';
-  if (remainingHours <= 24) color = 'red';
-  else if (pct <= 0.5) color = 'yellow';
-  else color = 'green';
-
-  const colorMap = {
-    green: { bg: 'bg-emerald-900/30 border-emerald-700 text-emerald-400', dot: 'bg-emerald-400' },
-    yellow: { bg: 'bg-amber-900/30 border-amber-700 text-amber-400', dot: 'bg-amber-400' },
-    red: { bg: 'bg-red-900/30 border-red-700 text-red-400', dot: 'bg-red-400' },
-  };
-
-  const days = Math.floor(remainingHours / 24);
-  const hours = Math.floor(remainingHours % 24);
-  const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-  let label = '';
-  if (days > 0) label = `${days}d ${hours}h`;
-  else if (hours > 0) label = `${hours}h ${mins}m`;
-  else label = `${mins}m`;
-
-  const { bg, dot } = colorMap[color];
-
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold border ${bg}`}>
-      <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${dot}`} />
-      <Clock size={11} />
-      {label}
-    </span>
+    <div className="flex items-center gap-2">
+      <svg viewBox="0 0 40 40" className="w-8 h-8 shrink-0" aria-hidden="true">
+        {/* Track */}
+        <circle cx="20" cy="20" r={radius} stroke={darkMode ? '#334155' : '#cbd5e1'} strokeWidth="3" fill="none" />
+        {/* Progress arc */}
+        {isOverdue ? (
+          <circle cx="20" cy="20" r={radius} stroke={ringColor} strokeWidth="3" fill="none" />
+        ) : (
+          <circle
+            cx="20" cy="20" r={radius}
+            stroke={ringColor} strokeWidth="3" fill="none"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            transform="rotate(-90 20 20)"
+          />
+        )}
+        {/* Center dot */}
+        <circle cx="20" cy="20" r="1.8" fill={ringColor} />
+        {/* Minute hand (animated) */}
+        <g>
+          <line x1="20" y1="20" x2="20" y2="9" stroke={ringColor} strokeWidth="1.8" strokeLinecap="round" />
+          {!isOverdue && (
+            <animateTransform
+              attributeName="transform"
+              type="rotate"
+              from="0 20 20"
+              to="360 20 20"
+              dur="8s"
+              repeatCount="indefinite"
+            />
+          )}
+        </g>
+        {/* Hour hand */}
+        <line x1="20" y1="20" x2="27" y2="20" stroke={ringColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
+      </svg>
+      <span className={`text-[11px] font-semibold ${isOverdue ? 'text-red-400' : darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+        {label}
+      </span>
+    </div>
   );
 };
 

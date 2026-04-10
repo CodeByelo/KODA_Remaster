@@ -106,6 +106,7 @@ export default function UserHistoryPage() {
         if (r.includes("ceo")) return "CEO";
         if (r.includes("desarrollador") || r.includes("developer") || r.includes("dev")) return "Desarrollador";
         if (r.includes("gerente") || r.includes("manager")) return "Gerente";
+        if (r.includes("coordinador") || r.includes("coordinator")) return "Coordinador";
         if (r.includes("admin")) return "Administrador";
         return "Usuario";
     };
@@ -487,6 +488,7 @@ export default function UserHistoryPage() {
                                 <option className="bg-zinc-900 text-red-100">Administrador</option>
                                 <option className="bg-zinc-900 text-red-100">CEO</option>
                                 <option className="bg-zinc-900 text-red-100">Gerente</option>
+                                <option className="bg-zinc-900 text-red-100">Coordinador</option>
                             </select>
                             <button
                                 onClick={handleAssignDeveloper}
