@@ -73,6 +73,7 @@ import {
 import { useIdleTimer } from "../../hooks/useIdleTimer";
 import { DepartmentGrid } from "./components/DepartmentGrid";
 import { DepartmentDetailView } from "./components/DepartmentDetailView";
+import { HojaDeRuta } from "./components/HojaDeRuta";
 import { OrgCategory, Document } from "./types";
 import { RoleGuard } from "../../components/RoleGuard";
 import { PERMISSIONS_MASTER } from "../../permissions/constants";
@@ -4947,13 +4948,7 @@ export default function Dashboard() {
           </div>
         );
       case "hoja-de-ruta":
-        return (
-          <div className={`flex flex-col items-center justify-center min-h-[60vh] gap-4 ${darkMode ? "text-zinc-400" : "text-slate-500"}`}>
-            <MapIcon size={48} className={darkMode ? "text-red-500/60" : "text-red-600/60"} />
-            <h2 className={`text-2xl font-bold ${darkMode ? "text-zinc-200" : "text-slate-800"}`}>Hoja de Ruta</h2>
-            <p className="text-sm">Módulo en construcción.</p>
-          </div>
-        );
+        return <HojaDeRuta darkMode={darkMode} users={users} />;
       case "overview":
       default:
         return (
