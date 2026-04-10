@@ -547,6 +547,7 @@ const PRIVILEGED_ROLES = new Set(['ceo', 'administrativo', 'admin', 'gerente', '
 
 export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, userRole, currentUserId }) => {
   const [view, setView] = useState<'list' | 'new'>('list');
+  const [tab, setTab] = useState<'todos' | 'enviados'>('todos');
   const [rutas, setRutas] = useState<ApiHojaDeRuta[]>([]);
   const [loading, setLoading] = useState(true);
   // currentUserName is read from token/localStorage on mount to pass to the form
@@ -616,6 +617,10 @@ export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, userRole, curr
     );
   }
 
+  const displayedRutas = tab === 'enviados'
+    ? rutas.filter((r) => r.remitente_id === currentUserId)
+    : rutas;
+
   return (
     <div className="space-y-5">
       {/* Cabecera */}
@@ -643,21 +648,54 @@ export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, userRole, curr
         </div>
       </div>
 
+      {/* Tabs (solo roles privilegiados) */}
+      {canCreate && (
+        <div className={`flex gap-1 p-1 rounded-lg w-fit ${darkMode ? 'bg-zinc-800' : 'bg-slate-100'}`}>
+          {(['todos', 'enviados'] as const).map((t) => {
+            const labels = { todos: 'Todos', enviados: 'Enviados' };
+            const counts = { todos: rutas.length, enviados: rutas.filter((r) => r.remitente_id === currentUserId).length };
+            const isActive = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  isActive
+                    ? darkMode ? 'bg-zinc-700 text-white shadow' : 'bg-white text-slate-900 shadow'
+                    : darkMode ? 'text-zinc-400 hover:text-zinc-200' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {labels[t]}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                  isActive
+                    ? darkMode ? 'bg-red-700 text-white' : 'bg-red-600 text-white'
+                    : darkMode ? 'bg-zinc-700 text-zinc-400' : 'bg-slate-200 text-slate-500'
+                }`}>
+                  {counts[t]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Contenido */}
       {loading ? (
         <div className={`flex items-center justify-center py-20 ${darkMode ? 'text-zinc-500' : 'text-slate-400'}`}>
           <RefreshCw size={24} className="animate-spin mr-2" />
           <span className="text-sm">Cargando hojas de ruta...</span>
         </div>
-      ) : rutas.length === 0 ? (
+      ) : displayedRutas.length === 0 ? (
         <div className={`flex flex-col items-center justify-center py-20 gap-3 rounded-xl border ${darkMode ? 'border-zinc-800 text-zinc-500' : 'border-slate-200 text-slate-400'}`}>
           <MapIcon size={40} className="opacity-30" />
-          <p className="text-sm font-medium">No hay hojas de ruta registradas</p>
-          {canCreate && <p className="text-xs">Haz clic en "Nueva Ruta" para comenzar</p>}
+          <p className="text-sm font-medium">
+            {tab === 'enviados' ? 'No has enviado ninguna hoja de ruta' : 'No hay hojas de ruta registradas'}
+          </p>
+          {canCreate && tab === 'todos' && <p className="text-xs">Haz clic en "Nueva Ruta" para comenzar</p>}
         </div>
       ) : (
         <RutaTable
-          rutas={rutas}
+          rutas={displayedRutas}
           darkMode={darkMode}
           currentUserId={currentUserId}
           onDelete={handleDelete}
