@@ -1,39 +1,36 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Plus,
   ArrowLeft,
   Calendar,
   Clock,
-  User2,
-  Search,
   CheckSquare,
-  ChevronDown,
   FileText,
   Trash2,
   X,
   Map as MapIcon,
   RefreshCw,
   AlertTriangle,
+  FileDown,
 } from 'lucide-react';
 import { getHojasDeRuta, createHojaDeRuta, deleteHojaDeRuta, ApiHojaDeRuta } from '../../../lib/api';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
-interface RutaUser {
-  id: string;
-  nombre?: string;
-  apellido?: string;
-  usuario_corp?: string;
-  username?: string;
-}
-
 export interface HojaDeRutaProps {
   darkMode: boolean;
-  users: RutaUser[];
+  users: unknown[];   // mantenido por compatibilidad con page.tsx
   userRole: string;
   currentUserId: string;
 }
+
+// ─── Coordinaciones disponibles ──────────────────────────────────────────────
+const COORDINACIONES = [
+  'Coordinación Aplicaciones',
+  'Coordinación Soporte Técnico',
+  'Coordinación Infraestructura',
+];
 
 // ─── Acciones predefinidas ────────────────────────────────────────────────────
 const ACCIONES_PREDEFINIDAS = [
@@ -53,6 +50,151 @@ const ACCIONES_PREDEFINIDAS = [
   'Preparar punto de Información',
   'Preparar respuesta para mi firma',
 ];
+
+// ─── Generador de PDF (ventana de impresión) ──────────────────────────────────
+function generateHojaDeRutaPDF(data: {
+  asunto: string;
+  fechaLimite: string;
+  acciones: string[];
+  customAcciones: string[];
+  coordinaciones: string[];
+  remitente: string;
+  createdAt: string;
+}) {
+  const allAcciones = [...ACCIONES_PREDEFINIDAS, ...data.customAcciones];
+  const fechaDoc = new Date(data.createdAt).toLocaleDateString('es-ES', {
+    day: '2-digit', month: 'long', year: 'numeric',
+  });
+  const fechaLimiteStr = new Date(data.fechaLimite).toLocaleString('es-ES', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  const accionesRows = allAcciones.map((a, i) => {
+    const checked = data.acciones.includes(a);
+    return `
+      <tr>
+        <td style="width:30px; text-align:center; padding:3px 6px; border-bottom:1px solid #ddd; font-size:10pt;">
+          ${checked ? '&#10003;' : '&#9633;'}
+        </td>
+        <td style="padding:3px 8px; border-bottom:1px solid #ddd; font-size:9.5pt;">${i + 1}. ${a}</td>
+      </tr>`;
+  }).join('');
+
+  const coordRows = COORDINACIONES.map((c) => {
+    const checked = data.coordinaciones.includes(c);
+    return `
+      <tr>
+        <td style="width:30px; text-align:center; padding:5px 6px; border-bottom:1px solid #ddd; font-size:11pt;">
+          ${checked ? '&#10003;' : '&#9633;'}
+        </td>
+        <td style="padding:5px 8px; border-bottom:1px solid #ddd; font-size:9.5pt;">${c}</td>
+      </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Hoja de Ruta Institucional</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; padding: 15mm 18mm; }
+    .outer-border { border: 2px solid #000; }
+    .header-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 2px solid #000; }
+    .company-block { flex: 1; }
+    .company-name { font-size: 13pt; font-weight: bold; color: #b00; letter-spacing: .5px; }
+    .company-sub { font-size: 8.5pt; color: #555; margin-top: 2px; }
+    .doc-title { text-align: center; padding: 7px 10px; background: #222; color: #fff; font-size: 11pt; font-weight: bold; letter-spacing: 1px; border-bottom: 2px solid #000; }
+    .info-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #000; }
+    .info-table td { padding: 5px 10px; font-size: 9.5pt; border-right: 1px solid #ccc; }
+    .info-table td.lbl { background: #eee; font-weight: bold; width: 130px; font-size: 8.5pt; text-transform: uppercase; }
+    .info-table tr + tr td { border-top: 1px solid #ccc; }
+    .section-header { background: #333; color: #fff; padding: 5px 10px; font-size: 9.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: .5px; }
+    .two-col { display: flex; border-top: none; }
+    .col-left { flex: 1; border-right: 2px solid #000; }
+    .col-right { width: 220px; }
+    .action-table { width: 100%; border-collapse: collapse; }
+    .action-table td { vertical-align: middle; }
+    .signatures { display: flex; gap: 40px; padding: 18px 14px 10px; border-top: 2px solid #000; }
+    .sig-item { flex: 1; text-align: center; }
+    .sig-line { border-top: 1px solid #000; margin-top: 28px; padding-top: 4px; font-size: 8.5pt; font-weight: bold; }
+    @media print { body { padding: 10mm 12mm; } }
+  </style>
+</head>
+<body>
+<div class="outer-border">
+
+  <!-- ENCABEZADO -->
+  <div class="header-row">
+    <div style="width:52px; height:52px; border:1px solid #aaa; display:flex; align-items:center; justify-content:center; font-size:8pt; color:#888; text-align:center;">LOGO</div>
+    <div class="company-block">
+      <div class="company-name">CORPOELECT INDUSTRIAL</div>
+      <div class="company-sub">Sistema de Gestión Institucional</div>
+    </div>
+    <div style="text-align:right; font-size:8.5pt; color:#555;">
+      Fecha: <strong>${fechaDoc}</strong>
+    </div>
+  </div>
+
+  <!-- TÍTULO -->
+  <div class="doc-title">HOJA DE RUTA INSTITUCIONAL</div>
+
+  <!-- INFO -->
+  <table class="info-table">
+    <tr>
+      <td class="lbl">Asunto</td>
+      <td colspan="3" style="font-weight:600;">${data.asunto}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Elaborado por</td>
+      <td>${data.remitente}</td>
+      <td class="lbl" style="border-left:1px solid #ccc;">Fecha límite</td>
+      <td>${fechaLimiteStr}</td>
+    </tr>
+  </table>
+
+  <!-- DOS COLUMNAS -->
+  <div class="two-col">
+    <!-- ACCIONES A SEGUIR -->
+    <div class="col-left">
+      <div class="section-header">Acciones a Seguir</div>
+      <table class="action-table">
+        ${accionesRows}
+      </table>
+    </div>
+    <!-- REMITIDO A LA COORDINACIÓN(ES) -->
+    <div class="col-right">
+      <div class="section-header">Remitido a la Coordinación(es)</div>
+      <table class="action-table">
+        ${coordRows}
+      </table>
+    </div>
+  </div>
+
+  <!-- FIRMAS -->
+  <div class="signatures">
+    <div class="sig-item">
+      <div class="sig-line">Firma del Remitente</div>
+    </div>
+    <div class="sig-item">
+      <div class="sig-line">Fecha y Hora de Entrega</div>
+    </div>
+    <div class="sig-item">
+      <div class="sig-line">Firma del Receptor</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+    win.addEventListener('load', () => win.print());
+  }
+}
 
 // ─── Temporizador con colores ─────────────────────────────────────────────────
 function useTicker() {
@@ -89,7 +231,6 @@ const TimerBadge: React.FC<TimerBadgeProps> = ({ createdAt, fechaLimite, darkMod
   const remainingHours = remaining / (1000 * 60 * 60);
   const pct = total > 0 ? remaining / total : 1;
 
-  // Color: rojo ≤ 24h, amarillo ≤ 50%, verde > 50%
   let color: 'green' | 'yellow' | 'red';
   if (remainingHours <= 24) color = 'red';
   else if (pct <= 0.5) color = 'yellow';
@@ -101,11 +242,10 @@ const TimerBadge: React.FC<TimerBadgeProps> = ({ createdAt, fechaLimite, darkMod
     red: { bg: 'bg-red-900/30 border-red-700 text-red-400', dot: 'bg-red-400' },
   };
 
-  // Format remaining
-  let label = '';
   const days = Math.floor(remainingHours / 24);
   const hours = Math.floor(remainingHours % 24);
   const mins = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+  let label = '';
   if (days > 0) label = `${days}d ${hours}h`;
   else if (hours > 0) label = `${hours}h ${mins}m`;
   else label = `${mins}m`;
@@ -163,43 +303,32 @@ const OtrosModal: React.FC<{
 // ─── Formulario Nueva Ruta ────────────────────────────────────────────────────
 const NuevaRutaForm: React.FC<{
   darkMode: boolean;
-  users: RutaUser[];
-  onSave: () => void;
+  currentUserName: string;
+  onSave: (data: {
+    asunto: string;
+    fechaLimite: string;
+    acciones: string[];
+    customAcciones: string[];
+    coordinaciones: string[];
+    remitente: string;
+    createdAt: string;
+  }) => void;
   onCancel: () => void;
-}> = ({ darkMode, users, onSave, onCancel }) => {
+}> = ({ darkMode, currentUserName, onSave, onCancel }) => {
   const [asunto, setAsunto] = useState('');
   const [fecha, setFecha] = useState('');
   const [hora, setHora] = useState('');
   const [checkedAcciones, setCheckedAcciones] = useState<string[]>([]);
   const [customAcciones, setCustomAcciones] = useState<string[]>([]);
   const [showOtrosModal, setShowOtrosModal] = useState(false);
-  const [recipientSearch, setRecipientSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState<RutaUser | null>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectedCoords, setSelectedCoords] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const userOptions = useMemo(() =>
-    users.map((u) => ({
-      ...u,
-      label: `${u.nombre || ''} ${u.apellido || ''} (${u.usuario_corp || u.username || 'usuario'})`.trim(),
-    })), [users]);
-
-  const filteredUsers = useMemo(() => {
-    const q = recipientSearch.trim().toLowerCase();
-    return q ? userOptions.filter((u) => u.label.toLowerCase().includes(q)) : userOptions;
-  }, [recipientSearch, userOptions]);
 
   const toggleAccion = (accion: string) =>
     setCheckedAcciones((prev) => prev.includes(accion) ? prev.filter((a) => a !== accion) : [...prev, accion]);
+
+  const toggleCoord = (coord: string) =>
+    setSelectedCoords((prev) => prev.includes(coord) ? prev.filter((c) => c !== coord) : [...prev, coord]);
 
   const removeCustom = (accion: string) => {
     setCustomAcciones((prev) => prev.filter((a) => a !== accion));
@@ -208,18 +337,25 @@ const NuevaRutaForm: React.FC<{
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!asunto.trim() || !fecha || !selectedUser) return;
+    if (!asunto.trim() || !fecha || selectedCoords.length === 0) return;
     setLoading(true);
     try {
       const fechaLimite = `${fecha}T${hora || '23:59'}:00`;
-      await createHojaDeRuta({
+      const created = await createHojaDeRuta({
         asunto: asunto.trim(),
         fecha_limite: fechaLimite,
         acciones: checkedAcciones,
-        destinatario_id: selectedUser.id,
-        destinatario_nombre: `${selectedUser.nombre || ''} ${selectedUser.apellido || ''}`.trim(),
+        coordinaciones: selectedCoords,
       });
-      onSave();
+      onSave({
+        asunto: asunto.trim(),
+        fechaLimite: created.fecha_limite,
+        acciones: checkedAcciones,
+        customAcciones,
+        coordinaciones: selectedCoords,
+        remitente: currentUserName,
+        createdAt: created.created_at,
+      });
     } catch (err) {
       console.error('Error creando hoja de ruta:', err);
     } finally {
@@ -230,6 +366,7 @@ const NuevaRutaForm: React.FC<{
   const inputClass = `w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-red-600 ${darkMode ? 'bg-zinc-950 border-zinc-700 text-zinc-100 placeholder:text-zinc-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'}`;
   const labelClass = `block mb-1 text-xs font-bold uppercase tracking-wide ${darkMode ? 'text-zinc-400' : 'text-slate-500'}`;
   const allAcciones = [...ACCIONES_PREDEFINIDAS, ...customAcciones];
+  const canSubmit = asunto.trim() && fecha && selectedCoords.length > 0 && !loading;
 
   return (
     <>
@@ -268,40 +405,28 @@ const NuevaRutaForm: React.FC<{
             </div>
           </div>
 
-          {/* Destinatario */}
+          {/* Coordinaciones destinatarias */}
           <div>
-            <label className={labelClass}><User2 size={12} className="inline mr-1" />Destinatario</label>
-            <div className="relative" ref={dropdownRef}>
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer ${darkMode ? 'bg-zinc-950 border-zinc-700 hover:border-zinc-500' : 'bg-slate-50 border-slate-300 hover:border-slate-400'}`} onClick={() => setDropdownOpen((v) => !v)}>
-                <Search size={14} className={darkMode ? 'text-zinc-500' : 'text-slate-400'} />
-                <input
-                  value={selectedUser ? `${selectedUser.nombre || ''} ${selectedUser.apellido || ''}`.trim() : recipientSearch}
-                  onChange={(e) => { setRecipientSearch(e.target.value); setSelectedUser(null); setDropdownOpen(true); }}
-                  onClick={(e) => { e.stopPropagation(); setDropdownOpen(true); }}
-                  placeholder="Buscar usuario..."
-                  className={`flex-1 bg-transparent text-sm focus:outline-none ${darkMode ? 'text-zinc-100 placeholder:text-zinc-500' : 'text-slate-900 placeholder:text-slate-400'}`}
-                />
-                {selectedUser && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedUser(null); setRecipientSearch(''); }} className="text-zinc-400 hover:text-zinc-200"><X size={14} /></button>
-                )}
-                <ChevronDown size={14} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''} ${darkMode ? 'text-zinc-500' : 'text-slate-400'}`} />
-              </div>
-              {dropdownOpen && (
-                <div className={`absolute z-20 w-full mt-1 rounded-lg border shadow-xl max-h-52 overflow-y-auto ${darkMode ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200'}`}>
-                  {filteredUsers.length === 0
-                    ? <div className={`px-4 py-3 text-sm italic ${darkMode ? 'text-zinc-500' : 'text-slate-400'}`}>No se encontraron usuarios</div>
-                    : filteredUsers.map((u) => (
-                      <button key={u.id} type="button" onClick={() => { setSelectedUser(u); setRecipientSearch(''); setDropdownOpen(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${darkMode ? 'hover:bg-zinc-800 text-zinc-200' : 'hover:bg-slate-50 text-slate-800'}`}>
-                        {u.label}
-                      </button>
-                    ))}
-                </div>
-              )}
+            <label className={labelClass}><CheckSquare size={12} className="inline mr-1" />Remitido a la Coordinación(es)</label>
+            <div className={`rounded-lg border divide-y ${darkMode ? 'border-zinc-800 divide-zinc-800' : 'border-slate-200 divide-slate-100'}`}>
+              {COORDINACIONES.map((coord) => (
+                <label key={coord} className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${darkMode ? 'hover:bg-zinc-800/60' : 'hover:bg-slate-50'}`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCoords.includes(coord)}
+                    onChange={() => toggleCoord(coord)}
+                    className="accent-red-600 w-4 h-4 shrink-0"
+                  />
+                  <span className={`text-sm ${darkMode ? 'text-zinc-200' : 'text-slate-800'}`}>{coord}</span>
+                </label>
+              ))}
             </div>
+            {selectedCoords.length === 0 && (
+              <p className={`mt-1 text-xs ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>Selecciona al menos una coordinación</p>
+            )}
           </div>
 
-          {/* Acciones */}
+          {/* Acciones a seguir */}
           <div>
             <label className={labelClass}><CheckSquare size={12} className="inline mr-1" />Acciones a tomar</label>
             <div className={`rounded-lg border divide-y ${darkMode ? 'border-zinc-800 divide-zinc-800' : 'border-slate-200 divide-slate-100'}`}>
@@ -326,9 +451,10 @@ const NuevaRutaForm: React.FC<{
           {/* Botones */}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onCancel} className={`px-5 py-2 rounded-lg border text-sm font-medium ${darkMode ? 'border-zinc-700 text-zinc-300 hover:bg-zinc-800' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}>Cancelar</button>
-            <button type="submit" disabled={!asunto.trim() || !fecha || !selectedUser || loading}
-              className="px-5 py-2 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold disabled:opacity-50">
-              {loading ? 'Guardando...' : 'Guardar Ruta'}
+            <button type="submit" disabled={!canSubmit}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold disabled:opacity-50">
+              <FileDown size={15} />
+              {loading ? 'Guardando...' : 'Guardar y generar PDF'}
             </button>
           </div>
         </div>
@@ -343,18 +469,19 @@ const RutaTable: React.FC<{
   darkMode: boolean;
   currentUserId: string;
   onDelete: (id: string) => void;
-}> = ({ rutas, darkMode, currentUserId, onDelete }) => {
+  onDownload: (r: ApiHojaDeRuta) => void;
+}> = ({ rutas, darkMode, currentUserId, onDelete, onDownload }) => {
   const thClass = `px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-zinc-400' : 'text-slate-500'}`;
   const tdClass = `px-4 py-3 text-sm align-middle ${darkMode ? 'text-zinc-200' : 'text-slate-800'}`;
 
   return (
     <div className={`rounded-xl border overflow-x-auto ${darkMode ? 'border-zinc-800' : 'border-slate-200'}`}>
-      <table className="w-full min-w-[700px] border-collapse">
+      <table className="w-full min-w-[750px] border-collapse">
         <thead>
           <tr className={`border-b ${darkMode ? 'bg-zinc-900/80 border-zinc-800' : 'bg-slate-50 border-slate-200'}`}>
             <th className={thClass}>Asunto</th>
             <th className={thClass}>Remitente</th>
-            <th className={thClass}>Destinatario</th>
+            <th className={thClass}>Coordinación(es)</th>
             <th className={thClass}>Fecha de entrada</th>
             <th className={thClass}>Fecha límite</th>
             <th className={thClass}>Tiempo restante</th>
@@ -366,11 +493,12 @@ const RutaTable: React.FC<{
             const entradaStr = new Date(r.created_at).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             const limiteStr = new Date(r.fecha_limite).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             const canDelete = r.remitente_id === currentUserId;
+            const coords = Array.isArray(r.coordinaciones) ? r.coordinaciones : [];
 
             return (
               <tr key={r.id} className={`transition-colors ${darkMode ? 'hover:bg-zinc-800/40' : 'hover:bg-slate-50'}`}>
                 <td className={tdClass}>
-                  <div className="font-semibold max-w-[180px] truncate" title={r.asunto}>{r.asunto}</div>
+                  <div className="font-semibold max-w-[160px] truncate" title={r.asunto}>{r.asunto}</div>
                   {r.acciones.length > 0 && (
                     <div className={`mt-1 text-xs ${darkMode ? 'text-zinc-500' : 'text-slate-400'}`}>
                       {r.acciones.length} acción{r.acciones.length !== 1 ? 'es' : ''}
@@ -378,18 +506,32 @@ const RutaTable: React.FC<{
                   )}
                 </td>
                 <td className={tdClass}>{r.remitente_nombre || '—'}</td>
-                <td className={tdClass}>{r.destinatario_nombre || '—'}</td>
+                <td className={tdClass}>
+                  {coords.length > 0
+                    ? <div className="flex flex-col gap-1">
+                        {coords.map((c) => (
+                          <span key={c} className={`inline-block text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-50 text-red-700'}`}>{c}</span>
+                        ))}
+                      </div>
+                    : <span className={darkMode ? 'text-zinc-500' : 'text-slate-400'}>—</span>
+                  }
+                </td>
                 <td className={tdClass + ' whitespace-nowrap'}>{entradaStr}</td>
                 <td className={tdClass + ' whitespace-nowrap'}>{limiteStr}</td>
                 <td className={tdClass}>
                   <TimerBadge createdAt={r.created_at} fechaLimite={r.fecha_limite} darkMode={darkMode} />
                 </td>
                 <td className={`${tdClass} text-right`}>
-                  {canDelete && (
-                    <button onClick={() => onDelete(r.id)} className="text-zinc-500 hover:text-red-500 transition-colors p-1 rounded" title="Eliminar">
-                      <Trash2 size={15} />
+                  <div className="inline-flex items-center gap-1">
+                    <button onClick={() => onDownload(r)} className="text-zinc-500 hover:text-blue-500 transition-colors p-1 rounded" title="Descargar PDF">
+                      <FileDown size={15} />
                     </button>
-                  )}
+                    {canDelete && (
+                      <button onClick={() => onDelete(r.id)} className="text-zinc-500 hover:text-red-500 transition-colors p-1 rounded" title="Eliminar">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
@@ -401,14 +543,28 @@ const RutaTable: React.FC<{
 };
 
 // ─── Componente principal ────────────────────────────────────────────────────
-const PRIVILEGED_ROLES = new Set(['ceo', 'administrativo', 'admin', 'gerente', 'desarrollador', 'dev', 'desarrollador']);
+const PRIVILEGED_ROLES = new Set(['ceo', 'administrativo', 'admin', 'gerente', 'desarrollador', 'dev']);
 
-export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, users, userRole, currentUserId }) => {
+export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, userRole, currentUserId }) => {
   const [view, setView] = useState<'list' | 'new'>('list');
   const [rutas, setRutas] = useState<ApiHojaDeRuta[]>([]);
   const [loading, setLoading] = useState(true);
+  // currentUserName is read from token/localStorage on mount to pass to the form
+  const [currentUserName, setCurrentUserName] = useState('');
 
   const canCreate = PRIVILEGED_ROLES.has(userRole.toLowerCase());
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('token') || '';
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const nombre = payload.nombre || payload.name || '';
+        const apellido = payload.apellido || payload.family_name || '';
+        setCurrentUserName(`${nombre} ${apellido}`.trim() || payload.sub || '');
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const fetchRutas = useCallback(async () => {
     setLoading(true);
@@ -433,12 +589,28 @@ export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, users, userRol
     }
   };
 
+  const handleDownload = (r: ApiHojaDeRuta) => {
+    generateHojaDeRutaPDF({
+      asunto: r.asunto,
+      fechaLimite: r.fecha_limite,
+      acciones: r.acciones ?? [],
+      customAcciones: (r.acciones ?? []).filter((a) => !ACCIONES_PREDEFINIDAS.includes(a)),
+      coordinaciones: r.coordinaciones ?? [],
+      remitente: r.remitente_nombre || '',
+      createdAt: r.created_at,
+    });
+  };
+
   if (view === 'new') {
     return (
       <NuevaRutaForm
         darkMode={darkMode}
-        users={users}
-        onSave={() => { void fetchRutas(); setView('list'); }}
+        currentUserName={currentUserName}
+        onSave={(pdfData) => {
+          void fetchRutas();
+          setView('list');
+          generateHojaDeRutaPDF(pdfData);
+        }}
         onCancel={() => setView('list')}
       />
     );
@@ -455,7 +627,7 @@ export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, users, userRol
           <div>
             <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>Hoja de Ruta</h2>
             <p className={`text-xs ${darkMode ? 'text-zinc-400' : 'text-slate-500'}`}>
-              {canCreate ? 'Gestiona y asigna instrucciones institucionales' : 'Instrucciones asignadas a tu usuario'}
+              {canCreate ? 'Gestiona y asigna instrucciones institucionales' : 'Instrucciones asignadas a las coordinaciones'}
             </p>
           </div>
         </div>
@@ -489,6 +661,7 @@ export const HojaDeRuta: React.FC<HojaDeRutaProps> = ({ darkMode, users, userRol
           darkMode={darkMode}
           currentUserId={currentUserId}
           onDelete={handleDelete}
+          onDownload={handleDownload}
         />
       )}
     </div>

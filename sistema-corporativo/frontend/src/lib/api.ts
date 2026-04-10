@@ -618,10 +618,11 @@ export interface ApiHojaDeRuta {
     asunto: string;
     fecha_limite: string;
     acciones: string[];
+    coordinaciones: string[];
     remitente_id: string;
     remitente_nombre: string;
-    destinatario_id: string;
-    destinatario_nombre: string;
+    destinatario_id?: string | null;
+    destinatario_nombre?: string | null;
     created_at: string;
 }
 
@@ -634,8 +635,7 @@ export async function createHojaDeRuta(payload: {
     asunto: string;
     fecha_limite: string;
     acciones: string[];
-    destinatario_id: string;
-    destinatario_nombre: string;
+    coordinaciones: string[];
 }): Promise<ApiHojaDeRuta> {
     const res = await fetch(`${BASE_URL}/hojas-de-ruta`, {
         method: "POST",

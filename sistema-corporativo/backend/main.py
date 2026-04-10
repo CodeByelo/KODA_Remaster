@@ -519,14 +519,25 @@ async def startup():
                     asunto TEXT NOT NULL,
                     fecha_limite TIMESTAMPTZ NOT NULL,
                     acciones TEXT[] DEFAULT '{}',
+                    coordinaciones TEXT[] DEFAULT '{}',
                     remitente_id UUID NOT NULL,
                     remitente_nombre TEXT,
-                    destinatario_id UUID NOT NULL,
+                    destinatario_id UUID,
                     destinatario_nombre TEXT,
                     tenant_id UUID,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
+            # Migration: add coordinaciones column if it doesn't exist yet
+            try:
+                await conn.execute(
+                    "ALTER TABLE hojas_de_ruta ADD COLUMN IF NOT EXISTS coordinaciones TEXT[] DEFAULT '{}'"
+                )
+                await conn.execute(
+                    "ALTER TABLE hojas_de_ruta ALTER COLUMN destinatario_id DROP NOT NULL"
+                )
+            except Exception:
+                pass
 
 
     except Exception as exc:
@@ -3984,8 +3995,9 @@ class HojaDeRutaPayload(BaseModel):
     asunto: str
     fecha_limite: str          # ISO datetime string
     acciones: List[str] = []
-    destinatario_id: str
-    destinatario_nombre: str
+    coordinaciones: List[str] = []
+    destinatario_id: Optional[str] = None
+    destinatario_nombre: Optional[str] = None
 
 
 @app.post("/hojas-de-ruta")
@@ -4013,22 +4025,29 @@ async def create_hoja_de_ruta(
     row = await conn.fetchrow(
         """
         INSERT INTO hojas_de_ruta
-            (asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
+            (asunto, fecha_limite, acciones, coordinaciones, remitente_id, remitente_nombre,
              destinatario_id, destinatario_nombre, tenant_id)
-        VALUES ($1, $2, $3, $4::uuid, $5, $6::uuid, $7, $8::uuid)
-        RETURNING id, asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
+        VALUES ($1, $2, $3, $4, $5::uuid, $6, $7::uuid, $8, $9::uuid)
+        RETURNING id, asunto, fecha_limite, acciones, coordinaciones, remitente_id, remitente_nombre,
                   destinatario_id, destinatario_nombre, created_at
         """,
         payload.asunto,
         fecha_limite_dt,
         payload.acciones,
+        payload.coordinaciones,
         user_id,
         remitente_nombre,
         payload.destinatario_id,
         payload.destinatario_nombre,
         tenant_id,
     )
-    return dict(row)
+    result = dict(row)
+    for k, v in result.items():
+        if hasattr(v, "isoformat"):
+            result[k] = v.isoformat()
+        elif not isinstance(v, (str, int, float, bool, list, type(None))):
+            result[k] = str(v)
+    return result
 
 
 @app.get("/hojas-de-ruta")
@@ -4040,38 +4059,20 @@ async def get_hojas_de_ruta(
     if not user_id:
         raise HTTPException(status_code=401, detail="Token inválido")
 
-    role = _normalize_text(current_user.get("role", ""))
     tenant_id = current_user.get("tenant_id")
-    is_privileged = role in {"ceo", "administrativo", "admin", "gerente", "desarrollador", "dev"}
 
-    if is_privileged:
-        # Privilegiados ven las que crearon Y las que les enviaron
-        rows = await conn.fetch(
-            """
-            SELECT id, asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
-                   destinatario_id, destinatario_nombre, created_at
-            FROM hojas_de_ruta
-            WHERE (remitente_id = $1::uuid OR destinatario_id = $1::uuid)
-              AND (tenant_id = $2::uuid OR $2::uuid IS NULL)
-            ORDER BY created_at DESC
-            """,
-            user_id,
-            tenant_id,
-        )
-    else:
-        # Coordinadores/usuarios: solo ven las que les enviaron
-        rows = await conn.fetch(
-            """
-            SELECT id, asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
-                   destinatario_id, destinatario_nombre, created_at
-            FROM hojas_de_ruta
-            WHERE destinatario_id = $1::uuid
-              AND (tenant_id = $2::uuid OR $2::uuid IS NULL)
-            ORDER BY created_at DESC
-            """,
-            user_id,
-            tenant_id,
-        )
+    # Todos los usuarios del tenant ven todas las hojas de ruta
+    # (las coordinaciones son unidades organizativas, no usuarios específicos)
+    rows = await conn.fetch(
+        """
+        SELECT id, asunto, fecha_limite, acciones, coordinaciones, remitente_id, remitente_nombre,
+               destinatario_id, destinatario_nombre, created_at
+        FROM hojas_de_ruta
+        WHERE (tenant_id = $1::uuid OR $1::uuid IS NULL)
+        ORDER BY created_at DESC
+        """,
+        tenant_id,
+    )
 
     result = []
     for r in rows:
