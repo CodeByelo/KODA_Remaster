@@ -46,6 +46,7 @@ import {
   Sparkles,
   Inbox,
   Send,
+  Map as MapIcon,
 } from "lucide-react";
 
 // OK: Importa los componentes del bot al inicio
@@ -4945,6 +4946,14 @@ export default function Dashboard() {
             Acceso Restringido
           </div>
         );
+      case "hoja-de-ruta":
+        return (
+          <div className={`flex flex-col items-center justify-center min-h-[60vh] gap-4 ${darkMode ? "text-zinc-400" : "text-slate-500"}`}>
+            <MapIcon size={48} className={darkMode ? "text-red-500/60" : "text-red-600/60"} />
+            <h2 className={`text-2xl font-bold ${darkMode ? "text-zinc-200" : "text-slate-800"}`}>Hoja de Ruta</h2>
+            <p className="text-sm">Módulo en construcción.</p>
+          </div>
+        );
       case "overview":
       default:
         return (
@@ -5264,6 +5273,17 @@ export default function Dashboard() {
                   }}
                 />
               )}
+              <SidebarItem
+                icon={MapIcon}
+                label="Hoja de Ruta"
+                active={activeSection === "dashboard" && activeTab === "hoja-de-ruta"}
+                collapsed={collapsed}
+                darkMode={darkMode}
+                onClick={() => {
+                  setActiveSection("dashboard");
+                  setActiveTab("hoja-de-ruta");
+                }}
+              />
               {canAccessSecurity && (
                 <SidebarItem
                   icon={Shield}
