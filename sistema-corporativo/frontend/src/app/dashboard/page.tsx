@@ -4501,13 +4501,16 @@ export default function Dashboard() {
         source = source || "default";
       }
 
-      if (source === "catalog" && canEditOrgStructure) {
-        try {
-          await saveOrgStructure(DEFAULT_ORG_STRUCTURE);
-          data = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
-          source = "seeded";
-        } catch (e) {
-          console.error("No se pudo inicializar la estructura organizativa", e);
+      if (source === "catalog") {
+        // Always show the proper grouped structure visually
+        data = JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE));
+        if (canEditOrgStructure) {
+          try {
+            await saveOrgStructure(DEFAULT_ORG_STRUCTURE);
+            source = "seeded";
+          } catch (e) {
+            console.error("No se pudo inicializar la estructura organizativa", e);
+          }
         }
       }
 
