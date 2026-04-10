@@ -400,6 +400,119 @@ async def startup():
                     CONSTRAINT dashboard_announcement_singleton CHECK (id = 1)
                 )
             """)
+
+            # ── Tablas de roles / perfiles / gerencias / organizaciones ──
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS roles (
+                    id SERIAL PRIMARY KEY,
+                    nombre_rol TEXT NOT NULL UNIQUE
+                )
+            """)
+            await conn.execute("""
+                INSERT INTO roles (id, nombre_rol) VALUES
+                    (1, 'CEO'), (2, 'Administrativo'), (3, 'Usuario'),
+                    (4, 'Desarrollador'), (5, 'Gerente')
+                ON CONFLICT (id) DO NOTHING
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS gerencias (
+                    id SERIAL PRIMARY KEY,
+                    nombre TEXT NOT NULL,
+                    siglas TEXT,
+                    categoria TEXT
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS organizations (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    nombre TEXT,
+                    config JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+            org_count = await conn.fetchval("SELECT COUNT(*) FROM organizations")
+            if org_count == 0:
+                await conn.execute("""
+                    INSERT INTO organizations (nombre) VALUES ('Organización Principal')
+                """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS profiles (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    username TEXT NOT NULL UNIQUE,
+                    nombre TEXT,
+                    apellido TEXT,
+                    email TEXT,
+                    password_hash TEXT,
+                    rol_id INTEGER REFERENCES roles(id) DEFAULT 3,
+                    gerencia_id INTEGER REFERENCES gerencias(id),
+                    estado BOOLEAN DEFAULT TRUE,
+                    tenant_id UUID,
+                    permisos JSONB DEFAULT '[]'::jsonb,
+                    ultima_conexion TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_organizations (
+                    user_id UUID NOT NULL,
+                    organization_id UUID NOT NULL,
+                    role TEXT DEFAULT 'member',
+                    PRIMARY KEY (user_id, organization_id)
+                )
+            """)
+
+            # ── Tablas de documentos ──
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS documentos (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    titulo TEXT,
+                    title TEXT,
+                    correlativo TEXT,
+                    tipo_documento TEXT DEFAULT 'Informe',
+                    estado TEXT DEFAULT 'pendiente',
+                    prioridad TEXT DEFAULT 'media',
+                    remitente_id UUID,
+                    receptor_id UUID,
+                    receptor_gerencia_id INTEGER,
+                    url_archivo TEXT,
+                    contenido TEXT,
+                    leido BOOLEAN DEFAULT FALSE,
+                    fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
+                    fecha_caducidad TIMESTAMPTZ,
+                    fecha_ultima_actividad TIMESTAMPTZ DEFAULT NOW(),
+                    tenant_id UUID,
+                    user_id UUID
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS documento_adjuntos (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    documento_id UUID NOT NULL REFERENCES documentos(id) ON DELETE CASCADE,
+                    url_archivo TEXT NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+
+            # ── Tabla de tickets ──
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS tickets (
+                    id BIGSERIAL PRIMARY KEY,
+                    titulo TEXT NOT NULL,
+                    descripcion TEXT,
+                    area TEXT,
+                    prioridad TEXT DEFAULT 'MEDIA',
+                    estado TEXT DEFAULT 'abierto',
+                    solicitante_id UUID,
+                    tecnico_id UUID,
+                    observaciones TEXT,
+                    solicitante_nombre_cache TEXT,
+                    solicitante_gerencia_cache TEXT,
+                    fecha_creacion TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+
+
     except Exception as exc:
         logger.warning(f"No se pudo garantizar tablas base en startup: {exc}")
     logger.info("Database Connection Pool Initialized")
