@@ -297,7 +297,7 @@ export async function getAllUsers(): Promise<ApiUser[]> {
  * Obtiene la lista de todas las gerencias/departamentos.
  */
 export async function getGerencias(): Promise<ApiGerencia[]> {
-    const res = await fetch(`${BASE_URL}/gerencias`, {
+    const res = await fetch(`/api/gerencias`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<ApiGerencia[]>(res);

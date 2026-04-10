@@ -28,15 +28,13 @@ export default function NewDocumentoPage() {
   const [recipientSearch, setRecipientSearch] = useState('');
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [u, g] = await Promise.all([getAllUsers(), getGerencias()]);
-        setUsers(Array.isArray(u) ? u : []);
-        setGerencias(Array.isArray(g) ? g : []);
-      } catch (error) {
-        console.error('Error cargando usuarios/gerencias:', error);
-      }
-    })();
+    getAllUsers()
+      .then((u) => setUsers(Array.isArray(u) ? u : []))
+      .catch((err) => console.error('Error cargando usuarios:', err));
+
+    getGerencias()
+      .then((g) => setGerencias(Array.isArray(g) ? g : []))
+      .catch((err) => console.error('Error cargando gerencias:', err));
   }, []);
 
   useEffect(() => {
