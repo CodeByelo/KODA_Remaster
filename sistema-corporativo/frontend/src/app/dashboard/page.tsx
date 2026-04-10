@@ -4948,7 +4948,14 @@ export default function Dashboard() {
           </div>
         );
       case "hoja-de-ruta":
-        return <HojaDeRuta darkMode={darkMode} users={users} />;
+        return (
+          <HojaDeRuta
+            darkMode={darkMode}
+            users={users}
+            userRole={userRole}
+            currentUserId={user?.id ? String(user.id) : ""}
+          />
+        );
       case "overview":
       default:
         return (

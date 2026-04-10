@@ -609,3 +609,47 @@ export async function login(username: string, password: string): Promise<{ acces
     return handleResponse<{ access_token: string; user: ApiUser }>(res);
 }
 
+// ==========================================
+// HOJAS DE RUTA
+// ==========================================
+
+export interface ApiHojaDeRuta {
+    id: string;
+    asunto: string;
+    fecha_limite: string;
+    acciones: string[];
+    remitente_id: string;
+    remitente_nombre: string;
+    destinatario_id: string;
+    destinatario_nombre: string;
+    created_at: string;
+}
+
+export async function getHojasDeRuta(): Promise<ApiHojaDeRuta[]> {
+    const res = await fetch(`${BASE_URL}/hojas-de-ruta`, { headers: getAuthHeaders() });
+    return handleResponse<ApiHojaDeRuta[]>(res);
+}
+
+export async function createHojaDeRuta(payload: {
+    asunto: string;
+    fecha_limite: string;
+    acciones: string[];
+    destinatario_id: string;
+    destinatario_nombre: string;
+}): Promise<ApiHojaDeRuta> {
+    const res = await fetch(`${BASE_URL}/hojas-de-ruta`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    return handleResponse<ApiHojaDeRuta>(res);
+}
+
+export async function deleteHojaDeRuta(id: string): Promise<{ status: string }> {
+    const res = await fetch(`${BASE_URL}/hojas-de-ruta/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+    return handleResponse<{ status: string }>(res);
+}
+

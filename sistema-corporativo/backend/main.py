@@ -512,6 +512,22 @@ async def startup():
                 )
             """)
 
+            # ── Tabla de hojas de ruta ──
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS hojas_de_ruta (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    asunto TEXT NOT NULL,
+                    fecha_limite TIMESTAMPTZ NOT NULL,
+                    acciones TEXT[] DEFAULT '{}',
+                    remitente_id UUID NOT NULL,
+                    remitente_nombre TEXT,
+                    destinatario_id UUID NOT NULL,
+                    destinatario_nombre TEXT,
+                    tenant_id UUID,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+
 
     except Exception as exc:
         logger.warning(f"No se pudo garantizar tablas base en startup: {exc}")
@@ -3959,6 +3975,145 @@ async def chat_endpoint(
         return {"response": "Puedes enviar documentos desde Mensajeria Interna y hacer seguimiento por estado."}
 
     return {"response": "Recibido. Si no encuentro una respuesta entrenada, puedo ayudarte con una guia general del sistema."}
+
+# ===================================================================
+# HOJAS DE RUTA
+# ===================================================================
+
+class HojaDeRutaPayload(BaseModel):
+    asunto: str
+    fecha_limite: str          # ISO datetime string
+    acciones: List[str] = []
+    destinatario_id: str
+    destinatario_nombre: str
+
+
+@app.post("/hojas-de-ruta")
+async def create_hoja_de_ruta(
+    payload: HojaDeRutaPayload,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    tenant_id = current_user.get("tenant_id")
+    nombre = current_user.get("nombre", "")
+    apellido = current_user.get("apellido", "")
+    remitente_nombre = f"{nombre} {apellido}".strip() or current_user.get("username", "")
+
+    # Parsear fecha_limite como timestamptz
+    try:
+        from dateutil import parser as dateparser
+        fecha_limite_dt = dateparser.parse(payload.fecha_limite)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Formato de fecha inválido")
+
+    row = await conn.fetchrow(
+        """
+        INSERT INTO hojas_de_ruta
+            (asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
+             destinatario_id, destinatario_nombre, tenant_id)
+        VALUES ($1, $2, $3, $4::uuid, $5, $6::uuid, $7, $8::uuid)
+        RETURNING id, asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
+                  destinatario_id, destinatario_nombre, created_at
+        """,
+        payload.asunto,
+        fecha_limite_dt,
+        payload.acciones,
+        user_id,
+        remitente_nombre,
+        payload.destinatario_id,
+        payload.destinatario_nombre,
+        tenant_id,
+    )
+    return dict(row)
+
+
+@app.get("/hojas-de-ruta")
+async def get_hojas_de_ruta(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    role = _normalize_text(current_user.get("role", ""))
+    tenant_id = current_user.get("tenant_id")
+    is_privileged = role in {"ceo", "administrativo", "admin", "gerente", "desarrollador", "dev"}
+
+    if is_privileged:
+        # Privilegiados ven las que crearon Y las que les enviaron
+        rows = await conn.fetch(
+            """
+            SELECT id, asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
+                   destinatario_id, destinatario_nombre, created_at
+            FROM hojas_de_ruta
+            WHERE (remitente_id = $1::uuid OR destinatario_id = $1::uuid)
+              AND (tenant_id = $2::uuid OR $2::uuid IS NULL)
+            ORDER BY created_at DESC
+            """,
+            user_id,
+            tenant_id,
+        )
+    else:
+        # Coordinadores/usuarios: solo ven las que les enviaron
+        rows = await conn.fetch(
+            """
+            SELECT id, asunto, fecha_limite, acciones, remitente_id, remitente_nombre,
+                   destinatario_id, destinatario_nombre, created_at
+            FROM hojas_de_ruta
+            WHERE destinatario_id = $1::uuid
+              AND (tenant_id = $2::uuid OR $2::uuid IS NULL)
+            ORDER BY created_at DESC
+            """,
+            user_id,
+            tenant_id,
+        )
+
+    result = []
+    for r in rows:
+        item = dict(r)
+        # Serializar UUID y datetime a string
+        for k, v in item.items():
+            if hasattr(v, "isoformat"):
+                item[k] = v.isoformat()
+            elif hasattr(v, "__str__") and not isinstance(v, (str, int, float, bool, list, type(None))):
+                item[k] = str(v)
+        result.append(item)
+    return result
+
+
+@app.delete("/hojas-de-ruta/{hoja_id}")
+async def delete_hoja_de_ruta(
+    hoja_id: str,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    user_id = current_user.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    role = _normalize_text(current_user.get("role", ""))
+    is_privileged = role in {"ceo", "administrativo", "admin", "gerente", "desarrollador", "dev"}
+
+    if is_privileged:
+        deleted = await conn.fetchval(
+            "DELETE FROM hojas_de_ruta WHERE id = $1::uuid RETURNING id", hoja_id
+        )
+    else:
+        deleted = await conn.fetchval(
+            "DELETE FROM hojas_de_ruta WHERE id = $1::uuid AND remitente_id = $2::uuid RETURNING id",
+            hoja_id,
+            user_id,
+        )
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Hoja de ruta no encontrada o sin permiso")
+    return {"status": "deleted", "id": hoja_id}
+
 
 if __name__ == "__main__":
     import uvicorn
