@@ -184,6 +184,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
           body: formData,
           signal: controller.signal,
         });
+        if (response.status === 404) {
+          const apiBase =
+            process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
+          response = await fetch(`${apiBase}/api/login`, {
+            method: "POST",
+            body: new URLSearchParams({
+              username,
+              password,
+            }),
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            signal: controller.signal,
+          });
+          if (response.status === 404) {
+            response = await fetch(`${apiBase}/login`, {
+              method: "POST",
+              body: new URLSearchParams({
+                username,
+                password,
+              }),
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              signal: controller.signal,
+            });
+          }
+        }
       } finally {
         clearTimeout(timeoutId);
       }
