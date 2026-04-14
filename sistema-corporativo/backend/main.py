@@ -16,7 +16,7 @@ print(f"📁 Existe: {env_path.exists()}\n")
 load_dotenv(dotenv_path=env_path)
 DEV_ROLE_MASTER_PASSWORD = os.getenv("DEV_ROLE_MASTER_PASSWORD", "")
 
-from fastapi import FastAPI, Depends, HTTPException, Request, Query
+from fastapi import FastAPI, Depends, HTTPException, Request, Query, UploadFile, File as FastAPIFile, Form
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -1715,8 +1715,6 @@ async def get_documento_archivo(
     if str(format or "").lower() == "json":
         return {"url": signed}
     return RedirectResponse(url=signed, status_code=302)
-
-from fastapi import UploadFile, File as FastAPIFile, Form
 
 @app.post("/documentos", dependencies=[Depends(get_tenant_context)])
 async def create_documento(
