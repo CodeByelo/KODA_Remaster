@@ -54,6 +54,9 @@ export async function POST(request: Request) {
     if (response.status === 404) {
       response = await fetchWithTimeout(`${API_BASE_URL}/login`, reqInit);
     }
+    if (response.status === 404) {
+      response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, reqInit);
+    }
 
     const raw = await response.text();
     const data = parseApiBody(raw, response.status);
