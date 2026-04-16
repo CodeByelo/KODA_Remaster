@@ -110,6 +110,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!isClient) return;
 
     const hydrateSession = async () => {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+      const isAuthRoute = pathname === "/login";
       const token = localStorage.getItem("sgd_token");
       const storedUser = localStorage.getItem("sgd_user");
 
@@ -137,8 +139,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
       } catch (error) {
-        // Si falla red/backend, fallback temporal al estado local para no romper UX.
-        console.error("Session hydration error:", error);
+        // En login, la ausencia de sesiÃ³n es normal y no requiere ruido en consola.
+        if (!isAuthRoute) {
+          console.error("Session hydration error:", error);
+        }
       }
 
       if (token && storedUser) {
