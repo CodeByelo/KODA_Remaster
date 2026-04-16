@@ -412,14 +412,14 @@ export async function saveAnnouncement(data: AnnouncementData): Promise<{ status
 }
 
 export async function getOrgStructure(): Promise<{ org_structure: any[]; management_details?: Record<string, string[]>; source?: string }> {
-    const res = await fetch(`${BASE_URL}/org-structure`, {
+    const res = await fetch(`/api/org-structure`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<{ org_structure: any[]; management_details?: Record<string, string[]>; source?: string }>(res);
 }
 
 export async function saveOrgStructure(org_structure: any[]): Promise<{ status: string }> {
-    const res = await fetch(`${BASE_URL}/org-structure`, {
+    const res = await fetch(`/api/org-structure`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ org_structure }),
@@ -428,7 +428,7 @@ export async function saveOrgStructure(org_structure: any[]): Promise<{ status: 
 }
 
 export async function getOrgManagementDetails(): Promise<{ management_details: Record<string, string[]> }> {
-    const res = await fetch(`${BASE_URL}/org-management-details`, {
+    const res = await fetch(`/api/org-management-details`, {
         headers: getAuthHeaders(),
     });
     return handleResponse<{ management_details: Record<string, string[]> }>(res);
@@ -437,7 +437,7 @@ export async function getOrgManagementDetails(): Promise<{ management_details: R
 export async function saveOrgManagementDetails(
     management_details: Record<string, string[]>,
 ): Promise<{ status: string; management_details: Record<string, string[]> }> {
-    const res = await fetch(`${BASE_URL}/org-management-details`, {
+    const res = await fetch(`/api/org-management-details`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ management_details }),
