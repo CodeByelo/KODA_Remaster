@@ -26,8 +26,7 @@ export default function BillingModule({ darkMode }: { darkMode: boolean }) {
     formData.append('file', file);
 
     try {
-      // Nota: Asumimos que el backend de facturación corre en el mismo host o configuramos proxy
-      const response = await fetch('http://localhost:3001/api/upload', {
+      const response = await fetch('https://corpoelect-backend.onrender.com/billing/upload', {
         method: 'POST',
         body: formData,
       });
@@ -43,7 +42,7 @@ export default function BillingModule({ darkMode }: { darkMode: boolean }) {
 
   const handleExport = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/export', {
+      const response = await fetch('https://corpoelect-backend.onrender.com/billing/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: data }),

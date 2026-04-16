@@ -71,7 +71,7 @@ def _extract_client_ip(request: Request) -> Optional[str]:
             continue
     return None
 from src import schemas
-from routers import auth_router, users_router, gerencias_router
+from routers import auth_router, users_router, gerencias_router, billing_router
 from auth.supabase_auth import get_current_user
 from pydantic import BaseModel
 
@@ -336,6 +336,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(auth_router.router)
 app.include_router(users_router.router)
 app.include_router(gerencias_router.router)
+app.include_router(billing_router.router)
 
 print("\n📋 RUTAS REGISTRADAS EN FASTAPI:")
 for route in app.routes:
