@@ -151,7 +151,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
  * Obtiene todos los documentos a los que el usuario tiene acceso.
  */
 export async function getDocumentos(): Promise<ApiDocument[]> {
-    const res = await fetch(`${BASE_URL}/documentos`, {
+    const res = await fetch(`/api/documentos`, {
         headers: getAuthHeaders(),
         cache: "no-store",
     });
@@ -486,7 +486,7 @@ export async function purgeSecurityLogs(): Promise<{ status: string; message: st
 // ==========================================
 
 export async function getTickets(): Promise<ApiTicket[]> {
-    const res = await fetch(`${BASE_URL}/tickets`, {
+    const res = await fetch(`/api/tickets`, {
         headers: getAuthHeaders(),
         cache: "no-store",
     });
@@ -499,7 +499,7 @@ export async function createTicket(payload: {
     prioridad?: string;
     observaciones?: string;
 }): Promise<ApiTicket> {
-    const res = await fetch(`${BASE_URL}/tickets`, {
+    const res = await fetch(`/api/tickets`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),
