@@ -241,13 +241,14 @@ origins = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://koda-remaster.vercel.app",
     "https://sistema-corpoelect-backend.onrender.com"
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://sistema-corpoelect.*\.vercel\.app",
+    allow_origin_regex=r"https://(koda-remaster|sistema-corpoelect).*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -586,7 +587,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             allow_origin = True
         else:
             try:
-                if re.match(r"https://sistema-corpoelect.*\.vercel\.app", origin):
+                if re.match(r"https://(koda-remaster|sistema-corpoelect).*\.vercel\.app", origin):
                     allow_origin = True
             except re.error:
                 allow_origin = False
