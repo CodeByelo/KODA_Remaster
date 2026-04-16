@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       body: params.toString(),
     };
 
+    // Keep login requests server-side to avoid browser CORS failures.
     let response = await fetchWithTimeout(`${API_BASE_URL}/api/login`, reqInit);
     if (response.status === 404) {
       response = await fetchWithTimeout(`${API_BASE_URL}/login`, reqInit);

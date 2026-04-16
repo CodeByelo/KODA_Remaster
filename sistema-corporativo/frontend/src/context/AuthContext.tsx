@@ -172,39 +172,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true);
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("password", password);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
-      const apiBase =
-        process.env.NEXT_PUBLIC_API_URL || "https://corpoelect-backend.onrender.com";
       let response: Response;
       try {
-        response = await fetch(`${apiBase}/api/login`, {
+        response = await fetch("/api/auth/login", {
           method: "POST",
-          body: new URLSearchParams({
-            username,
-            password,
-          }),
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
+          body: new URLSearchParams({ username, password }),
           signal: controller.signal,
         });
-        if (response.status === 404) {
-          response = await fetch(`${apiBase}/login`, {
-            method: "POST",
-            body: new URLSearchParams({
-              username,
-              password,
-            }),
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            signal: controller.signal,
-          });
-        }
       } finally {
         clearTimeout(timeoutId);
       }
