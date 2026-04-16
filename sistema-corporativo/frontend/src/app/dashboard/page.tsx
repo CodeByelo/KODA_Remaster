@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -47,6 +47,7 @@ import {
   Inbox,
   Send,
   Map as MapIcon,
+  FileSpreadsheet,
 } from "lucide-react";
 
 // OK: Importa los componentes del bot al inicio
@@ -74,6 +75,7 @@ import { useIdleTimer } from "../../hooks/useIdleTimer";
 import { DepartmentGrid } from "./components/DepartmentGrid";
 import { DepartmentDetailView } from "./components/DepartmentDetailView";
 import { HojaDeRuta } from "./components/HojaDeRuta";
+import BillingModule from "./components/BillingModule";
 import { OrgCategory, Document } from "./types";
 import { RoleGuard } from "../../components/RoleGuard";
 import { PERMISSIONS_MASTER } from "../../permissions/constants";
@@ -4956,6 +4958,8 @@ export default function Dashboard() {
             currentUserId={user?.id ? String(user.id) : ""}
           />
         );
+      case "facturacion":
+        return <BillingModule darkMode={darkMode} />;
       case "overview":
       default:
         return (
@@ -5284,6 +5288,17 @@ export default function Dashboard() {
                 onClick={() => {
                   setActiveSection("dashboard");
                   setActiveTab("hoja-de-ruta");
+                }}
+              />
+              <SidebarItem
+                icon={FileSpreadsheet}
+                label="Módulo de Facturación"
+                active={activeSection === "dashboard" && activeTab === "facturacion"}
+                collapsed={collapsed}
+                darkMode={darkMode}
+                onClick={() => {
+                  setActiveSection("dashboard");
+                  setActiveTab("facturacion");
                 }}
               />
               {canAccessSecurity && (
