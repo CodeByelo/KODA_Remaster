@@ -26,7 +26,7 @@ export default function BillingModule({ darkMode }: { darkMode: boolean }) {
     formData.append('file', file);
 
     try {
-      const response = await fetch('https://corpoelect-backend.onrender.com/billing/upload', {
+      const response = await fetch('/api/billing/upload', {
         method: 'POST',
         body: formData,
       });
@@ -42,7 +42,7 @@ export default function BillingModule({ darkMode }: { darkMode: boolean }) {
 
   const handleExport = async () => {
     try {
-      const response = await fetch('https://corpoelect-backend.onrender.com/billing/export', {
+      const response = await fetch('/api/billing/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: data }),
