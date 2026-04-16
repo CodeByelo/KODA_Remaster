@@ -24,7 +24,18 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json(json, { status: backendRes.status });
+    if (!backendRes.ok) {
+      return NextResponse.json(json, { status: backendRes.status });
+    }
+
+    // El backend devuelve { items, _debug } — extraemos items y logueamos debug
+    const items = Array.isArray(json) ? json : (json.items ?? json);
+    if (json._debug) {
+      console.log("[billing/upload] headers detectados:", json._debug.headers_raw);
+      console.log("[billing/upload] col_map:", json._debug.col_map);
+    }
+
+    return NextResponse.json(items, { status: 200 });
   } catch (error) {
     console.error("Billing upload proxy error:", error);
     return NextResponse.json(
