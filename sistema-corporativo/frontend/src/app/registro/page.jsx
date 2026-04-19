@@ -646,17 +646,17 @@ const RegistroForm = () => {
         loop
         playsInline
       />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black/95" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(56,189,248,0.14),transparent_50%)]" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#d1e4e9]/70 via-[#bdd8e3]/60 to-[#0d47a1]/20" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(35,166,217,0.18),transparent_50%)]" />
       <Particles />
-      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-amber-300/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-[#23A6D9]/14 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-[#D48924]/12 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-2xl" ref={formRef}>
         <div className="auth-glass-card rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] overflow-hidden">
           <div className="relative px-8 py-10 text-center auth-divider">
             <div className="flex justify-center mb-4 relative">
-              <div className="w-36 h-36 rounded-full bg-gradient-to-br from-cyan-950 via-sky-900 to-blue-950 flex items-center justify-center transition-all duration-300 overflow-hidden border border-cyan-300/35 shadow-[0_0_36px_rgba(34,211,238,0.24)]">
+              <div className="w-36 h-36 rounded-full bg-gradient-to-br from-[#eaf4f6] via-[#d1e4e9] to-[#b7d6e2] flex items-center justify-center transition-all duration-300 overflow-hidden border border-[#1976D2]/25 shadow-[0_0_36px_rgba(25,118,210,0.18)]">
                 <img
                   src="/koda-mark.png"
                   alt="KODA"
@@ -665,7 +665,7 @@ const RegistroForm = () => {
               </div>
             </div>
             <h1 className="text-3xl font-bold auth-primary-text tracking-tight">
-              <span className="text-white">KODA</span> <span className="text-cyan-300">REMASTER</span>
+              <span className="text-[#0D47A1]">KODA</span> <span className="text-[#23A6D9]">REMASTER</span>
             </h1>
             <p className="auth-secondary-text mt-2 text-sm flex items-center justify-center gap-2">
               <User size={14} />
@@ -844,16 +844,16 @@ const RegistroForm = () => {
         .animate-scaleIn { animation: scaleIn 0.5s ease forwards; }
 
         .auth-page {
-          --auth-text-primary: #e0f2fe;
-          --auth-text-secondary: #b6d4ea;
-          --auth-card-bg: rgba(6, 24, 39, 0.56);
-          --auth-card-border: rgba(125, 211, 252, 0.18);
-          --auth-footer-bg: rgba(4, 19, 34, 0.5);
-          --auth-footer-border: rgba(56, 189, 248, 0.16);
-          --auth-input-bg: rgba(8, 27, 46, 0.72);
-          --auth-input-text: #eff6ff;
-          --auth-input-placeholder: #8fb7d1;
-          --auth-input-icon: #8fb7d1;
+          --auth-text-primary: #0d47a1;
+          --auth-text-secondary: #355f87;
+          --auth-card-bg: rgba(232, 242, 245, 0.74);
+          --auth-card-border: rgba(13, 71, 161, 0.14);
+          --auth-footer-bg: rgba(212, 228, 235, 0.48);
+          --auth-footer-border: rgba(25, 118, 210, 0.12);
+          --auth-input-bg: rgba(242, 248, 250, 0.72);
+          --auth-input-text: #0d305f;
+          --auth-input-placeholder: #5f84a4;
+          --auth-input-icon: #4b7196;
         }
 
         @media (prefers-color-scheme: dark) {

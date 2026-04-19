@@ -481,7 +481,7 @@ const ThemeToggle: React.FC<{ darkMode: boolean; onToggle: () => void }> = ({
       p-2 rounded-md transition-colors border
       ${darkMode
         ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700"
-        : "bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+        : "bg-[#e7f1f4] border-[#b7d0dd] text-[#315878] hover:text-[#0d47a1] hover:bg-[#dbeaf0]"
       }
     `}
   >
@@ -514,10 +514,10 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       ${active
         ? darkMode
           ? "bg-sky-900/50 text-white shadow-sm border border-cyan-400/25"
-          : "bg-sky-700 text-white shadow-sm"
+          : "bg-[#1976D2] text-white shadow-sm border border-[#0D47A1]/20"
         : darkMode
           ? "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          : "text-[#406786] hover:bg-[#dbeaf0] hover:text-[#0d47a1]"
       }
     `}
   >
@@ -531,7 +531,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
               flex items-center justify-center shadow-sm ring-2
               ${darkMode
                 ? "bg-amber-400 text-slate-950 ring-slate-900"
-                : "bg-sky-600 text-white ring-white"}
+                : "bg-[#1976D2] text-white ring-[#d1e4e9]"}
             `}
           >
             {badgeCount > 99 ? "99+" : badgeCount}
@@ -549,7 +549,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
           flex items-center justify-center shadow-sm
           ${darkMode
             ? "bg-amber-300/95 text-slate-950"
-            : "bg-sky-600 text-white"}
+            : "bg-[#1976D2] text-white"}
         `}
       >
         {badgeCount > 99 ? "99+" : badgeCount}
@@ -576,7 +576,7 @@ const DeptCard: React.FC<DeptCardProps> = ({
       remaster-card remaster-lift rounded-lg border transition-all duration-200
       ${darkMode
           ? "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
-          : "bg-white border-slate-200 hover:border-slate-300"
+          : "bg-[#edf5f7] border-[#bfd6e0] hover:border-[#8fb4c9]"
         }
     `}
     >
@@ -584,7 +584,7 @@ const DeptCard: React.FC<DeptCardProps> = ({
         onClick={toggleExpand}
         className={`
           p-3 border-b cursor-pointer flex items-center justify-between transition-colors
-          ${darkMode ? "border-zinc-800 hover:bg-zinc-800/50" : "border-slate-100 hover:bg-slate-50"}
+          ${darkMode ? "border-zinc-800 hover:bg-zinc-800/50" : "border-[#d5e6ec] hover:bg-[#e4f0f4]"}
         `}
       >
         <div className="flex items-center gap-2">
@@ -619,7 +619,7 @@ const DeptCard: React.FC<DeptCardProps> = ({
                 flex items-center gap-2 px-2 py-1.5 rounded transition-colors text-xs cursor-pointer
                 ${darkMode
                   ? "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  : "text-[#406786] hover:bg-[#dbeaf0] hover:text-[#0d47a1]"
                 }
               `}
             >
@@ -4563,16 +4563,16 @@ export default function Dashboard() {
 
   const theme = useMemo(
     () => ({
-      bg: darkMode ? "bg-slate-950" : "bg-sky-50",
+      bg: darkMode ? "bg-slate-950" : "bg-[#d1e4e9]",
       header: darkMode
         ? "bg-slate-950/90 border-cyan-950"
-        : "bg-white/90 border-sky-200",
+        : "bg-[#e7f1f4]/95 border-[#b7d0dd]",
       sidebar: darkMode
         ? "bg-[#04111d] border-cyan-950"
-        : "bg-white border-sky-200",
-      text: darkMode ? "text-sky-50" : "text-slate-900",
-      subtext: darkMode ? "text-sky-200/45" : "text-slate-500",
-      cardBg: darkMode ? "bg-slate-900" : "bg-white",
+        : "bg-[#e7f1f4] border-[#b7d0dd]",
+      text: darkMode ? "text-sky-50" : "text-[#0d305f]",
+      subtext: darkMode ? "text-sky-200/45" : "text-[#557896]",
+      cardBg: darkMode ? "bg-slate-900" : "bg-[#edf5f7]",
     }),
     [darkMode],
   );
