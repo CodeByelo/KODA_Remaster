@@ -401,7 +401,7 @@ const ACCOUNT_REQUESTS = [
   {
     id: 1,
     name: "Pedro Alcantara",
-    email: "p.alcantara@corpoelec.gob.ve",
+    email: "p.alcantara@koda.local",
     department: "Sistemas",
     date: "04/02/2026",
     status: "pendiente",
@@ -409,7 +409,7 @@ const ACCOUNT_REQUESTS = [
   {
     id: 2,
     name: "Maria Gonzalez",
-    email: "m.gonzalez@corpoelec.gob.ve",
+    email: "m.gonzalez@koda.local",
     department: "Admin",
     date: "03/02/2026",
     status: "pendiente",
@@ -5198,7 +5198,7 @@ export default function Dashboard() {
                 <div className={`${collapsed ? "w-12 h-12" : "w-full h-24 px-2"} flex items-center justify-center shrink-0`}>
                   <img
                     src={darkMode ? "/logo_sin_fondo(2).png" : "/logo_sin_fondo22(1).png"}
-                    alt="Corpoelec"
+                    alt="Logo institucional"
                     className={`${collapsed ? "w-full h-full" : "h-full w-auto max-w-full"} object-contain`}
                     onError={(e) => {
                       e.currentTarget.src = "/logo-rojo.png";

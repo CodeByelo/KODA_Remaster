@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CORPOELEC Industrial - Sistema de Gestión",
-  description: "Sistema de Gestión Institucional CORPOELEC Industrial v2",
+  title: "KODA Remaster - Sistema de Gestión",
+  description: "Sistema de Gestión Institucional KODA Remaster",
   icons: {
     icon: [{ url: "/favicon-round.png", type: "image/png" }],
     shortcut: ["/favicon-round.png"],

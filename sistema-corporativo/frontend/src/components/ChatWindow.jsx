@@ -111,7 +111,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
         const initialMsgs = [
             {
                 id: 1,
-                text: "¡Hola! Soy tu asistente de CORPOELEC Industrial. ¿En qué puedo ayudarte hoy?",
+                text: "¡Hola! Soy tu asistente de KODA Remaster. ¿En qué puedo ayudarte hoy?",
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }

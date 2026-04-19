@@ -94,7 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       username: backendUser.username,
       nombre: backendUser.nombre,
       apellido: backendUser.apellido || "",
-      email_corp: backendUser.email || `${backendUser.username}@corpoelec.com`,
+      email_corp: backendUser.email || `${backendUser.username}@koda.local`,
       gerencia_depto: backendUser.gerencia_depto || "General",
       gerencia_id: backendUser.gerencia_id,
       role,

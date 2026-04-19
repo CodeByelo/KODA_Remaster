@@ -46,7 +46,7 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
                     </div>
                     <div className="min-w-0 text-left">
                         <div className="text-xs font-bold text-slate-100 truncate">Asistente</div>
-                        <div className="text-[10px] font-semibold text-slate-400 tracking-wide truncate">CORPOELEC</div>
+                        <div className="text-[10px] font-semibold text-slate-400 tracking-wide truncate">KODA</div>
                     </div>
                 </button>
             </div>
@@ -82,7 +82,7 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
                 </div>
 
                 <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 min-w-[112px] h-7 px-3 bg-gray-900/95 border border-red-500/60 rounded-full flex items-center justify-center">
-                    <span className="text-[11px] leading-none font-bold text-white tracking-wide whitespace-nowrap">CORPOELEC</span>
+                    <span className="text-[11px] leading-none font-bold text-white tracking-wide whitespace-nowrap">KODA</span>
                 </div>
 
                 <motion.div
@@ -94,7 +94,7 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
 
             {isHovered && (
                 <div className="absolute bottom-20 right-0 bg-gray-900/95 border border-red-500/30 rounded-lg px-3 py-1.5 text-sm text-white whitespace-nowrap shadow-lg animate-fadeIn">
-                    Asistente CORPOELEC
+                    Asistente KODA
                 </div>
             )}
         </motion.div>

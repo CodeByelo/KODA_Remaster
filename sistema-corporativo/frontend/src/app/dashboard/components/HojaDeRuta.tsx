@@ -127,7 +127,7 @@ function generateHojaDeRutaPDF(data: {
   <div class="header-row">
     <div style="width:52px; height:52px; border:1px solid #aaa; display:flex; align-items:center; justify-content:center; font-size:8pt; color:#888; text-align:center;">LOGO</div>
     <div class="company-block">
-      <div class="company-name">CORPOELECT INDUSTRIAL</div>
+      <div class="company-name">KODA REMASTER</div>
       <div class="company-sub">Sistema de Gestión Institucional</div>
     </div>
     <div style="text-align:right; font-size:8.5pt; color:#555;">

@@ -85,7 +85,7 @@ const SplashScreen = ({ onComplete }) => {
 
       <div className="splash-container">
         {/* Logo */}
-        <div className="logo-text">CORPOELEC INDUSTRIAL</div>
+        <div className="logo-text">KODA REMASTER</div>
         <div className="logo-subtitle">Sistema de Gestión Integral</div>
 
         {/* Loader */}
@@ -142,7 +142,7 @@ const SplashScreen = ({ onComplete }) => {
         <div className="system-status">
           <div className={`status-item ${status[0] ? 'active text-red-400' : ''}`}>
             <span className={`status-dot ${status[0] ? 'bg-red-500' : ''}`}></span>
-            <span className="status-text">Conectando a servidores Corpoelec...</span>
+            <span className="status-text">Conectando a servidores...</span>
           </div>
           <div className={`status-item ${status[1] ? 'active text-red-400' : ''}`}>
             <span className={`status-dot ${status[1] ? 'bg-red-500' : ''}`}></span>
@@ -332,7 +332,7 @@ const Particles = () => {
 // ====================================================================
 // FORMULARIO PRINCIPAL
 // ====================================================================
-const LoginCorpoelecForm = () => {
+const LoginForm = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -503,7 +503,7 @@ const LoginCorpoelecForm = () => {
               </div>
             </div>
             <h1 className="text-3xl font-bold auth-primary-text tracking-tight">
-              CORPOELEC <span className="text-red-600">INDUSTRIAL</span>
+              KODA <span className="text-red-600">REMASTER</span>
             </h1>
             <p className="auth-secondary-text mt-2 text-sm flex items-center justify-center gap-2">
               <Lock size={14} />
@@ -649,7 +649,7 @@ const LoginCorpoelecForm = () => {
   );
 };
 
-export default function LoginCorpoelec() {
+export default function LoginPage() {
   const [showSplash, setShowSplash] = useState(true);
 
   const handleSplashComplete = () => {
@@ -660,5 +660,5 @@ export default function LoginCorpoelec() {
     return <SplashScreen onComplete={handleSplashComplete} />;
   }
 
-  return <LoginCorpoelecForm />;
+  return <LoginForm />;
 }
