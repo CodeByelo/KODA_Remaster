@@ -95,7 +95,7 @@ const SplashScreen = ({ onComplete }) => {
               <div className="absolute inset-0 rounded-full border border-cyan-300/30 animate-ping" />
               <div className="absolute inset-2 rounded-full border border-cyan-200/40" />
               <img
-                src="/koda-logo.jpeg"
+                src="/koda-mark.png"
                 alt="KODA"
                 className="h-20 w-20 rounded-full object-cover shadow-[0_0_30px_rgba(34,211,238,0.28)]"
               />
@@ -479,7 +479,7 @@ const LoginForm = () => {
                 className="w-36 h-36 rounded-full bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 flex items-center justify-center transition-all duration-300 overflow-hidden border-2 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.18)]"
               >
                 <img
-                  src="/koda-logo.jpeg"
+                  src="/koda-mark.png"
                   alt="KODA"
                   className="h-full w-full object-cover"
                 />
