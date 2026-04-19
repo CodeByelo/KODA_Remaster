@@ -68,8 +68,10 @@ body::-webkit-scrollbar {
 /* Splash Screen Styles */
 .splash-screen {
   min-height: 100vh;
-  /* RED REFACTOR: Premium Warm Dark Background (Black -> Very Dark Red) */
-  background: radial-gradient(circle at center, #1a0505 0%, #000000 100%);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.12), transparent 30%),
+    radial-gradient(circle at 80% 75%, rgba(245, 158, 11, 0.1), transparent 28%),
+    linear-gradient(135deg, #03131f 0%, #061a2b 42%, #07101a 100%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -107,11 +109,11 @@ body::-webkit-scrollbar {
   height: 3px;
   margin: 0.6rem auto 0;
   border-radius: 2px;
-  /* RED REFACTOR: Changed gradient to Red/Orange */
   background: linear-gradient(
     90deg,
-    rgba(239, 68, 68, 0.95),
-    rgba(220, 38, 38, 0.9)
+    rgba(34, 211, 238, 0.95),
+    rgba(37, 99, 235, 0.92),
+    rgba(245, 158, 11, 0.88)
   );
   opacity: 0.9;
 }
@@ -126,10 +128,9 @@ body::-webkit-scrollbar {
 
 /* Loader (ESFERA ORIGINAL) */
 .loader {
-  /* RED REFACTOR: Adjusted neon colors to Red/Pink/Orange spectrum */
-  --color-one: #ff4d4d; /* Red */
-  --color-two: #f97316; /* Orange */
-  --color-three: #ef4444; /* Red-500 */
+  --color-one: #22d3ee;
+  --color-two: #3b82f6;
+  --color-three: #f59e0b;
   --color-fore: rgba(255, 255, 255, 0.12);
   --color-five: white;
   --time-animation: 0.8s;
@@ -331,7 +332,6 @@ body::-webkit-scrollbar {
   z-index: 0;
   pointer-events: none;
   filter: blur(20px);
-  /* RED REFACTOR: Changed radial gradients to Red/Orange/Pink */
   background:
     radial-gradient(
       circle at 50% 50%,
@@ -340,18 +340,18 @@ body::-webkit-scrollbar {
     ),
     radial-gradient(
       circle at 40% 50%,
-      rgba(255, 77, 77, 0.26) 0%,
-      rgba(255, 77, 77, 0) 40%
+      rgba(34, 211, 238, 0.24) 0%,
+      rgba(34, 211, 238, 0) 40%
     ),
     radial-gradient(
       circle at 60% 50%,
-      rgba(249, 115, 22, 0.26) 0%,
-      rgba(249, 115, 22, 0) 40%
+      rgba(59, 130, 246, 0.24) 0%,
+      rgba(59, 130, 246, 0) 40%
     ),
     radial-gradient(
       circle at 50% 60%,
-      rgba(239, 68, 68, 0.18) 0%,
-      rgba(239, 68, 68, 0) 50%
+      rgba(245, 158, 11, 0.18) 0%,
+      rgba(245, 158, 11, 0) 50%
     );
   background-blend-mode: screen;
   opacity: 0.98;
@@ -361,22 +361,22 @@ body::-webkit-scrollbar {
 .progress-container {
   background: linear-gradient(
     180deg,
-    rgba(30, 10, 10, 0.65),
-    rgba(20, 8, 8, 0.6)
+    rgba(6, 24, 39, 0.78),
+    rgba(6, 18, 31, 0.72)
   );
   border-radius: 10px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  border: 1px solid rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.16);
   box-shadow:
-    0 10px 30px rgba(239, 68, 68, 0.03),
+    0 10px 30px rgba(8, 47, 73, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .progress-label {
   display: flex;
   justify-content: space-between;
-  color: rgba(255, 200, 200, 0.95);
+  color: rgba(224, 242, 254, 0.95);
   font-size: 0.9rem;
   margin-bottom: 0.75rem;
 }
@@ -391,8 +391,7 @@ body::-webkit-scrollbar {
 
 .progress-fill {
   height: 100%;
-  /* RED REFACTOR: Gradient changed to Red/Orange */
-  background: linear-gradient(90deg, #ef4444, #f87171, #f97316);
+  background: linear-gradient(90deg, #22d3ee, #3b82f6, #f59e0b);
   border-radius: 4px;
   width: 0%;
   transition:
@@ -400,7 +399,7 @@ body::-webkit-scrollbar {
     box-shadow 0.15s ease;
   position: relative;
   overflow: visible;
-  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.12);
+  box-shadow: 0 4px 18px rgba(34, 211, 238, 0.18);
 }
 
 .progress-fill::after {
@@ -455,9 +454,8 @@ body::-webkit-scrollbar {
 }
 
 .status-item.active .status-dot {
-  /* RED REFACTOR: changed to red */
-  background: #ef4444;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  background: #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.58);
   animation: dot-pulse 2s ease-in-out infinite;
 }
 
@@ -467,8 +465,7 @@ body::-webkit-scrollbar {
 
 /* Texto final */
 .loading-complete {
-  /* RED REFACTOR: changed to red */
-  color: #ef4444;
+  color: #67e8f9;
   font-size: 0.9rem;
   font-weight: 500;
   opacity: 0;
@@ -503,13 +500,12 @@ body::-webkit-scrollbar {
 }
 
 @keyframes dot-pulse {
-  /* RED REFACTOR: changed shadow to red */
   0%,
   100% {
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.48);
   }
   50% {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.82);
   }
 }
 
@@ -633,10 +629,10 @@ a[href]:active,
 
 .glass-reflect:hover {
   transform: translateY(-2px);
-  border-color: rgba(248, 113, 113, 0.35);
+  border-color: rgba(56, 189, 248, 0.35);
   box-shadow:
     0 18px 34px rgba(2, 6, 23, 0.36),
-    0 0 0 1px rgba(248, 113, 113, 0.12) inset;
+    0 0 0 1px rgba(56, 189, 248, 0.14) inset;
 }
 
 .glass-reflect:hover::before {
@@ -659,8 +655,9 @@ a[href]:active,
 .remaster-shell {
   position: relative;
   background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(239, 68, 68, 0.12), transparent 60%),
-    radial-gradient(900px 520px at 92% 8%, rgba(249, 115, 22, 0.1), transparent 58%),
+    radial-gradient(1200px 700px at 12% -10%, rgba(34, 211, 238, 0.14), transparent 60%),
+    radial-gradient(900px 520px at 92% 8%, rgba(59, 130, 246, 0.12), transparent 58%),
+    radial-gradient(600px 280px at 56% 102%, rgba(245, 158, 11, 0.08), transparent 56%),
     linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(2, 6, 23, 0.98));
 }
 
@@ -718,10 +715,10 @@ a[href]:active,
 
 .remaster-lift:hover {
   transform: translateY(-3px);
-  border-color: rgba(239, 68, 68, 0.36);
+  border-color: rgba(56, 189, 248, 0.34);
   box-shadow:
     0 24px 42px rgba(2, 6, 23, 0.34),
-    0 0 0 1px rgba(239, 68, 68, 0.18) inset;
+    0 0 0 1px rgba(56, 189, 248, 0.16) inset;
 }
 
 .remaster-hero {
@@ -741,8 +738,9 @@ a[href]:active,
 
 .remaster-auth-bg {
   background:
-    radial-gradient(600px 340px at 18% 12%, rgba(239, 68, 68, 0.16), transparent 60%),
-    radial-gradient(520px 300px at 82% 82%, rgba(249, 115, 22, 0.14), transparent 60%);
+    radial-gradient(600px 340px at 18% 12%, rgba(34, 211, 238, 0.18), transparent 60%),
+    radial-gradient(520px 300px at 82% 82%, rgba(37, 99, 235, 0.14), transparent 60%),
+    radial-gradient(420px 240px at 54% 92%, rgba(245, 158, 11, 0.1), transparent 58%);
 }
 
 .remaster-auth-card {

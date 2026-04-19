@@ -147,27 +147,27 @@ const SplashScreen = ({ onComplete }) => {
             <span>{progress}%</span>
           </div>
           <div className="progress-bar">
-            <div className="progress-fill bg-red-600" style={{ width: `${progress}%`, boxShadow: '0 0 10px #ef4444' }}></div>
+            <div className="progress-fill bg-cyan-400" style={{ width: `${progress}%`, boxShadow: '0 0 14px rgba(34,211,238,0.45)' }}></div>
           </div>
         </div>
 
         {/* Estado del sistema */}
         <div className="system-status">
-          <div className={`status-item ${status[0] ? 'active text-red-400' : ''}`}>
-            <span className={`status-dot ${status[0] ? 'bg-red-500' : ''}`}></span>
+          <div className={`status-item ${status[0] ? 'active text-cyan-300' : ''}`}>
+            <span className={`status-dot ${status[0] ? 'bg-cyan-400' : ''}`}></span>
             <span className="status-text">Conectando a servidores...</span>
           </div>
-          <div className={`status-item ${status[1] ? 'active text-red-400' : ''}`}>
-            <span className={`status-dot ${status[1] ? 'bg-red-500' : ''}`}></span>
+          <div className={`status-item ${status[1] ? 'active text-cyan-300' : ''}`}>
+            <span className={`status-dot ${status[1] ? 'bg-cyan-400' : ''}`}></span>
             <span className="status-text">Verificando credenciales corporativas...</span>
           </div>
-          <div className={`status-item ${status[2] ? 'active text-red-400' : ''}`}>
-            <span className={`status-dot ${status[2] ? 'bg-red-500' : ''}`}></span>
+          <div className={`status-item ${status[2] ? 'active text-cyan-300' : ''}`}>
+            <span className={`status-dot ${status[2] ? 'bg-cyan-400' : ''}`}></span>
             <span className="status-text">Cargando datos industriales...</span>
           </div>
         </div>
 
-        <p className={`loading-complete text-red-400 ${progress === 100 ? 'visible' : ''}`}>
+        <p className={`loading-complete text-cyan-300 ${progress === 100 ? 'visible' : ''}`}>
           ✓ Sistema listo. Redirigiendo al registro...
         </p>
       </div>
@@ -209,12 +209,12 @@ const PasswordStrength = ({ password }) => {
   const { status, metCount, missing } = evaluatePasswordRules(password);
   const level = Math.min(Math.max(metCount, 1), 5);
   const labels = ['Muy débil', 'Débil', 'Regular', 'Fuerte', 'Excelente'];
-  const levelColors = ['bg-red-800', 'bg-red-600', 'bg-orange-500', 'bg-orange-400', 'bg-red-500'];
+  const levelColors = ['bg-sky-950', 'bg-sky-700', 'bg-blue-500', 'bg-cyan-400', 'bg-amber-400'];
 
   if (!password) return null;
 
   return (
-    <div className="mt-2 space-y-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+    <div className="mt-2 space-y-2 rounded-lg border border-cyan-400/20 bg-cyan-400/5 p-3">
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((segment) => (
           <div
@@ -223,19 +223,19 @@ const PasswordStrength = ({ password }) => {
           />
         ))}
       </div>
-      <p className={`text-xs font-semibold ${level >= 4 ? 'text-orange-400' : level >= 3 ? 'text-red-400' : 'text-red-500'}`}>
+      <p className={`text-xs font-semibold ${level >= 4 ? 'text-cyan-300' : level >= 3 ? 'text-sky-300' : 'text-amber-300'}`}>
         Seguridad: {labels[level - 1]}
       </p>
       <p className="text-xs auth-secondary-text">Tu contraseña debe tener:</p>
       <div className="space-y-1">
         {status.map((rule) => (
-          <div key={rule.key} className={`flex items-center gap-2 text-[11px] ${rule.ok ? 'text-emerald-400' : 'text-red-300'}`}>
+          <div key={rule.key} className={`flex items-center gap-2 text-[11px] ${rule.ok ? 'text-cyan-300' : 'text-amber-200'}`}>
             {rule.ok ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
             <span>{rule.label}</span>
           </div>
         ))}
       </div>
-      {missing.length > 0 && <p className="text-[11px] text-red-300">Te falta: {missing.join(', ')}.</p>}
+      {missing.length > 0 && <p className="text-[11px] text-amber-200">Te falta: {missing.join(', ')}.</p>}
     </div>
   );
 };
@@ -253,14 +253,14 @@ const AnimatedInput = ({
         className={`absolute left-12 transition-all duration-300 z-10 ${isFocused || hasValue
           ? '-top-2 left-8 text-xs px-2 bg-transparent font-semibold uppercase tracking-wider'
           : 'top-4 auth-input-label-idle'
-          } ${isFocused ? 'text-red-400' : 'auth-input-label-idle'}`}
+          } ${isFocused ? 'text-cyan-300' : 'auth-input-label-idle'}`}
       >
         {label}
       </label>
 
       <div className={`relative flex items-center rounded-xl ${error ? 'bg-red-500/10' : 'auth-input-shell'
-        } ${isFocused ? 'ring-2 ring-red-500/40' : ''}`}>
-        <div className={`pl-4 pr-2 ${isFocused ? 'text-red-400' : 'auth-input-icon'}`}>
+        } ${isFocused ? 'ring-2 ring-cyan-400/40' : ''}`}>
+        <div className={`pl-4 pr-2 ${isFocused ? 'text-cyan-300' : 'auth-input-icon'}`}>
           <Icon size={20} />
         </div>
 
@@ -278,7 +278,7 @@ const AnimatedInput = ({
         />
 
         {value && !error && (
-          <div className="pr-4 text-red-400">
+          <div className="pr-4 text-cyan-300">
             <CheckCircle size={18} />
           </div>
         )}
@@ -308,14 +308,14 @@ const AnimatedSelect = ({
         className={`absolute left-12 transition-all duration-300 z-10 ${isFocused || hasValue
           ? '-top-2 left-8 text-xs px-2 bg-transparent font-semibold uppercase tracking-wider'
           : 'top-4 auth-input-label-idle'
-          } ${isFocused ? 'text-red-400' : 'auth-input-label-idle'}`}
+          } ${isFocused ? 'text-cyan-300' : 'auth-input-label-idle'}`}
       >
         {label}
       </label>
 
       <div className={`relative flex items-center rounded-xl ${error ? 'bg-red-500/10' : 'auth-input-shell'
-        } ${isFocused ? 'ring-2 ring-red-500/40' : ''}`}>
-        <div className={`pl-4 pr-2 ${isFocused ? 'text-red-400' : 'auth-input-icon'}`}>
+        } ${isFocused ? 'ring-2 ring-cyan-400/40' : ''}`}>
+        <div className={`pl-4 pr-2 ${isFocused ? 'text-cyan-300' : 'auth-input-icon'}`}>
           <Icon size={20} />
         </div>
 
@@ -341,7 +341,7 @@ const AnimatedSelect = ({
         </div>
 
         {value && !error && (
-          <div className="absolute right-10 text-red-400 pointer-events-none">
+          <div className="absolute right-10 text-cyan-300 pointer-events-none">
             <CheckCircle size={18} />
           </div>
         )}
@@ -362,8 +362,8 @@ const LoadingButton = ({ isLoading, children, ...props }) => (
     {...props}
     disabled={isLoading}
     className={`relative overflow-hidden w-full py-4 rounded-xl font-bold text-lg tracking-wide transition-all duration-300 transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none ${isLoading
-      ? 'bg-gray-700 cursor-not-allowed'
-      : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 shadow-red-500/30 hover:shadow-red-500/50'
+      ? 'bg-slate-700 cursor-not-allowed'
+      : 'bg-gradient-to-r from-sky-600 via-blue-600 to-cyan-500 hover:from-sky-500 hover:via-blue-500 hover:to-cyan-400 shadow-cyan-500/25 hover:shadow-cyan-400/40'
       } shadow-lg`}
   >
     {isLoading && (
@@ -407,7 +407,7 @@ const Particles = () => {
       {particleList.map(p => (
         <div
           key={p.id}
-          className="absolute bg-red-500/20 rounded-full animate-float"
+          className="absolute bg-cyan-400/20 rounded-full animate-float"
           style={{
             left: `${p.x}%`,
             top: `${p.y}%`,
@@ -609,20 +609,20 @@ const RegistroForm = () => {
     return (
       <div className="auth-page min-h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-gray-900 via-black to-gray-900">
         <Particles />
-        <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-orange-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 via-transparent to-amber-400/10" />
         <div className="relative max-w-md w-full text-center animate-scaleIn">
           <div className="auth-glass-card relative rounded-3xl p-12 shadow-2xl">
-            <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <CheckCircle size={48} className="text-red-400" />
+            <div className="w-24 h-24 bg-cyan-400/15 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <CheckCircle size={48} className="text-cyan-300" />
             </div>
             <h2 className="text-3xl font-bold auth-primary-text mb-2">¡Registro Exitoso!</h2>
             <p className="auth-secondary-text mb-6">
               {isPrivilegedRegistrar ? 'Redirigiendo al Dashboard...' : 'Redirigiendo al Login...'}
             </p>
             <div className="flex justify-center gap-2">
-              <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" />
-              <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-              <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+              <div className="w-3 h-3 bg-cyan-300 rounded-full animate-bounce" />
+              <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+              <div className="w-3 h-3 bg-amber-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
             </div>
           </div>
         </div>
@@ -635,7 +635,7 @@ const RegistroForm = () => {
       className="auth-page min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
       style={{
         background:
-          'radial-gradient(circle at top, rgba(239,68,68,0.16), transparent 32%), linear-gradient(135deg, #020617 0%, #111827 45%, #020617 100%)',
+          'radial-gradient(circle at top, rgba(34,211,238,0.16), transparent 32%), linear-gradient(135deg, #03131f 0%, #0a2033 45%, #071018 100%)',
       }}
     >
       <video
@@ -649,14 +649,14 @@ const RegistroForm = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black/95" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(56,189,248,0.14),transparent_50%)]" />
       <Particles />
-      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-cyan-400/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-amber-300/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-2xl" ref={formRef}>
         <div className="auth-glass-card rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] overflow-hidden">
           <div className="relative px-8 py-10 text-center auth-divider">
             <div className="flex justify-center mb-4 relative">
-              <div className="w-36 h-36 rounded-full bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 flex items-center justify-center transition-all duration-300 overflow-hidden border-2 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.18)]">
+              <div className="w-36 h-36 rounded-full bg-gradient-to-br from-cyan-950 via-sky-900 to-blue-950 flex items-center justify-center transition-all duration-300 overflow-hidden border border-cyan-300/35 shadow-[0_0_36px_rgba(34,211,238,0.24)]">
                 <img
                   src="/koda-mark.png"
                   alt="KODA"
@@ -665,7 +665,7 @@ const RegistroForm = () => {
               </div>
             </div>
             <h1 className="text-3xl font-bold auth-primary-text tracking-tight">
-              KODA <span className="text-red-600">REMASTER</span>
+              <span className="text-white">KODA</span> <span className="text-cyan-300">REMASTER</span>
             </h1>
             <p className="auth-secondary-text mt-2 text-sm flex items-center justify-center gap-2">
               <User size={14} />
@@ -796,7 +796,7 @@ const RegistroForm = () => {
                 <div className="flex items-center gap-3">
                   <NeonCheckbox checked={terminosAceptados} onChange={(e) => setTerminosAceptados(e.target.checked)} />
                   <span
-                    className="text-sm auth-secondary-text cursor-pointer hover:text-red-300 transition-colors"
+                    className="text-sm auth-secondary-text cursor-pointer hover:text-cyan-300 transition-colors"
                     onClick={() => setTerminosAceptados(!terminosAceptados)}
                   >
                     Acepto términos y condiciones
@@ -822,10 +822,10 @@ const RegistroForm = () => {
 
           <div className="px-8 py-6 auth-footer">
             <div className="flex items-center justify-center gap-2 auth-footer-text text-sm">
-              <ArrowLeft size={14} className="text-red-400" />
+              <ArrowLeft size={14} className="text-cyan-300" />
               <button
                 onClick={() => router.push(isPrivilegedRegistrar ? '/dashboard' : '/login')}
-                className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                className="text-sm text-cyan-300 hover:text-cyan-200 transition-colors"
               >
                 {isPrivilegedRegistrar ? 'Volver al Dashboard' : 'Volver al Login'}
               </button>
@@ -844,30 +844,30 @@ const RegistroForm = () => {
         .animate-scaleIn { animation: scaleIn 0.5s ease forwards; }
 
         .auth-page {
-          --auth-text-primary: #0f172a;
-          --auth-text-secondary: #000000;
-          --auth-card-bg: rgba(255, 255, 255, 0.2);
-          --auth-card-border: rgba(255, 255, 255, 0.5);
-          --auth-footer-bg: rgba(255, 255, 255, 0.22);
-          --auth-footer-border: rgba(148, 163, 184, 0.4);
-          --auth-input-bg: rgba(255, 255, 255, 0.72);
-          --auth-input-text: #0f172a;
-          --auth-input-placeholder: #000000;
-          --auth-input-icon: #000000;
+          --auth-text-primary: #e0f2fe;
+          --auth-text-secondary: #b6d4ea;
+          --auth-card-bg: rgba(6, 24, 39, 0.56);
+          --auth-card-border: rgba(125, 211, 252, 0.18);
+          --auth-footer-bg: rgba(4, 19, 34, 0.5);
+          --auth-footer-border: rgba(56, 189, 248, 0.16);
+          --auth-input-bg: rgba(8, 27, 46, 0.72);
+          --auth-input-text: #eff6ff;
+          --auth-input-placeholder: #8fb7d1;
+          --auth-input-icon: #8fb7d1;
         }
 
         @media (prefers-color-scheme: dark) {
           .auth-page {
-            --auth-text-primary: #f8fafc;
-            --auth-text-secondary: #ffffff;
-            --auth-card-bg: rgba(255, 255, 255, 0.1);
-            --auth-card-border: rgba(255, 255, 255, 0.2);
-            --auth-footer-bg: rgba(17, 24, 39, 0.3);
-            --auth-footer-border: rgba(55, 65, 81, 0.5);
-            --auth-input-bg: rgba(17, 24, 39, 0.55);
-            --auth-input-text: #ffffff;
-            --auth-input-placeholder: #ffffff;
-            --auth-input-icon: #ffffff;
+            --auth-text-primary: #f0f9ff;
+            --auth-text-secondary: #c6e3f5;
+            --auth-card-bg: rgba(4, 20, 35, 0.72);
+            --auth-card-border: rgba(103, 232, 249, 0.16);
+            --auth-footer-bg: rgba(3, 16, 30, 0.56);
+            --auth-footer-border: rgba(56, 189, 248, 0.18);
+            --auth-input-bg: rgba(8, 24, 40, 0.72);
+            --auth-input-text: #f8fbff;
+            --auth-input-placeholder: #8fb7d1;
+            --auth-input-icon: #8fb7d1;
           }
         }
 
@@ -916,9 +916,9 @@ const RegistroForm = () => {
 
         /* NEON CHECKBOX STYLES (Adapted to Red Theme) */
         .neon-checkbox {
-          --primary: #ef4444; /* red-500 */
-          --primary-dark: #b91c1c; /* red-700 */
-          --primary-light: #f87171; /* red-400 */
+          --primary: #22d3ee;
+          --primary-dark: #2563eb;
+          --primary-light: #f59e0b;
           --size: 30px;
           position: relative;
           width: var(--size);

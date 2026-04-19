@@ -513,8 +513,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
       group glass-hover flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-3 px-3 py-2.5 rounded-md cursor-pointer transition-all duration-200 min-w-0 relative
       ${active
         ? darkMode
-          ? "bg-red-900/50 text-white shadow-sm border border-red-800/50"
-          : "bg-red-700 text-white shadow-sm"
+          ? "bg-sky-900/50 text-white shadow-sm border border-cyan-400/25"
+          : "bg-sky-700 text-white shadow-sm"
         : darkMode
           ? "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -531,7 +531,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
               flex items-center justify-center shadow-sm ring-2
               ${darkMode
                 ? "bg-amber-400 text-slate-950 ring-slate-900"
-                : "bg-red-600 text-white ring-white"}
+                : "bg-sky-600 text-white ring-white"}
             `}
           >
             {badgeCount > 99 ? "99+" : badgeCount}
@@ -548,8 +548,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
           ml-2 shrink-0 min-w-[26px] h-6 px-2 rounded-full text-xs font-bold
           flex items-center justify-center shadow-sm
           ${darkMode
-            ? "bg-amber-400/95 text-slate-950"
-            : "bg-red-600 text-white"}
+            ? "bg-amber-300/95 text-slate-950"
+            : "bg-sky-600 text-white"}
         `}
       >
         {badgeCount > 99 ? "99+" : badgeCount}
@@ -4563,16 +4563,16 @@ export default function Dashboard() {
 
   const theme = useMemo(
     () => ({
-      bg: darkMode ? "bg-zinc-950" : "bg-slate-50",
+      bg: darkMode ? "bg-slate-950" : "bg-sky-50",
       header: darkMode
-        ? "bg-zinc-950/90 border-zinc-800"
-        : "bg-white/90 border-slate-200",
+        ? "bg-slate-950/90 border-cyan-950"
+        : "bg-white/90 border-sky-200",
       sidebar: darkMode
-        ? "bg-black border-zinc-800"
-        : "bg-white border-slate-200",
-      text: darkMode ? "text-zinc-200" : "text-slate-900",
-      subtext: darkMode ? "text-zinc-500" : "text-slate-400",
-      cardBg: darkMode ? "bg-zinc-900" : "bg-white",
+        ? "bg-[#04111d] border-cyan-950"
+        : "bg-white border-sky-200",
+      text: darkMode ? "text-sky-50" : "text-slate-900",
+      subtext: darkMode ? "text-sky-200/45" : "text-slate-500",
+      cardBg: darkMode ? "bg-slate-900" : "bg-white",
     }),
     [darkMode],
   );
@@ -4774,7 +4774,7 @@ export default function Dashboard() {
 
   if (!mounted) return null;
 
-  const announcementBaseColor = normalizeHexColor(announcement?.color, "#dc2626");
+  const announcementBaseColor = normalizeHexColor(announcement?.color, "#0ea5e9");
   const announcementStartColor = shiftHexColor(announcementBaseColor, -12);
   const announcementEndColor = shiftHexColor(announcementBaseColor, 20);
   const announcementBadgeColor = shiftHexColor(announcementBaseColor, -18);
@@ -4921,7 +4921,7 @@ export default function Dashboard() {
 
             {/* ANNOUNCEMENT BANNER */}
             <div
-              className="remaster-hero remaster-card relative overflow-hidden rounded-2xl p-8 shadow-xl shadow-red-900/20"
+              className="remaster-hero remaster-card relative overflow-hidden rounded-2xl p-8 shadow-xl shadow-sky-900/20"
               style={{
                 backgroundImage: `linear-gradient(90deg, ${announcementStartColor}, ${announcementBaseColor}, ${announcementEndColor})`,
               }}
@@ -4937,13 +4937,13 @@ export default function Dashboard() {
                   <h2 className="text-2xl font-bold text-white">
                     {announcement.title}
                   </h2>
-                  <p className="text-red-100 max-w-xl text-sm leading-relaxed">
+                  <p className="text-sky-50/90 max-w-xl text-sm leading-relaxed">
                     {announcement.description}
                   </p>
                 </div>
                 <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/20 flex items-center gap-4 shrink-0">
                   <div className="text-center px-4 border-r border-white/20">
-                    <p className="text-[10px] text-red-200 uppercase font-bold">
+                    <p className="text-[10px] text-sky-100/80 uppercase font-bold">
                       Estado
                     </p>
                     <p className="text-xl font-bold text-white uppercase">
@@ -4951,7 +4951,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <div className="text-center px-4">
-                    <p className="text-[10px] text-red-200 uppercase font-bold">
+                    <p className="text-[10px] text-sky-100/80 uppercase font-bold">
                       Urgencia
                     </p>
                     <p className="text-xl font-bold text-white uppercase">
@@ -5323,7 +5323,7 @@ export default function Dashboard() {
                   </p>
                   <div className="flex items-center justify-end gap-2">
                     {userRole === "Desarrollador" && (
-                      <span className="text-[10px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded animate-pulse">
+                      <span className="text-[10px] font-black bg-sky-600 text-white px-1.5 py-0.5 rounded animate-pulse">
                         DEV MODE
                       </span>
                     )}
@@ -5350,7 +5350,7 @@ export default function Dashboard() {
                             void uiAlert("SwitchRole deshabilitado en este entorno por seguridad. Usa staging/dev con NEXT_PUBLIC_ENABLE_ROLE_SIMULATION=true.", "Seguridad");
                           }
                         }}
-                        className={`bg-transparent text-[10px] font-bold border rounded px-1 outline-none transition-colors ${darkMode ? "border-zinc-700 text-zinc-400 focus:border-red-500" : "border-slate-300 text-slate-600 focus:border-red-600"}`}
+                        className={`bg-transparent text-[10px] font-bold border rounded px-1 outline-none transition-colors ${darkMode ? "border-zinc-700 text-zinc-400 focus:border-cyan-400" : "border-slate-300 text-slate-600 focus:border-sky-500"}`}
                       >
                         <option value="Usuario">USR</option>
                         <option value="Administrativo">ADM</option>
@@ -5429,9 +5429,9 @@ export default function Dashboard() {
                 animate={{ scale: 1.25, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 220, damping: 18 }}
-                className="relative w-60 h-60 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-2xl shadow-red-500/30 overflow-hidden flex items-center justify-center"
+                className="relative w-60 h-60 rounded-full bg-gradient-to-br from-sky-900/90 via-blue-900/90 to-cyan-900/90 border-2 border-cyan-300/30 shadow-2xl shadow-cyan-500/20 overflow-hidden flex items-center justify-center"
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-red-500/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-b from-cyan-300/20 to-transparent" />
                 <div className="absolute inset-3 rounded-full overflow-hidden">
                   <video
                     src="/koda-bot.mp4"
