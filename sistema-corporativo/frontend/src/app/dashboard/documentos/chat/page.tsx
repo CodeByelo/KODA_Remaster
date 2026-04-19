@@ -85,8 +85,6 @@ function MensajeriaChatClient() {
   const [darkMode, setDarkMode] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const canPlayAudioRef = useRef(false);
   const lastMessageIdRef = useRef<number | null>(null);
   const initialLoadRef = useRef(true);
   const listEndRef = useRef<HTMLDivElement | null>(null);
@@ -317,29 +315,6 @@ function MensajeriaChatClient() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!audioRef.current) {
-      audioRef.current = new Audio('/notification_message.mp3');
-      audioRef.current.preload = 'auto';
-      audioRef.current.volume = 1;
-    }
-    const initAudio = async () => {
-      try {
-        if (!audioRef.current) return;
-        audioRef.current.muted = true;
-        await audioRef.current.play();
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.muted = false;
-        canPlayAudioRef.current = true;
-      } catch {
-        canPlayAudioRef.current = false;
-      }
-    };
-    void initAudio();
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
     const stored = localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY);
     setDarkMode(stored ? stored === 'dark' : true);
   }, []);
@@ -402,12 +377,6 @@ function MensajeriaChatClient() {
     if (lastMessageIdRef.current !== last.id) {
       lastMessageIdRef.current = last.id;
       const isMine = currentUserId && last.remitente_id && String(last.remitente_id) === currentUserId;
-      if (!isMine && audioRef.current && canPlayAudioRef.current) {
-        audioRef.current.currentTime = 0;
-        void audioRef.current.play().catch(() => {
-          canPlayAudioRef.current = false;
-        });
-      }
     }
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversationDocs, currentUserId]);

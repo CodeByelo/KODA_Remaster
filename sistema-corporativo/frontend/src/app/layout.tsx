@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   title: "KODA Remaster - Sistema de Gestión",
   description: "Sistema de Gestión Institucional KODA Remaster",
   icons: {
-    icon: [{ url: "/favicon-round.png", type: "image/png" }],
-    shortcut: ["/favicon-round.png"],
-    apple: ["/favicon-round.png"],
+    icon: [{ url: "/koda-logo.jpeg", type: "image/jpeg" }],
+    shortcut: ["/koda-logo.jpeg"],
+    apple: ["/koda-logo.jpeg"],
   },
 };
 

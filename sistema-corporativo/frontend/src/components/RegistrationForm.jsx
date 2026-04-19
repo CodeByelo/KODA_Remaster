@@ -280,15 +280,22 @@ const RegistrationForm = () => {
         </div>
         
         <div className={styles.logoContainer}>
-          <img 
-            src="logo.jpg" 
-            alt="Logo institucional" 
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 24 24" fill="%23cd3131"><circle cx="12" cy="12" r="10" fill="none" stroke="%23cd3131" stroke-width="2"/><path d="M12 6v6l4 2" fill="none" stroke="%23cd3131" stroke-width="2" stroke-linecap="round"/></svg>`;
-              e.target.alt = 'Logo institucional (fallback)';
+          <div
+            aria-label="Identidad KODA Remaster"
+            style={{
+              width: '180px',
+              height: '180px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              boxShadow: '0 20px 50px rgba(30, 41, 59, 0.24)',
             }}
-          />
+          >
+            <img
+              src="/koda-logo.jpeg"
+              alt="KODA"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </div>
           <div 
             className={styles.logoBadge} 
             data-tooltip="Nivel de acceso: Administrador" 

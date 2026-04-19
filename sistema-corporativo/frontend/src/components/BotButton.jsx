@@ -8,6 +8,20 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
     const [isBlinking, setIsBlinking] = useState(true);
     const isFloating = variant === 'floating';
 
+    const botAvatar = (
+        <div className="absolute inset-1 rounded-full overflow-hidden">
+            <video
+                src="/koda-bot.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster="/koda-bot.jpeg"
+                className="h-full w-full object-cover"
+            />
+        </div>
+    );
+
     useEffect(() => {
         const interval = setInterval(() => {
             setIsBlinking(prev => !prev);
@@ -29,15 +43,7 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
                 >
                     <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-lg shadow-red-500/20 overflow-hidden">
                         <div className="absolute inset-0 bg-gradient-to-b from-red-500/20 to-transparent" />
-                        <div className="absolute inset-1 rounded-full overflow-hidden">
-                            <video
-                                src="/CorpiVideo.mp4"
-                                autoPlay
-                                muted
-                                playsInline
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
+                        {botAvatar}
                         <motion.div
                             animate={{ scale: isBlinking ? [1, 1.3, 1] : 1, opacity: isBlinking ? [0.7, 1, 0.7] : 0.7 }}
                             transition={{ duration: 1.5, repeat: Infinity }}
@@ -70,15 +76,7 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
             >
                 <div className={`relative w-16 h-16 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-xl shadow-red-500/20 overflow-hidden cursor-pointer transition-all duration-300 ${isHovered ? 'scale-110' : ''}`}>
                     <div className="absolute inset-0 bg-gradient-to-b from-red-500/20 to-transparent" />
-                    <div className="absolute inset-1 rounded-full overflow-hidden">
-                        <video
-                            src="/CorpiVideo.mp4"
-                            autoPlay
-                            muted
-                            playsInline
-                            className="w-full h-full object-contain"
-                        />
-                    </div>
+                    {botAvatar}
                 </div>
 
                 <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 min-w-[112px] h-7 px-3 bg-gray-900/95 border border-red-500/60 rounded-full flex items-center justify-center">

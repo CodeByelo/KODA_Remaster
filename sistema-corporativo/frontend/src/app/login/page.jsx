@@ -90,40 +90,16 @@ const SplashScreen = ({ onComplete }) => {
 
         {/* Loader */}
         {showLoader && (
-          <div className="loader" ref={loaderRef} aria-hidden="true">
-            <div className="sphere"></div>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">
-              <defs>
-                <mask id="waves" maskUnits="userSpaceOnUse">
-                  <g fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5,50 C25,50 30,20 50,20 C70,20 75,50 95,50"></path>
-                    <path d="M5,50 C25,50 30,20 50,20 C70,20 75,50 95,50"></path>
-                    <path d="M5,50 C25,50 30,80 50,80 C70,80 75,50 95,50"></path>
-                    <path d="M5,50 C25,50 30,80 50,80 C70,80 75,50 95,50"></path>
-                  </g>
-                </mask>
-                <mask id="blurriness" maskUnits="userSpaceOnUse">
-                  <g>
-                    <circle cx="50" cy="50" r="50" fill="white"></circle>
-                    <ellipse cx="50" cy="50" rx="25" ry="25" fill="black"></ellipse>
-                  </g>
-                </mask>
-                <mask id="clipping" maskUnits="userSpaceOnUse">
-                  <ellipse cx="50" cy="50" rx="25" ry="50" fill="white"></ellipse>
-                </mask>
-                <mask id="fade" maskUnits="userSpaceOnUse">
-                  <ellipse cx="50" cy="50" rx="45" ry="50" fill="white"></ellipse>
-                </mask>
-              </defs>
-              <g id="shapes" mask="url(#fade)">
-                <g mask="url(#clipping)">
-                  <circle cx="50" cy="50" r="50" fill="currentColor" mask="url(#waves)"></circle>
-                </g>
-                <g mask="url(#blurriness)">
-                  <circle cx="50" cy="50" r="50" fill="currentColor" mask="url(#waves)"></circle>
-                </g>
-              </g>
-            </svg>
+          <div className="loader flex items-center justify-center" ref={loaderRef} aria-hidden="true">
+            <div className="relative flex h-24 w-24 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-cyan-300/30 animate-ping" />
+              <div className="absolute inset-2 rounded-full border border-cyan-200/40" />
+              <img
+                src="/koda-logo.jpeg"
+                alt="KODA"
+                className="h-20 w-20 rounded-full object-cover shadow-[0_0_30px_rgba(34,211,238,0.28)]"
+              />
+            </div>
           </div>
         )}
 
@@ -477,13 +453,20 @@ const LoginForm = () => {
     <div
       className="auth-page min-h-screen remaster-auth-bg flex items-center justify-center p-4 relative overflow-hidden"
       style={{
-        backgroundImage: "url('/logo-bg.jpg')",
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        background:
+          'radial-gradient(circle at top, rgba(239,68,68,0.16), transparent 32%), linear-gradient(135deg, #020617 0%, #111827 45%, #020617 100%)',
       }}
     >
+      <video
+        className="absolute inset-0 h-full w-full object-cover opacity-30"
+        src="/koda-particles.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
       <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/90 to-black/95" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(239,68,68,0.1),transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(56,189,248,0.14),transparent_50%)]" />
       <Particles />
       <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-orange-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -493,12 +476,12 @@ const LoginForm = () => {
           <div className="relative px-8 py-10 text-center auth-divider">
             <div className="flex justify-center mb-4 relative">
               <div
-                className="w-36 h-36 rounded-full bg-white/10 flex items-center justify-center transition-all duration-300 overflow-hidden border-2 border-red-500/30"
+                className="w-36 h-36 rounded-full bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 flex items-center justify-center transition-all duration-300 overflow-hidden border-2 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.18)]"
               >
                 <img
-                  src="/logo-rojo.png"
-                  alt="Logo"
-                  className="h-full w-full rounded-full object-cover"
+                  src="/koda-logo.jpeg"
+                  alt="KODA"
+                  className="h-full w-full object-cover"
                 />
               </div>
             </div>

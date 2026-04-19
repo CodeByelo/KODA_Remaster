@@ -348,8 +348,8 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                     <div className="bg-gradient-to-r from-red-900/90 to-orange-900/90 p-4 border-b border-red-500/30 flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-black/20 overflow-hidden border border-white/20 relative">
-                                <video src="/CorpiVideo.mp4" autoPlay className="w-full h-full object-cover" />
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 relative">
+                                <img src="/koda-bot.jpeg" alt="Bot KODA" className="h-full w-full object-cover" />
                             </div>
                             <div>
                                 <h3 className="text-white font-bold text-sm">Asistente Virtual</h3>

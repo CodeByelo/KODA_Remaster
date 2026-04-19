@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -389,14 +389,14 @@ const AUDIT_ALERTS: AuditAlert[] = [
   },
 ];
 
-// NUEVOS DATOS PARA M�"DULOS
+// NUEVOS DATOS PARA M?"DULOS
 const PRIORITY_MATRIX: PriorityItem[] = [];
 
 // Tickets data moved to TicketSystem component
 
 const INITIAL_DOCUMENTS: Document[] = [];
 
-// NUEVOS DATOS PARA M�"DULO DE SEGURIDAD
+// NUEVOS DATOS PARA M?"DULO DE SEGURIDAD
 const ACCOUNT_REQUESTS = [
   {
     id: 1,
@@ -4030,85 +4030,9 @@ export default function Dashboard() {
   const [gerencias, setGerencias] = useState<any[]>([]);
   const previousUnreadIncomingIdsRef = useRef<Set<string>>(new Set());
   const inboxBaselineReadyRef = useRef(false);
-  const canPlayInboxSoundRef = useRef(false);
-  const inboxAudioRef = useRef<HTMLAudioElement | null>(null);
-  const pendingInboxAlertRef = useRef(false);
-
   const playInboxAlert = useCallback(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      if (!inboxAudioRef.current) {
-        inboxAudioRef.current = new Audio("/notification_message.mp3");
-        inboxAudioRef.current.preload = "auto";
-        inboxAudioRef.current.volume = 1;
-      }
-
-      // Intentar reproducir
-      inboxAudioRef.current.currentTime = 0;
-      const playPromise = inboxAudioRef.current.play();
-
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.error("Audio block prevented playback, will retry on next interaction", error);
-          pendingInboxAlertRef.current = true;
-          canPlayInboxSoundRef.current = false;
-        });
-      }
-      
-      pendingInboxAlertRef.current = false;
-    } catch (error) {
-      pendingInboxAlertRef.current = true;
-      console.error("No se pudo reproducir la alerta de mensaje", error);
-    }
+    // Audio deshabilitado por limpieza visual.
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const unlockAudio = async () => {
-      // Si ya está desbloqueado o no hay audio cargado, intentamos cargarlo/primarlo
-      try {
-        if (!inboxAudioRef.current) {
-          inboxAudioRef.current = new Audio("/notification_message.mp3");
-          inboxAudioRef.current.preload = "auto";
-          inboxAudioRef.current.volume = 1;
-        }
-
-        // Prime the audio
-        inboxAudioRef.current.muted = true;
-        await inboxAudioRef.current.play();
-        inboxAudioRef.current.pause();
-        inboxAudioRef.current.currentTime = 0;
-        inboxAudioRef.current.muted = false;
-        
-        canPlayInboxSoundRef.current = true;
-        console.log("Audio system unlocked and ready.");
-
-        // Si había una alerta pendiente, la reproducimos ahora
-        if (pendingInboxAlertRef.current) {
-          playInboxAlert();
-        }
-
-        // Una vez desbloqueado, removemos los listeners de priming
-        window.removeEventListener("pointerdown", unlockAudio);
-        window.removeEventListener("keydown", unlockAudio);
-        window.removeEventListener("click", unlockAudio);
-      } catch (e) {
-        // Ignorar errores de priming, reintentará en la próxima interacción
-      }
-    };
-
-    window.addEventListener("pointerdown", unlockAudio, { passive: true });
-    window.addEventListener("keydown", unlockAudio, { passive: true });
-    window.addEventListener("click", unlockAudio, { passive: true });
-
-    return () => {
-      window.removeEventListener("pointerdown", unlockAudio);
-      window.removeEventListener("keydown", unlockAudio);
-      window.removeEventListener("click", unlockAudio);
-    };
-  }, [playInboxAlert]);
 
   const isIncomingDocumentForUser = useCallback((doc: Document) => {
     const isDirectRecipient =
@@ -5197,12 +5121,9 @@ export default function Dashboard() {
               <div className="w-full flex items-center justify-center">
                 <div className={`${collapsed ? "w-12 h-12" : "w-full h-24 px-2"} flex items-center justify-center shrink-0`}>
                   <img
-                    src={darkMode ? "/logo_sin_fondo(2).png" : "/logo_sin_fondo22(1).png"}
-                    alt="Logo institucional"
-                    className={`${collapsed ? "w-full h-full" : "h-full w-auto max-w-full"} object-contain`}
-                    onError={(e) => {
-                      e.currentTarget.src = "/logo-rojo.png";
-                    }}
+                    src="/koda-logo.jpeg"
+                    alt="KODA"
+                    className={`${collapsed ? "h-12 w-12 rounded-xl" : "h-full w-auto max-w-full rounded-2xl"} object-cover shadow-[0_12px_30px_rgba(15,23,42,0.18)]`}
                   />
                 </div>
               </div>
@@ -5508,16 +5429,18 @@ export default function Dashboard() {
                 animate={{ scale: 1.25, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 220, damping: 18 }}
-                className="relative w-60 h-60 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-2xl shadow-red-500/30 overflow-hidden"
+                className="relative w-60 h-60 rounded-full bg-gradient-to-br from-red-900/90 to-orange-900/90 border-2 border-red-500/40 shadow-2xl shadow-red-500/30 overflow-hidden flex items-center justify-center"
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-red-500/20 to-transparent" />
                 <div className="absolute inset-3 rounded-full overflow-hidden">
                   <video
-                    src="/CorpiVideo.mp4"
+                    src="/koda-bot.mp4"
                     autoPlay
                     muted
+                    loop
                     playsInline
-                    className="w-full h-full object-contain"
+                    poster="/koda-bot.jpeg"
+                    className="h-full w-full object-cover"
                   />
                 </div>
               </motion.div>
@@ -5550,6 +5473,7 @@ export default function Dashboard() {
     </RoleGuard>
   );
 }
+
 
 
 
