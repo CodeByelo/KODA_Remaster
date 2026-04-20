@@ -5433,13 +5433,9 @@ export default function Dashboard() {
               >
                 <div className="absolute inset-0 bg-gradient-to-b from-cyan-300/20 to-transparent" />
                 <div className="absolute inset-3 rounded-full overflow-hidden">
-                  <video
-                    src="/koda-bot.mp4"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    poster="/koda-bot.jpeg"
+                  <img
+                    src="/koda-bot.jpeg"
+                    alt="Bot KODA"
                     className="h-full w-full object-cover"
                   />
                 </div>

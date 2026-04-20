@@ -10,13 +10,9 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
 
     const botAvatar = (
         <div className="absolute inset-1 rounded-full overflow-hidden">
-            <video
-                src="/koda-bot.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                poster="/koda-bot.jpeg"
+            <img
+                src="/koda-bot.jpeg"
+                alt="Bot KODA"
                 className="h-full w-full object-cover"
             />
         </div>
