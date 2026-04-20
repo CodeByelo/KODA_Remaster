@@ -5121,7 +5121,7 @@ export default function Dashboard() {
               <div className="w-full flex items-center justify-center">
                 <div className={`${collapsed ? "w-12 h-12" : "w-full h-24 px-2"} flex items-center justify-center shrink-0`}>
                   <img
-                    src={collapsed ? "/koda-mark.png" : "/koda-logo.jpeg"}
+                    src={collapsed ? "/koda-mark.png" : "/koda-logo-transparent.png"}
                     alt="KODA"
                     className={`${collapsed ? "h-12 w-12 rounded-xl" : "h-full w-auto max-w-full rounded-2xl"} object-contain shadow-[0_12px_30px_rgba(15,23,42,0.18)]`}
                   />
