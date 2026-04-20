@@ -95,7 +95,7 @@ const SplashScreen = ({ onComplete }) => {
               <div className="absolute inset-0 rounded-full border border-cyan-300/30 animate-ping" />
               <div className="absolute inset-2 rounded-full border border-cyan-200/40" />
               <img
-                src="/koda-auth-mark.jpeg"
+                src="/koda-mark.png"
                 alt="KODA"
                 className="h-20 w-20 rounded-full object-cover shadow-[0_0_30px_rgba(34,211,238,0.28)]"
               />
