@@ -457,15 +457,11 @@ const LoginForm = () => {
           'radial-gradient(circle at top, rgba(35,166,217,0.18), transparent 32%), linear-gradient(135deg, #d1e4e9 0%, #c1dce5 45%, #9bc6da 100%)',
       }}
     >
-      <video
-        className="absolute inset-0 h-full w-full object-cover opacity-30"
-        src="/koda-particles.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
+      <div
+        className="absolute inset-0 bg-center bg-no-repeat bg-contain opacity-30"
+        style={{ backgroundImage: "url('/koda-logo.jpeg')" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#d1e4e9]/70 via-[#bdd8e3]/60 to-[#0d47a1]/20" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#d1e4e9]/78 via-[#bdd8e3]/72 to-[#0d47a1]/24" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(35,166,217,0.18),transparent_50%)]" />
       <Particles />
       <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-[#23A6D9]/14 rounded-full blur-3xl pointer-events-none" />
