@@ -117,9 +117,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Fuente de verdad: cookie HttpOnly validada en servidor.
       try {
+        const authHeaders: HeadersInit = token
+          ? { Authorization: `Bearer ${token}` }
+          : {};
         const response = await fetch("/api/auth/me", {
           method: "GET",
           cache: "no-store",
+          headers: authHeaders,
         });
         if (response.ok) {
           const data = await response.json();

@@ -7,10 +7,16 @@ const API_BASE_URL =
     ? "https://corpoelect-backend.onrender.com"
     : "http://127.0.0.1:8000");
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies();
-    const session = cookieStore.get("session")?.value;
+    const authHeader = request.headers.get("authorization");
+    const headerToken =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length).trim()
+        : "";
+    const cookieToken = cookieStore.get("session")?.value || "";
+    const session = headerToken || cookieToken;
 
     if (!session) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
@@ -39,7 +45,19 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(payload, { status: 200 });
+    const nextResponse = NextResponse.json(payload, { status: 200 });
+
+    if (headerToken && headerToken !== cookieToken) {
+      nextResponse.cookies.set("session", headerToken, {
+        httpOnly: true,
+        path: "/",
+        maxAge: 28800,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
+
+    return nextResponse;
   } catch (error) {
     console.error("Auth me API error:", error);
     return NextResponse.json(
