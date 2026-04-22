@@ -325,7 +325,7 @@ export async function updateUserRole(
     roleId: number,
     masterPassword?: string
 ): Promise<ApiUser> {
-    const res = await fetch(`${BASE_URL}/users/${userId}/role`, {
+    const res = await fetch(`/api/users/${userId}/role`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ rol_id: roleId, ...(masterPassword ? { master_password: masterPassword } : {}) }),
@@ -342,7 +342,7 @@ export async function updateUserProfile(
         email: string;
     },
 ): Promise<ApiUser> {
-    const res = await fetch(`${BASE_URL}/users/${userId}/profile`, {
+    const res = await fetch(`/api/users/${userId}/profile`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify(payload),
@@ -362,7 +362,7 @@ export async function updateUserAccountStatus(
     userId: string,
     status: "ACTIVO" | "INACTIVO" | "BLOQUEADO",
 ): Promise<{ status: string; user_id?: string; username?: string; new_status?: string }> {
-    const res = await fetch(`${BASE_URL}/users/${userId}/status`, {
+    const res = await fetch(`/api/users/${userId}/status`, {
         method: "PATCH",
         headers: getAuthHeaders(),
         body: JSON.stringify({ status }),
@@ -374,7 +374,7 @@ export async function updateUserPermissions(
     userId: string,
     permisos: string[],
 ): Promise<{ status: string }> {
-    const res = await fetch(`${BASE_URL}/users/${userId}/permissions`, {
+    const res = await fetch(`/api/users/${userId}/permissions`, {
         method: "PATCH",
         headers: getAuthHeaders(),
         body: JSON.stringify({ permisos }),
@@ -386,7 +386,7 @@ export async function resetUserPassword(
     userId: string,
     newPassword: string,
 ): Promise<{ status: string }> {
-    const res = await fetch(`${BASE_URL}/users/${userId}/reset-password`, {
+    const res = await fetch(`/api/users/${userId}/reset-password`, {
         method: "PUT",
         headers: getAuthHeaders(),
         body: JSON.stringify({ new_password: newPassword }),
@@ -395,7 +395,7 @@ export async function resetUserPassword(
 }
 
 export async function deleteUserAccount(userId: string): Promise<{ status: string }> {
-    const res = await fetch(`${BASE_URL}/users/${userId}`, {
+    const res = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
     });

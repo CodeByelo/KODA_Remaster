@@ -23,7 +23,7 @@ function parseResponse(text: string) {
   }
 }
 
-export async function PATCH(
+export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ userId: string }> },
 ) {
@@ -34,9 +34,10 @@ export async function PATCH(
     const { userId } = await params;
     for (const base of urls) {
       try {
-        const response = await fetch(`${base}/users/${userId}/unlock`, {
-          method: "PATCH",
+        const response = await fetch(`${base}/users/${userId}`, {
+          method: "DELETE",
           headers: await backendHeaders(request),
+          cache: "no-store",
         });
         const text = await response.text();
         return NextResponse.json(parseResponse(text), { status: response.status });
@@ -47,13 +48,7 @@ export async function PATCH(
 
     throw lastErr || new Error("No se pudo conectar al backend");
   } catch (error) {
-    console.error("Users unlock proxy error:", error);
-    return NextResponse.json(
-      {
-        detail:
-          "Error en el proxy de desbloqueo. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
-      },
-      { status: 500 },
-    );
+    console.error("User delete proxy error:", error);
+    return NextResponse.json({ detail: "Error en el proxy de eliminacion de usuario" }, { status: 500 });
   }
 }

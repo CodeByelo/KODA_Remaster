@@ -18,7 +18,7 @@ export default function BotButton({ onOpenChat, variant = 'floating', collapsed 
                 playsInline
                 preload="auto"
                 poster="/koda-bot.jpeg"
-                className="h-full w-full scale-[1.14] object-cover object-center"
+                className="h-full w-full scale-[1.3] object-cover object-[60%_46%]"
             />
         </div>
     );

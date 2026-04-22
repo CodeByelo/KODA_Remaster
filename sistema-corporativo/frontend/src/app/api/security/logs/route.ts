@@ -24,10 +24,7 @@ function parseResponse(text: string) {
   }
 }
 
-async function proxyRequest(
-  endpoint: string,
-  init: RequestInit,
-) {
+async function proxyRequest(endpoint: string, init: RequestInit) {
   const urls = [PRIMARY_URL, FALLBACK_URL].filter((v, i, arr) => arr.indexOf(v) === i);
   let lastErr: unknown = null;
 
@@ -35,11 +32,22 @@ async function proxyRequest(
     try {
       const response = await fetch(`${base}${endpoint}`, init);
       const text = await response.text();
-      return NextResponse.json(parseResponse(text), { status: response.status });
+      const data = parseResponse(text);
+
+      if (init.method === "GET" && response.status >= 500) {
+        return NextResponse.json([], { status: 200 });
+      }
+
+      return NextResponse.json(data, { status: response.status });
     } catch (error) {
       lastErr = error;
     }
   }
+
+  if (init.method === "GET") {
+    return NextResponse.json([], { status: 200 });
+  }
+
   throw lastErr || new Error("No se pudo conectar al backend");
 }
 
@@ -48,16 +56,11 @@ export async function GET(request: Request) {
     return await proxyRequest("/security/logs", {
       method: "GET",
       headers: await backendHeaders(request),
+      cache: "no-store",
     });
   } catch (error) {
     console.error("Security logs GET proxy error:", error);
-    return NextResponse.json(
-      {
-        detail:
-          "Error en el proxy de logs. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json([], { status: 200 });
   }
 }
 
@@ -68,16 +71,11 @@ export async function POST(request: Request) {
       method: "POST",
       headers: await backendHeaders(request, true),
       body: JSON.stringify(payload),
+      cache: "no-store",
     });
   } catch (error) {
     console.error("Security logs POST proxy error:", error);
-    return NextResponse.json(
-      {
-        detail:
-          "Error en el proxy de logs. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ detail: "Error en el proxy de logs" }, { status: 500 });
   }
 }
 
@@ -86,15 +84,10 @@ export async function DELETE(request: Request) {
     return await proxyRequest("/security/logs", {
       method: "DELETE",
       headers: await backendHeaders(request),
+      cache: "no-store",
     });
   } catch (error) {
     console.error("Security logs DELETE proxy error:", error);
-    return NextResponse.json(
-      {
-        detail:
-          "Error en el proxy de logs. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ detail: "Error en el proxy de logs" }, { status: 500 });
   }
 }

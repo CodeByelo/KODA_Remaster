@@ -122,7 +122,7 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
 
     if (user?.role !== 'Desarrollador') {
         return (
-            <div className="flex flex-col items-center justify-center p-20 text-red-500 font-bold">
+            <div className="flex flex-col items-center justify-center p-20 text-[#075159] font-bold">
                 <Shield size={48} className="mb-4" />
                 ACCESO DENEGADO - NIVEL RAIZ REQUERIDO (DEV)
             </div>
@@ -131,10 +131,10 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-zinc-900/50 border-red-900/30' : 'bg-white border-red-100 shadow-xl'}`}>
+            <div className={`p-6 rounded-2xl border ${darkMode ? 'bg-zinc-900/50 border-[#0da67b]/20' : 'bg-white border-[#0da67b]/15 shadow-xl'}`}>
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-red-600 rounded-xl text-white shadow-lg shadow-red-900/40">
+                        <div className="p-3 bg-[linear-gradient(135deg,#042f36_0%,#075159_58%,#0bbf8c_100%)] rounded-xl text-white shadow-lg shadow-[#075159]/25">
                             <Shield size={24} />
                         </div>
                         <div>
@@ -145,16 +145,16 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                     <button
                         onClick={saveAdminScope}
                         disabled={saving}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all transform active:scale-95 ${saved ? 'bg-green-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20'}`}
+                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all transform active:scale-95 ${saved ? 'bg-[#0bbf8c] text-white' : 'bg-[linear-gradient(120deg,#042f36_0%,#075159_58%,#0bbf8c_100%)] hover:brightness-110 text-white shadow-lg shadow-[#075159]/20'}`}
                     >
                         {saved ? <CheckCircle size={18} /> : <Save size={18} />}
                         {saving ? 'APLICANDO...' : saved ? 'GUARDADO' : 'GUARDAR ADMIN_SCOPE'}
                     </button>
                 </div>
 
-                <div className={`p-4 rounded-xl mb-6 flex items-start gap-3 ${darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
-                    <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
-                    <p className="text-xs text-blue-500/90 leading-relaxed font-medium">
+                <div className={`p-4 rounded-xl mb-6 flex items-start gap-3 ${darkMode ? 'bg-[#0da67b]/10 border border-[#0da67b]/20' : 'bg-[#e7f9f3] border border-[#0da67b]/20'}`}>
+                    <Info size={18} className="text-[#0da67b] shrink-0 mt-0.5" />
+                    <p className="text-xs text-[#075159] leading-relaxed font-medium">
                         Selecciona permisos para el rol Administrativo. Solo cuentas con rango Desarrollador pueden agregar o quitar permisos a usuarios Administrativos.
                     </p>
                 </div>
@@ -166,7 +166,7 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                     <div className="flex flex-wrap gap-2">
                         <button
                             onClick={enableAllPermissions}
-                            className="px-4 py-2 rounded-lg text-xs font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                            className="px-4 py-2 rounded-lg text-xs font-black bg-[#0da67b] text-white hover:bg-[#075159] transition-colors"
                         >
                             ACTIVAR TODOS LOS PERMISOS
                         </button>
@@ -238,14 +238,14 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                                             <button
                                                 type="button"
                                                 onClick={() => updateChannelVisibility(channel.id, 'public')}
-                                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${!isPrivate ? 'bg-emerald-600 text-white' : darkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${!isPrivate ? 'bg-[#0da67b] text-white' : darkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
                                             >
                                                 PUBLICO
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => updateChannelVisibility(channel.id, 'private')}
-                                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${isPrivate ? 'bg-red-600 text-white' : darkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${isPrivate ? 'bg-[#042f36] text-white' : darkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
                                             >
                                                 PRIVADO
                                             </button>
@@ -264,7 +264,7 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                                                         key={`${channel.id}-${role}`}
                                                         type="button"
                                                         onClick={() => toggleChannelRole(channel.id, role)}
-                                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${checked ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-zinc-900 text-zinc-300 border-zinc-700 hover:border-zinc-500' : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'}`}
+                                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${checked ? 'bg-[#075159] text-white border-[#075159]' : darkMode ? 'bg-zinc-900 text-zinc-300 border-zinc-700 hover:border-zinc-500' : 'bg-white text-slate-700 border-slate-300 hover:border-[#0da67b]'}`}
                                                     >
                                                         {role}
                                                     </button>
@@ -286,7 +286,7 @@ function PermissionGroup({ title, permissions, selected, onToggle, darkMode, isC
     return (
         <div className={`p-5 rounded-xl border ${darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-200'}`}>
             <h3 className={`text-xs font-black uppercase tracking-tighter mb-4 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-slate-400'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isCritical ? 'bg-red-500' : 'bg-zinc-600'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${isCritical ? 'bg-[#042f36]' : 'bg-[#0da67b]'}`} />
                 {title}
             </h3>
             <div className="space-y-3">
@@ -299,7 +299,7 @@ function PermissionGroup({ title, permissions, selected, onToggle, darkMode, isC
                                 onChange={() => onToggle(perm)}
                                 className="sr-only"
                             />
-                            <div className={`w-10 h-6 rounded-full transition-colors ${selected.includes(perm) ? (isCritical ? 'bg-red-600' : 'bg-blue-600') : (darkMode ? 'bg-zinc-800' : 'bg-slate-300')}`} />
+                            <div className={`w-10 h-6 rounded-full transition-colors ${selected.includes(perm) ? (isCritical ? 'bg-[#042f36]' : 'bg-[#0da67b]') : (darkMode ? 'bg-zinc-800' : 'bg-slate-300')}`} />
                             <div className={`absolute w-4 h-4 rounded-full bg-white transition-all shadow-sm ${selected.includes(perm) ? 'translate-x-5' : 'translate-x-1'}`} />
                         </div>
                         <span className={`text-[11px] font-bold transition-colors ${selected.includes(perm) ? (darkMode ? 'text-white' : 'text-slate-900') : 'text-slate-500 group-hover:text-slate-400'}`}>

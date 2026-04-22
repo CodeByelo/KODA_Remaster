@@ -112,8 +112,8 @@ export function SystemDialogHost() {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div className="w-full max-w-xl rounded-2xl border border-zinc-700/90 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 shadow-[0_30px_80px_rgba(0,0,0,0.55)] overflow-hidden">
-        <div className="px-6 py-5 border-b border-zinc-800 bg-gradient-to-r from-red-900/35 via-zinc-900 to-orange-900/20">
+      <div className="w-full max-w-xl rounded-2xl border border-[#0da67b]/20 bg-gradient-to-br from-[#042f36] via-[#051d10] to-zinc-950 shadow-[0_30px_80px_rgba(0,0,0,0.55)] overflow-hidden">
+        <div className="px-6 py-5 border-b border-[#0da67b]/15 bg-gradient-to-r from-[#042f36] via-[#075159] to-[#0da67b]/80">
           <h3 className="text-xl font-semibold text-zinc-100">{current.title || 'Mensaje'}</h3>
           <p className="text-base text-zinc-300 mt-2 whitespace-pre-wrap">{current.message}</p>
         </div>
@@ -129,7 +129,7 @@ export function SystemDialogHost() {
                 if (e.key === 'Escape') close(null);
               }}
               placeholder={current.placeholder || 'Escriba aqui...'}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+              className="w-full rounded-lg border border-[#0da67b]/20 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-[#0da67b] focus:ring-2 focus:ring-[#0da67b]/30"
             />
           </div>
         )}
@@ -150,7 +150,7 @@ export function SystemDialogHost() {
               else if (current.kind === 'prompt') close(inputValue.trim());
               else close(undefined);
             }}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 text-white hover:from-red-500 hover:to-orange-500 transition-colors font-semibold"
+            className="px-5 py-2.5 rounded-xl bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white hover:brightness-110 transition-colors font-semibold"
           >
             {confirmLabel}
           </button>

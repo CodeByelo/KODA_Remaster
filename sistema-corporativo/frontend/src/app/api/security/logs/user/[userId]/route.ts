@@ -37,8 +37,12 @@ export async function GET(
         const response = await fetch(`${base}/security/logs/user/${userId}`, {
           method: "GET",
           headers: await backendHeaders(request),
+          cache: "no-store",
         });
         const text = await response.text();
+        if (response.status >= 500) {
+          return NextResponse.json([], { status: 200 });
+        }
         return NextResponse.json(parseResponse(text), { status: response.status });
       } catch (error) {
         lastErr = error;
@@ -48,12 +52,6 @@ export async function GET(
     throw lastErr || new Error("No se pudo conectar al backend");
   } catch (error) {
     console.error("Security user logs GET proxy error:", error);
-    return NextResponse.json(
-      {
-        detail:
-          "Error en el proxy de logs por usuario. Verifique backend local (127.0.0.1:8000) o NEXT_PUBLIC_API_URL.",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json([], { status: 200 });
   }
 }

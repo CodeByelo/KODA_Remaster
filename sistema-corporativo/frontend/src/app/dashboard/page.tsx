@@ -159,7 +159,7 @@ interface AnnouncementData {
 
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{6})$/;
 
-function normalizeHexColor(value?: string, fallback = "#dc2626"): string {
+function normalizeHexColor(value?: string, fallback = "#075159"): string {
   const candidate = String(value || "").trim();
   return HEX_COLOR_RE.test(candidate) ? candidate : fallback;
 }
@@ -4563,7 +4563,7 @@ export default function Dashboard() {
       "Se les informa a todas las Gerencias que a partir de las 14:00h se iniciará la migración de los protocolos de firma digital. Por favor, aseguren sus trámites pendientes.",
     status: "Activo",
     urgency: "Alta",
-    color: "#dc2626",
+    color: "#075159",
   });
 
   // Persistencia de anuncios
@@ -5540,7 +5540,7 @@ export default function Dashboard() {
                     playsInline
                     preload="auto"
                     poster="/koda-bot.jpeg"
-                    className="h-full w-full scale-[1.14] object-cover object-center"
+                    className="h-full w-full scale-[1.32] object-cover object-[60%_46%]"
                   />
                 </div>
               </motion.div>

@@ -40,6 +40,13 @@ interface SecurityModuleProps {
 }
 
 export default function SecurityModule({ darkMode, announcement, setAnnouncement, documents, setDocuments, userRole, orgStructure, setOrgStructure }: SecurityModuleProps) {
+    const brand = {
+        primary: '#075159',
+        accent: '#0BBF8C',
+        accentSoft: '#0DA67B',
+        deep: '#051D10',
+        dark: '#042F36',
+    };
     const [activeTab, setActiveTab] = useState('docLogs');
     const [logs, setLogs] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
@@ -146,11 +153,10 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                 setUsers([]);
             }
 
-            if (logsResult.status === 'rejected' || usersResult.status === 'rejected') {
-                const fragments: string[] = [];
-                if (logsResult.status === 'rejected') fragments.push('historial de accesos');
-                if (usersResult.status === 'rejected') fragments.push('gestión de usuarios');
-                setSecurityDataError(`No se pudo cargar completamente ${fragments.join(' y ')}.`);
+            if (usersResult.status === 'rejected') {
+                setSecurityDataError('No se pudo cargar la gestión de usuarios.');
+            } else if (logsResult.status === 'rejected') {
+                setSecurityDataError('El historial de accesos no está disponible en este momento.');
             }
         } catch (error) {
             console.error("Error fetching security data:", error);
@@ -242,7 +248,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const [isAnnouncementDirty, setIsAnnouncementDirty] = useState(false);
     const safeAnnouncementColor = /^#([0-9a-fA-F]{6})$/.test(String(announcementDraft?.color || ''))
         ? announcementDraft.color
-        : '#dc2626';
+        : brand.primary;
 
     useEffect(() => {
         if (!isAnnouncementDirty) {
@@ -356,7 +362,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                         <h3 className={`text-3xl font-bold mt-1 ${theme.text}`}>{activeUsersCount}</h3>
                         <p className={`text-xs mt-1 ${theme.subtext}`}>Usuarios con cuenta habilitada</p>
                     </div>
-                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-emerald-900/30 text-emerald-300' : 'bg-[#e7f9f3] text-[#075159]'}`}>
                         <Users size={24} />
                     </div>
                 </div>
@@ -365,7 +371,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                         <p className="text-sm font-medium uppercase tracking-wider text-slate-500">Eventos Hoy</p>
                         <h3 className={`text-3xl font-bold mt-1 ${theme.text}`}>{getEventsToday()}</h3>
                     </div>
-                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600'}`}>
+                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-cyan-900/30 text-cyan-300' : 'bg-[#e4f5f7] text-[#042f36]'}`}>
                         <Activity size={24} />
                     </div>
                 </div>
@@ -374,7 +380,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                         <p className="text-sm font-medium uppercase tracking-wider text-slate-500">Alertas Seguridad</p>
                         <h3 className={`text-3xl font-bold mt-1 ${theme.text}`}>{getSecurityAlerts()}</h3>
                     </div>
-                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+                    <div className={`p-3 rounded-lg ${darkMode ? 'bg-teal-900/30 text-teal-300' : 'bg-[#e7f9f3] text-[#0da67b]'}`}>
                         <Lock size={24} />
                     </div>
                 </div>
@@ -386,7 +392,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     onClick={() => scrollTabs('left')}
                     className={`absolute left-0 top-0 bottom-0 z-10 px-1 flex items-center bg-gradient-to-r ${darkMode ? 'from-zinc-900 via-zinc-900/80 to-transparent' : 'from-white via-white/80 to-transparent'} opacity-40 hover:opacity-100 transition-opacity`}
                 >
-                    <ChevronLeft size={20} className="text-red-600" />
+                    <ChevronLeft size={20} className="text-[#0da67b]" />
                 </button>
 
                 <div
@@ -396,7 +402,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_VIEW_LOGS) && (
                         <button
                             onClick={() => setActiveTab('docLogs')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'docLogs' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'docLogs' ? 'border-[#0da67b] text-[#075159]' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-[#075159]'}`}
                         >
                             LOGS DE DOCUMENTOS
                         </button>
@@ -404,7 +410,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_ANNOUNCEMENTS) && (
                         <button
                             onClick={() => setActiveTab('anuncios')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'anuncios' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'anuncios' ? 'border-[#0da67b] text-[#075159]' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-[#075159]'}`}
                         >
                             GESTION DE ANUNCIOS
                         </button>
@@ -412,7 +418,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_VIEW_LOGS) && (
                         <button
                             onClick={() => setActiveTab('logs')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'logs' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'logs' ? 'border-[#0da67b] text-[#075159]' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-[#075159]'}`}
                         >
                             HISTORIAL DE ACCESOS
                         </button>
@@ -420,7 +426,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SECURITY_MANAGE_USERS) && (
                         <button
                             onClick={() => setActiveTab('users')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'users' ? 'border-[#0da67b] text-[#075159]' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-[#075159]'}`}
                         >
                             GESTION DE USUARIOS
                         </button>
@@ -428,7 +434,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
                         <button
                             onClick={() => setActiveTab('orgMgmt')}
-                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'orgMgmt' ? 'border-red-600 text-red-600' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-slate-900'}`}
+                            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'orgMgmt' ? 'border-[#0da67b] text-[#075159]' : darkMode ? 'border-transparent text-slate-500 hover:text-slate-300' : 'border-transparent text-slate-600 hover:text-[#075159]'}`}
                         >
                             ESTRUCTURA ORGANIZATIVA
                         </button>
@@ -439,7 +445,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     onClick={() => scrollTabs('right')}
                     className={`absolute right-0 top-0 bottom-0 z-10 px-1 flex items-center bg-gradient-to-l ${darkMode ? 'from-zinc-900 via-zinc-900/80 to-transparent' : 'from-white via-white/80 to-transparent'} opacity-40 hover:opacity-100 transition-opacity`}
                 >
-                    <ChevronRight size={20} className="text-red-600" />
+                    <ChevronRight size={20} className="text-[#0da67b]" />
                 </button>
             </div>
 
@@ -447,11 +453,11 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
             <div className={`rounded-xl shadow-sm border overflow-hidden min-h-[500px] ${theme.card}`}>
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
-                        <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="w-8 h-8 border-4 border-[#0da67b] border-t-transparent rounded-full animate-spin"></div>
                     </div>
                 ) : (
                     <>
-                        {securityDataError && (
+                        {securityDataError && (activeTab === 'logs' || activeTab === 'users') && (
                             <div className={`mx-4 mt-4 rounded-lg border px-4 py-3 text-sm ${darkMode ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                                 {securityDataError}
                             </div>
@@ -461,7 +467,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             <div className="animate-in fade-in duration-500">
                                 <div className={`p-4 border-b flex justify-between items-center ${darkMode ? 'border-zinc-800' : 'border-slate-100'}`}>
                                     <div className="flex items-center gap-3">
-                                        <Activity className="text-red-600" size={20} />
+                                        <Activity className="text-[#0da67b]" size={20} />
                                         <div>
                                             <h3 className={`font-bold ${theme.text}`}>Editor de Comunicado Principal</h3>
                                             <p className={`text-[10px] ${theme.subtext}`}>Modifica el banner que visualizan todos los usuarios en el Dashboard General</p>
@@ -482,7 +488,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         localStorage.setItem("announcement_editing", "1");
                                                         setAnnouncementDraft({ ...announcementDraft, badge: e.target.value });
                                                     }}
-                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
+                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}
                                                     placeholder="Ej: Comunicado del Dia"
                                                 />
                                             </div>
@@ -496,7 +502,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         localStorage.setItem("announcement_editing", "1");
                                                         setAnnouncementDraft({ ...announcementDraft, title: e.target.value });
                                                     }}
-                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
+                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}
                                                 />
                                             </div>
                                             <div>
@@ -509,7 +515,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         localStorage.setItem("announcement_editing", "1");
                                                         setAnnouncementDraft({ ...announcementDraft, description: e.target.value });
                                                     }}
-                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
+                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}
                                                 />
                                             </div>
                                         </div>
@@ -524,7 +530,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         localStorage.setItem("announcement_editing", "1");
                                                         setAnnouncementDraft({ ...announcementDraft, urgency: e.target.value });
                                                     }}
-                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
+                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}
                                                 >
                                                     <option value="Alta">Alta</option>
                                                     <option value="Media">Media</option>
@@ -540,7 +546,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         localStorage.setItem("announcement_editing", "1");
                                                         setAnnouncementDraft({ ...announcementDraft, status: e.target.value });
                                                     }}
-                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
+                                                    className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}
                                                 >
                                                     <option value="Activo">Activo</option>
                                                     <option value="Mantenimiento">Mantenimiento</option>
@@ -569,8 +575,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                             localStorage.setItem("announcement_editing", "1");
                                                             setAnnouncementDraft({ ...announcementDraft, color: e.target.value });
                                                         }}
-                                                        className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}
-                                                        placeholder="#dc2626"
+                                                        className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}
+                                                        placeholder={brand.primary}
                                                     />
                                                 </div>
                                                 <p className={`mt-2 text-[10px] ${theme.subtext}`}>
@@ -606,7 +612,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                     void uiAlert('No se pudo guardar el anuncio. Intenta de nuevo.', 'Anuncios');
                                                 }
                                             }}
-                                            className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold"
+                                            className="px-6 py-2 rounded-lg bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] hover:brightness-110 text-white font-bold shadow-lg shadow-[#075159]/20"
                                         >
                                             GUARDAR ANUNCIO
                                         </button>
@@ -628,7 +634,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 value={docSearch}
                                                 onChange={(e) => setDocSearch(e.target.value)}
                                                 placeholder="Buscar documento..."
-                                                className={`pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                                className={`pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0da67b]/20 focus:border-[#0da67b] ${theme.input}`}
                                             />
                                         </div>
                                         <button
@@ -657,7 +663,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             {filteredDocs.map((log) => (
                                                 <tr key={log.id} className={`${theme.rowHover} transition-colors`}>
                                                     <td className={`px-6 py-4 flex flex-col ${theme.text}`}>
-                                                        <span className="font-bold text-xs text-red-500">{log.category}</span>
+                                                        <span className="font-bold text-xs text-[#0da67b]">{log.category}</span>
                                                         <span className="font-mono text-[10px] opacity-70">{log.idDoc}</span>
                                                     </td>
                                                     <td className={`px-6 py-4 font-medium ${theme.text}`}>{log.name}</td>
@@ -677,7 +683,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                             {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
                                                                 <button
                                                                     onClick={() => deleteDocument(log.id, log.name)}
-                                                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
+                                                                    className="p-2 text-[#075159] hover:bg-[#0da67b]/10 rounded-full transition-colors"
                                                                     title="Eliminar Documento"
                                                                 >
                                                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
@@ -702,7 +708,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         {hasPermission(PERMISSIONS_MASTER.SYS_DEV_TOOLS) && (
                                             <button
                                                 onClick={handlePurgeLogs}
-                                                className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                                                className="px-3 py-2 text-xs font-bold uppercase rounded-lg bg-[#075159] text-white hover:bg-[#042f36] transition-colors"
                                             >
                                                 Limpiar Logs
                                             </button>
@@ -714,7 +720,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 value={logSearch}
                                                 onChange={(e) => setLogSearch(e.target.value)}
                                                 placeholder="Buscar evento..."
-                                                className={`pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                                className={`pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0da67b]/20 focus:border-[#0da67b] ${theme.input}`}
                                             />
                                         </div>
                                     </div>
@@ -735,7 +741,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         <tbody className={`divide-y ${darkMode ? 'divide-zinc-800' : 'divide-slate-100'}`}>
                                             {filteredLogs.map((log) => (
                                                 <tr key={log.id} className={`${theme.rowHover} transition-colors`}>
-                                                    <td className={`px-6 py-4 font-medium border-l-4 border-transparent hover:border-red-500 whitespace-nowrap ${theme.text}`}>
+                                                    <td className={`px-6 py-4 font-medium border-l-4 border-transparent hover:border-[#0da67b] whitespace-nowrap ${theme.text}`}>
                                                         {log.username}
                                                     </td>
                                                     <td className={`px-6 py-4 whitespace-normal break-all leading-relaxed ${theme.text}`}>{log.evento}</td>
@@ -781,7 +787,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                 <div className={`p-4 border-b flex justify-between items-center ${darkMode ? 'border-zinc-800' : 'border-slate-100'}`}>
                                     <h3 className={`font-bold ${theme.text}`}>Directorio de Usuarios</h3>
                                     {hasPermission(PERMISSIONS_MASTER.SECURITY_MANAGE_USERS) && (
-                                        <a href="/registro" className="text-sm text-white bg-red-600 px-3 py-1.5 rounded-lg font-medium hover:bg-red-700 flex items-center gap-1 transition-colors">
+                                        <a href="/registro" className="text-sm text-white bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] px-3 py-1.5 rounded-lg font-medium hover:brightness-110 flex items-center gap-1 transition-colors shadow-lg shadow-[#075159]/15">
                                             <span>+</span> Crear Usuario
                                         </a>
                                     )}
@@ -794,14 +800,14 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             value={userSearch}
                                             onChange={(e) => setUserSearch(e.target.value)}
                                             placeholder="Buscar usuario, nombre, apellido o rol..."
-                                            className={`w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                            className={`w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0da67b]/20 focus:border-[#0da67b] ${theme.input}`}
                                         />
                                     </div>
                                     <div>
                                         <select
                                             value={userDeptFilter}
                                             onChange={(e) => setUserDeptFilter(e.target.value)}
-                                            className={`w-full px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 ${theme.input}`}
+                                            className={`w-full px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0da67b]/20 focus:border-[#0da67b] ${theme.input}`}
                                         >
                                             <option value="all">Todas las gerencias</option>
                                             {userDeptOptions.map((dept) => (
@@ -830,7 +836,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                 return (
                                                     <tr key={u.id} className={`${theme.rowHover} transition-colors`}>
                                                         <td className={`px-6 py-4 font-bold flex items-center gap-2 ${theme.text}`}>
-                                                            <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs uppercase">
+                                                            <div className="w-8 h-8 rounded-full bg-[#e7f9f3] text-[#075159] flex items-center justify-center font-bold text-xs uppercase">
                                                                 {u.usuario_corp ? u.usuario_corp.substring(0, 2) : '??'}
                                                             </div>
                                                             {u.usuario_corp}
@@ -838,7 +844,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         <td className={`px-6 py-4 ${theme.text}`}>{u.nombre} {u.apellido}</td>
                                                         <td className={`px-6 py-4 ${theme.subtext}`}>{u.gerencia_depto}</td>
                                                         <td className="px-6 py-4">
-                                                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${u.role === 'Desarrollador' ? 'bg-red-600 text-white' : (u.role === 'Administrativo' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-200')}`}>
+                                                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${u.role === 'Desarrollador' ? 'bg-[#042f36] text-white' : (u.role === 'Administrativo' ? 'bg-[#0da67b] text-white' : 'bg-slate-700 text-slate-200')}`}>
                                                                 {u.role || 'Usuario'}
                                                             </span>
                                                         </td>
@@ -848,7 +854,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                                     <>
                                                                         <button
                                                                             onClick={() => setSelectedUserForPerms(u)}
-                                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 rounded-lg text-xs font-bold border border-blue-500/20 transition-all"
+                                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0da67b]/10 text-[#075159] hover:bg-[#0da67b]/20 rounded-lg text-xs font-bold border border-[#0da67b]/25 transition-all"
                                                                         >
                                                                             <Lock size={12} /> GESTIONAR PERMISOS
                                                                         </button>
@@ -914,7 +920,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             <div className="space-y-6 animate-in fade-in duration-500 p-6">
                                 <div className={`p-6 rounded-xl border ${theme.card}`}>
                                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                        <Briefcase size={20} className="text-red-600" /> ANADIR NUEVO MODULO
+                                        <Briefcase size={20} className="text-[#0da67b]" /> ANADIR NUEVO MODULO
                                     </h3>
                                     <div className="flex flex-wrap gap-4 items-end">
                                         <div className="flex-1 min-w-[300px]">
@@ -922,13 +928,13 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <input
                                                 value={newModuleName}
                                                 onChange={(e) => setNewModuleName(e.target.value)}
-                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 ${theme.input} outline-none`}
+                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] ${theme.input} outline-none`}
                                                 placeholder="Ej: VII. Gestion Comercial"
                                             />
                                         </div>
                                         <button
                                             onClick={handleAddModule}
-                                            className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20 active:scale-95 transition-transform"
+                                            className="px-6 py-2 bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white font-bold rounded-lg hover:brightness-110 transition-colors shadow-lg shadow-[#075159]/20 active:scale-95 transition-transform"
                                         >
                                             CREAR MODULO
                                         </button>
@@ -936,7 +942,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                 </div>
                                 <div className={`p-6 rounded-xl border ${theme.card}`}>
                                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                        <Plus size={20} className="text-red-600" /> ANADIR NUEVA GERENCIA
+                                        <Plus size={20} className="text-[#0da67b]" /> ANADIR NUEVA GERENCIA
                                     </h3>
                                     <div className="flex flex-wrap gap-4 items-end">
                                         <div className="flex-1 min-w-[300px]">
@@ -944,7 +950,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <input
                                                 value={newDeptName}
                                                 onChange={(e) => setNewDeptName(e.target.value)}
-                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 ${theme.input} outline-none`}
+                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] ${theme.input} outline-none`}
                                                 placeholder="Ej: Gerencia Nacional de Logistica"
                                             />
                                         </div>
@@ -953,7 +959,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <select
                                                 value={newGroupIdx}
                                                 onChange={(e) => setNewGroupIdx(parseInt(e.target.value))}
-                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 ${theme.input} outline-none`}
+                                                className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] ${theme.input} outline-none`}
                                             >
                                                 {orgStructure.map((g: any, i: number) => (
                                                     <option key={i} value={i}>{g.category}</option>
@@ -962,7 +968,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         </div>
                                         <button
                                             onClick={handleAddDept}
-                                            className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20 active:scale-95 transition-transform"
+                                            className="px-6 py-2 bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white font-bold rounded-lg hover:brightness-110 transition-colors shadow-lg shadow-[#075159]/20 active:scale-95 transition-transform"
                                         >
                                             GUARDAR
                                         </button>
@@ -975,19 +981,19 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                             <div className="flex items-center gap-2 mb-4 border-b pb-3 border-zinc-800/50">
                                                 {(() => {
                                                     const IconComp = ORG_ICONS[group.icon] || Shield;
-                                                    return <IconComp size={20} className="text-red-500" />;
+                                                    return <IconComp size={20} className="text-[#0da67b]" />;
                                                 })()}
                                                 <h4 className="font-bold text-sm tracking-tight flex-1">{group.category}</h4>
                                                 <button
                                                     onClick={() => handleEditModule(groupIdx)}
-                                                    className={`p-1.5 rounded-md hover:bg-blue-500/20 hover:text-blue-400 transition-colors ${theme.subtext}`}
+                                                    className={`p-1.5 rounded-md hover:bg-[#0da67b]/15 hover:text-[#075159] transition-colors ${theme.subtext}`}
                                                     title="Editar módulo"
                                                 >
                                                     <Edit2 size={12} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteModule(groupIdx)}
-                                                    className={`p-1.5 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors ${theme.subtext}`}
+                                                    className={`p-1.5 rounded-md hover:bg-[#042f36]/12 hover:text-[#042f36] transition-colors ${theme.subtext}`}
                                                     title="Eliminar módulo"
                                                 >
                                                     <Trash2 size={12} />
@@ -1000,13 +1006,13 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <button
                                                                 onClick={() => handleEditDept(groupIdx, itemIdx)}
-                                                                className={`p-1.5 rounded-md hover:bg-blue-500/20 hover:text-blue-400 transition-colors ${theme.subtext}`}
+                                                                className={`p-1.5 rounded-md hover:bg-[#0da67b]/15 hover:text-[#075159] transition-colors ${theme.subtext}`}
                                                             >
                                                                 <Edit2 size={12} />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteDept(groupIdx, itemIdx)}
-                                                                className={`p-1.5 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors ${theme.subtext}`}
+                                                                className={`p-1.5 rounded-md hover:bg-[#042f36]/12 hover:text-[#042f36] transition-colors ${theme.subtext}`}
                                                             >
                                                                 <Trash2 size={12} />
                                                             </button>
@@ -1040,8 +1046,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             </button>
                         </div>
                         <div className="p-8 space-y-6">
-                            <div className={`p-10 border-2 border-dashed rounded-xl text-center transition-colors ${darkMode ? 'border-zinc-800 bg-zinc-950/30 hover:border-red-500/50' : 'border-slate-200 bg-slate-50 hover:border-red-500/50'}`}>
-                                <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                            <div className={`p-10 border-2 border-dashed rounded-xl text-center transition-colors ${darkMode ? 'border-zinc-800 bg-zinc-950/30 hover:border-[#0da67b]/50' : 'border-slate-200 bg-slate-50 hover:border-[#0da67b]/50'}`}>
+                                <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-[#e7f9f3] flex items-center justify-center text-[#075159]">
                                     <Download size={24} />
                                 </div>
                                 <p className={`text-sm font-medium ${theme.text}`}>Haz clic para subir o arrastra un archivo</p>
@@ -1050,7 +1056,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                             <div className="space-y-4">
                                 <div>
                                     <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Tipo de Documento</label>
-                                    <select className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`}>
+                                    <select className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`}>
                                         <option>Circular</option>
                                         <option>Oficio</option>
                                         <option>Informe</option>
@@ -1059,16 +1065,16 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                 </div>
                                 <div>
                                     <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Gerencia Destino</label>
-                                    <input type="text" className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`} placeholder="Escriba la gerencia..." />
+                                    <input type="text" className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`} placeholder="Escriba la gerencia..." />
                                 </div>
                                 <div>
                                     <label className={`block text-xs font-bold uppercase mb-2 ${theme.subtext}`}>Observaciones</label>
-                                    <textarea rows={3} className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-red-500 outline-none ${theme.input}`} placeholder="Opcional..."></textarea>
+                                    <textarea rows={3} className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-[#0da67b]/25 focus:border-[#0da67b] outline-none ${theme.input}`} placeholder="Opcional..."></textarea>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setIsUploadPanelOpen(false)}
-                                className="w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-[0.98]"
+                                className="w-full py-3 bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white rounded-xl font-bold hover:brightness-110 transition-all shadow-lg shadow-[#075159]/20 active:scale-[0.98]"
                             >
                                 Procesar Documento
                             </button>
@@ -1081,12 +1087,16 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 }
 
 function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { user: any, onClose: () => void, darkMode: boolean, currentUserPerms: string[] }) {
-    const [userPerms, setUserPerms] = useState<string[]>(user.permissions || user.permisos || []);
+    const normalizePerms = (perms: string[]) =>
+        perms.filter((perm, index, self) => self.indexOf(perm) === index);
+    const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => currentUserPerms.includes(p));
+    const buildVisiblePerms = (rawPerms: string[]) =>
+        normalizePerms(rawPerms).filter((perm) => availablePermissions.includes(perm));
+
+    const [userPerms, setUserPerms] = useState<string[]>(buildVisiblePerms(user.permissions || user.permisos || []));
     const [saved, setSaved] = useState(false);
     const [devRoleMasterPassword, setDevRoleMasterPassword] = useState<string | null>(null);
-
-    // Jerarquia: Los permisos disponibles para asignar son solo aquellos que el admin posee
-    const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => currentUserPerms.includes(p));
+    const activeVisiblePermissionsCount = availablePermissions.filter((perm) => userPerms.includes(perm)).length;
 
     const togglePermission = (perm: string) => {
         setUserPerms(prev =>
@@ -1107,6 +1117,13 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
 
     const [selectedRole, setSelectedRole] = useState(user.role || 'Usuario'); // Roles: 'Usuario', 'Administrativo', 'CEO', 'Gerente'
     const roles = ['Usuario', 'Administrativo', 'CEO', 'Gerente'];
+
+    useEffect(() => {
+        setUserPerms(buildVisiblePerms(user.permissions || user.permisos || []));
+        setSelectedRole(user.role || 'Usuario');
+        setDevRoleMasterPassword(null);
+        setSaved(false);
+    }, [user]);
 
     const authorizeDeveloperRole = async () => {
         const pwd = await uiPrompt("Clave maestra requerida para asignar rol Desarrollador:", "", "Asignar Desarrollador");
@@ -1136,7 +1153,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                     if (scoped) {
                         const parsed = JSON.parse(scoped);
                         if (Array.isArray(parsed)) {
-                            effectivePerms = parsed;
+                            effectivePerms = buildVisiblePerms(parsed);
                         }
                     }
                 } catch (error) {
@@ -1165,7 +1182,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
             <div className={`w-full max-w-2xl rounded-2xl border shadow-2xl overflow-hidden ${darkMode ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>
                 <div className="p-6 border-b border-zinc-800/50 flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-blue-600 rounded-xl text-white">
+                        <div className="p-2.5 bg-[linear-gradient(135deg,#042f36_0%,#075159_60%,#0bbf8c_100%)] rounded-xl text-white shadow-lg shadow-[#075159]/20">
                             <Lock size={18} />
                         </div>
                         <div>
@@ -1189,10 +1206,11 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                         if (role !== 'Desarrollador') {
                                             setDevRoleMasterPassword(null);
                                         }
+                                        setSaved(false);
                                     }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedRole === role
-                                        ? 'bg-red-600 text-white shadow-lg shadow-red-900/40'
-                                        : (darkMode ? 'bg-zinc-800 text-slate-400 hover:bg-zinc-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100')
+                                        ? 'bg-[linear-gradient(135deg,#042f36_0%,#075159_58%,#0bbf8c_100%)] text-white shadow-lg shadow-[#075159]/25'
+                                        : (darkMode ? 'bg-zinc-800 text-slate-400 hover:bg-zinc-700' : 'bg-white text-slate-600 border border-slate-200 hover:bg-[#eefaf6] hover:border-[#0da67b]/30')
                                         }`}
                                 >
                                     {role}
@@ -1201,14 +1219,14 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                             <button
                                 onClick={authorizeDeveloperRole}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${darkMode
-                                    ? 'bg-amber-700/70 text-amber-100 hover:bg-amber-600'
-                                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                                    ? 'bg-[#075159]/70 text-emerald-100 hover:bg-[#0da67b]'
+                                    : 'bg-[#0da67b] text-white hover:bg-[#075159]'
                                     }`}
                             >
                                 Asignar Desarrollador (Clave)
                             </button>
                             {selectedRole === 'Desarrollador' && (
-                                <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${devRoleMasterPassword ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+                                <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${devRoleMasterPassword ? 'bg-[#0bbf8c] text-white' : 'bg-[#042f36] text-white'}`}>
                                     {devRoleMasterPassword ? 'DEV listo para aplicar' : 'DEV sin clave'}
                                 </span>
                             )}
@@ -1218,7 +1236,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                         <div className="md:col-span-2 flex flex-wrap items-center gap-2">
                             <button
                                 onClick={enableAllForUser}
-                                className="px-3 py-1.5 rounded-lg text-[11px] font-black bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                                className="px-3 py-1.5 rounded-lg text-[11px] font-black bg-[#0da67b] text-white hover:bg-[#075159] transition-colors"
                             >
                                 ACTIVAR TODOS
                             </button>
@@ -1229,14 +1247,14 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                 QUITAR TODOS
                             </button>
                             <span className="text-[11px] font-bold text-slate-500">
-                                {userPerms.length} / {availablePermissions.length} activos
+                                {activeVisiblePermissionsCount} / {availablePermissions.length} activos
                             </span>
                         </div>
                         {availablePermissions.length > 0 ? (
                             availablePermissions.map(perm => (
-                                <label key={perm} className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer group transition-all ${userPerms.includes(perm) ? (darkMode ? 'bg-blue-600/10 border-blue-500/50' : 'bg-blue-50 border-blue-200') : (darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-100')}`}>
+                                <label key={perm} className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer group transition-all ${userPerms.includes(perm) ? (darkMode ? 'bg-[#0da67b]/12 border-[#0bbf8c]/45' : 'bg-[#e7f9f3] border-[#0da67b]/30') : (darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-100')}`}>
                                     <div>
-                                        <p className={`text-[11px] font-bold ${userPerms.includes(perm) ? (darkMode ? 'text-blue-400' : 'text-blue-700') : 'text-slate-500'}`}>
+                                        <p className={`text-[11px] font-bold ${userPerms.includes(perm) ? (darkMode ? 'text-[#0bbf8c]' : 'text-[#075159]') : 'text-slate-500'}`}>
                                             {PERMISSION_LABELS[perm] || perm}
                                         </p>
                                     </div>
@@ -1247,7 +1265,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                                             onChange={() => togglePermission(perm)}
                                             className="sr-only"
                                         />
-                                        <div className={`w-10 h-6 rounded-full transition-colors ${userPerms.includes(perm) ? 'bg-blue-600' : (darkMode ? 'bg-zinc-800' : 'bg-slate-300')}`} />
+                                        <div className={`w-10 h-6 rounded-full transition-colors ${userPerms.includes(perm) ? 'bg-[#0da67b]' : (darkMode ? 'bg-zinc-800' : 'bg-slate-300')}`} />
                                         <div className={`absolute w-4 h-4 rounded-full bg-white transition-all shadow-sm ${userPerms.includes(perm) ? 'translate-x-5' : 'translate-x-1'} top-1`} />
                                     </div>
                                 </label>
@@ -1264,7 +1282,7 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
                     <button onClick={onClose} className="px-6 py-2 rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors">CANCELAR</button>
                     <button
                         onClick={handleSave}
-                        className={`px-8 py-2 rounded-xl text-sm font-bold transition-all transform active:scale-95 flex items-center gap-2 ${saved ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/40'}`}
+                        className={`px-8 py-2 rounded-xl text-sm font-bold transition-all transform active:scale-95 flex items-center gap-2 ${saved ? 'bg-[#0bbf8c] text-white' : 'bg-[linear-gradient(120deg,#042f36_0%,#075159_58%,#0bbf8c_100%)] hover:brightness-110 text-white shadow-lg shadow-[#075159]/25'}`}
                     >
                         {saved ? <CheckCircle size={16} /> : <Save size={16} />}
                         {saved ? 'GUARDADO' : 'APLICAR CAMBIOS'}
