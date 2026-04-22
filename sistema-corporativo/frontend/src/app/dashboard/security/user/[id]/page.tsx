@@ -43,6 +43,7 @@ export default function UserHistoryPage() {
         email: "",
     });
     const userId = params?.id;
+    const safeLogs = Array.isArray(logs) ? logs : [];
 
     const goBackToDashboard = () => {
         router.replace('/dashboard');
@@ -289,7 +290,7 @@ export default function UserHistoryPage() {
     if (!mounted || loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-zinc-950">
-                <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-10 h-10 border-4 border-[#0da67b] border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
@@ -298,7 +299,7 @@ export default function UserHistoryPage() {
         return (
             <div className="p-8 text-center text-zinc-400 bg-zinc-950 min-h-screen">
                 Usuario no encontrado.
-                <button onClick={goBackToDashboard} className="block mx-auto mt-4 text-red-600 underline">Volver</button>
+                <button onClick={goBackToDashboard} className="block mx-auto mt-4 text-[#0da67b] underline">Volver</button>
             </div>
         );
     }
@@ -307,8 +308,8 @@ export default function UserHistoryPage() {
         <div className="p-6 space-y-6 bg-zinc-950 min-h-screen font-sans text-zinc-200">
             {dialog.open && (
                 <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-lg rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl overflow-hidden">
-                        <div className="px-5 py-4 border-b border-zinc-800 bg-gradient-to-r from-red-900/40 via-zinc-900 to-zinc-900">
+                    <div className="w-full max-w-lg rounded-2xl border border-[#0da67b]/20 bg-zinc-900 shadow-2xl overflow-hidden">
+                        <div className="px-5 py-4 border-b border-[#0da67b]/15 bg-gradient-to-r from-[#042f36] via-[#075159] to-[#0da67b]/80">
                             <h3 className="text-lg font-bold text-zinc-100">{dialog.title}</h3>
                             <p className="text-sm text-zinc-300 mt-1">{dialog.message}</p>
                         </div>
@@ -321,7 +322,7 @@ export default function UserHistoryPage() {
                                     onChange={(e) =>
                                         setDialog((prev) => ({ ...prev, inputValue: e.target.value }))
                                     }
-                                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-[#0da67b] focus:ring-2 focus:ring-[#0da67b]/30"
                                     placeholder="Escriba aqui..."
                                 />
                             )}
@@ -339,7 +340,7 @@ export default function UserHistoryPage() {
                                 onClick={() =>
                                     closeDialog(dialog.type === "prompt" ? (dialog.inputValue || "").trim() : true)
                                 }
-                                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-semibold"
+                                className="px-4 py-2 rounded-lg bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white hover:brightness-110 transition-colors font-semibold"
                             >
                                 {dialog.confirmText || "Aceptar"}
                             </button>
@@ -354,7 +355,7 @@ export default function UserHistoryPage() {
                             notice.type === "success"
                                 ? "bg-emerald-900/85 border-emerald-500/50 text-emerald-100"
                                 : notice.type === "error"
-                                    ? "bg-red-900/85 border-red-500/50 text-red-100"
+                                    ? "bg-[#042f36]/95 border-[#0da67b]/40 text-white"
                                     : "bg-zinc-900/90 border-zinc-600 text-zinc-100"
                         }`}
                     >
@@ -364,8 +365,8 @@ export default function UserHistoryPage() {
             )}
             {editOpen && (
                 <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-                    <div className="w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
-                        <div className="px-6 py-4 border-b border-zinc-800 bg-gradient-to-r from-red-900/40 via-zinc-900 to-zinc-900 flex items-center justify-between">
+                    <div className="w-full max-w-3xl rounded-2xl border border-[#0da67b]/20 bg-zinc-900 shadow-2xl overflow-hidden">
+                        <div className="px-6 py-4 border-b border-[#0da67b]/15 bg-gradient-to-r from-[#042f36] via-[#075159] to-[#0da67b]/80 flex items-center justify-between">
                             <div>
                                 <h3 className="text-lg font-bold text-zinc-100">Editar Usuario</h3>
                                 <p className="text-sm text-zinc-400">Actualiza perfil sin cambiar gerencia ni contraseña.</p>
@@ -386,7 +387,7 @@ export default function UserHistoryPage() {
                                         required
                                         value={editForm.nombre}
                                         onChange={(e) => setEditForm((prev) => ({ ...prev, nombre: e.target.value }))}
-                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-[#0da67b] focus:ring-2 focus:ring-[#0da67b]/30"
                                     />
                                 </div>
                                 <div>
@@ -395,7 +396,7 @@ export default function UserHistoryPage() {
                                         required
                                         value={editForm.apellido}
                                         onChange={(e) => setEditForm((prev) => ({ ...prev, apellido: e.target.value }))}
-                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-[#0da67b] focus:ring-2 focus:ring-[#0da67b]/30"
                                     />
                                 </div>
                                 <div>
@@ -404,7 +405,7 @@ export default function UserHistoryPage() {
                                         required
                                         value={editForm.usuario_corp}
                                         onChange={(e) => setEditForm((prev) => ({ ...prev, usuario_corp: e.target.value }))}
-                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-[#0da67b] focus:ring-2 focus:ring-[#0da67b]/30"
                                     />
                                 </div>
                                 <div>
@@ -414,7 +415,7 @@ export default function UserHistoryPage() {
                                         type="email"
                                         value={editForm.email}
                                         onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
-                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/30"
+                                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-[#0da67b] focus:ring-2 focus:ring-[#0da67b]/30"
                                     />
                                 </div>
                                 <div className="md:col-span-2">
@@ -437,7 +438,7 @@ export default function UserHistoryPage() {
                                 <button
                                     type="submit"
                                     disabled={savingEdit}
-                                    className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors font-semibold disabled:opacity-60"
+                                    className="px-4 py-2 rounded-lg bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white hover:brightness-110 transition-colors font-semibold disabled:opacity-60"
                                 >
                                     {savingEdit ? "Guardando..." : "Guardar cambios"}
                                 </button>
@@ -462,7 +463,7 @@ export default function UserHistoryPage() {
 
             {/* User Profile Card */}
             <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
-                <div className="w-20 h-20 rounded-full bg-red-900/30 text-red-400 flex items-center justify-center font-bold text-2xl shadow-inner">
+                <div className="w-20 h-20 rounded-full bg-[#042f36]/60 text-[#0bbf8c] flex items-center justify-center font-bold text-2xl shadow-inner">
                     {user.usuario_corp ? user.usuario_corp.substring(0, 2).toUpperCase() : <User size={32} />}
                 </div>
                 <div className="flex-1">
@@ -482,17 +483,17 @@ export default function UserHistoryPage() {
                             <select
                                 value={roleLabelFromBackend(user.role)}
                                 onChange={(e) => handleRoleChange(e.target.value)}
-                                className="ml-1 min-w-[170px] rounded-lg border border-red-500/40 bg-zinc-900/95 px-3 py-2 text-sm font-semibold text-red-100 outline-none transition-colors hover:border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-500/30 cursor-pointer"
+                                className="ml-1 min-w-[170px] rounded-lg border border-[#0da67b]/35 bg-zinc-900/95 px-3 py-2 text-sm font-semibold text-[#d9fff2] outline-none transition-colors hover:border-[#0bbf8c] focus:border-[#0bbf8c] focus:ring-2 focus:ring-[#0da67b]/30 cursor-pointer"
                             >
-                                <option className="bg-zinc-900 text-red-100">Usuario</option>
-                                <option className="bg-zinc-900 text-red-100">Administrador</option>
-                                <option className="bg-zinc-900 text-red-100">CEO</option>
-                                <option className="bg-zinc-900 text-red-100">Gerente</option>
-                                <option className="bg-zinc-900 text-red-100">Coordinador</option>
+                                <option className="bg-zinc-900 text-[#d9fff2]">Usuario</option>
+                                <option className="bg-zinc-900 text-[#d9fff2]">Administrador</option>
+                                <option className="bg-zinc-900 text-[#d9fff2]">CEO</option>
+                                <option className="bg-zinc-900 text-[#d9fff2]">Gerente</option>
+                                <option className="bg-zinc-900 text-[#d9fff2]">Coordinador</option>
                             </select>
                             <button
                                 onClick={handleAssignDeveloper}
-                                className="ml-2 px-2 py-1 rounded text-[11px] font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                                className="ml-2 px-2 py-1 rounded text-[11px] font-bold bg-[#0da67b] text-white hover:bg-[#075159] transition-colors"
                                 type="button"
                             >
                                 DEV (Clave)
@@ -507,7 +508,7 @@ export default function UserHistoryPage() {
                 <div className="flex flex-wrap gap-2">
                     <button
                         onClick={openEditModal}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-2"
+                        className="px-4 py-2 bg-[linear-gradient(120deg,#042f36_0%,#075159_55%,#0bbf8c_100%)] text-white rounded-lg hover:brightness-110 font-medium text-sm shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-2"
                     >
                         <Pencil size={14} />
                         Editar Usuario
@@ -556,20 +557,20 @@ export default function UserHistoryPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 shadow-sm">
                     <p className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Total Eventos</p>
-                    <p className="text-2xl font-bold text-zinc-100 mt-1">{logs.length}</p>
+                    <p className="text-2xl font-bold text-zinc-100 mt-1">{safeLogs.length}</p>
                 </div>
                 <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 shadow-sm">
                     <p className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Ultima Actividad</p>
                     <p className="text-sm font-medium text-zinc-100 mt-1 truncate">
-                        {logs.length > 0 ? new Date(logs[0].fecha_hora).toLocaleDateString() : 'N/A'}
+                        {safeLogs.length > 0 ? new Date(safeLogs[0].fecha_hora).toLocaleDateString() : 'N/A'}
                     </p>
                 </div>
                 <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 shadow-sm">
                     <p className="text-xs text-zinc-400 uppercase font-bold tracking-wider">Logins Fallidos</p>
-                    <p className="text-2xl font-bold text-red-600 mt-1">
+                    <p className="text-2xl font-bold text-[#0da67b] mt-1">
                         {typeof user?.failed_count === "number"
                             ? user.failed_count
-                            : logs.filter(l => l.evento.toLowerCase().includes('fallido') || l.estado === 'danger').length}
+                            : safeLogs.filter((l) => String(l?.evento || '').toLowerCase().includes('fallido') || l?.estado === 'danger').length}
                     </p>
                 </div>
                 <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 shadow-sm">
@@ -602,9 +603,9 @@ export default function UserHistoryPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-800">
-                            {logs.map((log) => (
+                            {safeLogs.map((log) => (
                                 <tr key={log.id} className="hover:bg-zinc-800/40 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-zinc-100 border-l-4 border-transparent hover:border-red-500">
+                                    <td className="px-6 py-4 font-medium text-zinc-100 border-l-4 border-transparent hover:border-[#0da67b]">
                                         {log.evento}
                                     </td>
                                     <td className="px-6 py-4 text-zinc-300">{log.detalles}</td>
@@ -624,7 +625,7 @@ export default function UserHistoryPage() {
                                     </td>
                                 </tr>
                             ))}
-                            {logs.length === 0 && (
+                            {safeLogs.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
                                         No hay actividad registrada para este usuario.

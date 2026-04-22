@@ -987,6 +987,16 @@ async def _ensure_security_events_table(conn) -> None:
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
     """)
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS tenant_id UUID")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS user_id UUID")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS username TEXT")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS evento TEXT")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS detalles TEXT")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS estado TEXT DEFAULT 'info'")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS page TEXT")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS ip_origen TEXT")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS gerencia_id INTEGER")
+    await conn.execute("ALTER TABLE security_events ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()")
 
 
 async def _ensure_ticket_events_table(conn) -> None:
