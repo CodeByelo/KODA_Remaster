@@ -44,6 +44,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const [logs, setLogs] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [securityDataError, setSecurityDataError] = useState<string | null>(null);
     const [isUploadPanelOpen, setIsUploadPanelOpen] = useState(false);
     const [selectedUserForPerms, setSelectedUserForPerms] = useState<any | null>(null);
     const { hasPermission, user: currentUserObj } = useAuth();
@@ -102,6 +103,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
         const searchMatches = !userSearch.trim() || haystack.includes(normalizeText(userSearch));
         return deptMatches && searchMatches;
     });
+    const activeUsersCount = users.filter((u) => u?.estado !== false).length;
 
     const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -124,14 +126,35 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
     const fetchSecurityData = useCallback(async (withLoading: boolean = false) => {
         if (withLoading) setLoading(true);
         try {
-            const [logsData, usersData] = await Promise.all([
+            setSecurityDataError(null);
+            const [logsResult, usersResult] = await Promise.allSettled([
                 getSecurityLogs(),
                 getAllUsers(),
             ]);
-            setLogs(logsData as any[]);
-            setUsers(usersData);
+
+            if (logsResult.status === 'fulfilled') {
+                setLogs(Array.isArray(logsResult.value) ? logsResult.value as any[] : []);
+            } else {
+                console.error("Error fetching security logs:", logsResult.reason);
+                setLogs([]);
+            }
+
+            if (usersResult.status === 'fulfilled') {
+                setUsers(Array.isArray(usersResult.value) ? usersResult.value : []);
+            } else {
+                console.error("Error fetching users list:", usersResult.reason);
+                setUsers([]);
+            }
+
+            if (logsResult.status === 'rejected' || usersResult.status === 'rejected') {
+                const fragments: string[] = [];
+                if (logsResult.status === 'rejected') fragments.push('historial de accesos');
+                if (usersResult.status === 'rejected') fragments.push('gestión de usuarios');
+                setSecurityDataError(`No se pudo cargar completamente ${fragments.join(' y ')}.`);
+            }
         } catch (error) {
             console.error("Error fetching security data:", error);
+            setSecurityDataError("No se pudo cargar el módulo de seguridad.");
         } finally {
             if (withLoading) setLoading(false);
         }
@@ -330,7 +353,8 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                 <div className={`p-5 rounded-xl border shadow-sm flex items-center justify-between ${theme.card}`}>
                     <div>
                         <p className={`text-sm font-medium uppercase tracking-wider ${theme.subtext}`}>Cuentas Activas</p>
-                        <h3 className={`text-3xl font-bold mt-1 ${theme.text}`}>{users.length}</h3>
+                        <h3 className={`text-3xl font-bold mt-1 ${theme.text}`}>{activeUsersCount}</h3>
+                        <p className={`text-xs mt-1 ${theme.subtext}`}>Usuarios con cuenta habilitada</p>
                     </div>
                     <div className={`p-3 rounded-lg ${darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
                         <Users size={24} />
@@ -427,6 +451,11 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                     </div>
                 ) : (
                     <>
+                        {securityDataError && (
+                            <div className={`mx-4 mt-4 rounded-lg border px-4 py-3 text-sm ${darkMode ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                                {securityDataError}
+                            </div>
+                        )}
                         {/* TAB: GESTION DE ANUNCIOS */}
                         {activeTab === 'anuncios' && (
                             <div className="animate-in fade-in duration-500">

@@ -93,6 +93,7 @@ import {
   deleteDocumento,
   purgeControlSeguimiento,
   getAnnouncement,
+  getCommunityChannels,
   getOrgStructure,
   getOrgManagementDetails,
   saveOrgStructure,
@@ -101,6 +102,7 @@ import {
 } from "../../lib/api";
 import { ApiDocument, ApiUser } from "../../lib/api";
 import { uiAlert, uiConfirm, uiPrompt } from "../../lib/ui-dialog";
+import { DEFAULT_COMMUNITY_CHANNELS, type CommunityChannelConfig } from "../../config/communityChannels";
 const ResponsiveContainerCompat =
   ResponsiveContainer as unknown as React.ComponentType<any>;
 const PieChartCompat = PieChart as unknown as React.ComponentType<any>;
@@ -4000,26 +4002,79 @@ export default function Dashboard() {
     null,
   );
   const [managementDetailsMap, setManagementDetailsMap] = useState<Record<string, string[]>>(MANAGEMENT_DETAILS);
+  const [communityChannels, setCommunityChannels] = useState<CommunityChannelConfig[]>(DEFAULT_COMMUNITY_CHANNELS);
 
   const { user, logout, switchRole, hasPermission } = useAuth();
   const userRole = user?.role || "Usuario";
   const isDev = userRole === "Desarrollador";
+  const getCommunityChannel = useCallback((channelId: string) => {
+    return communityChannels.find((channel) => channel.id === channelId)
+      || DEFAULT_COMMUNITY_CHANNELS.find((channel) => channel.id === channelId);
+  }, [communityChannels]);
+
+  const canAccessCommunityChannel = useCallback((channelId: string, baseAccess: boolean = true) => {
+    if (!baseAccess) return false;
+    const channel = getCommunityChannel(channelId);
+    if (!channel) return baseAccess;
+    if (channel.visibility !== "private") return baseAccess;
+    return (channel.allowed_roles || []).includes(userRole as any);
+  }, [getCommunityChannel, userRole]);
 
   // Granular Access Controls base on hasPermission (Permisos del Sistema Alfa 2026)
-  const canAccessSecurity =
+  const baseCanAccessOverview = hasPermission(PERMISSIONS_MASTER.VIEW_DASHBOARD) || isDev;
+  const baseCanAccessDocumentos = true;
+  const baseCanAccessSecurity =
     hasPermission(PERMISSIONS_MASTER.VIEW_SECURITY) ||
     userRole === "Administrativo" ||
     userRole === "Desarrollador";
-  const canAccessStats = hasPermission(PERMISSIONS_MASTER.VIEW_STATS);
-  const canAccessTickets = hasPermission(PERMISSIONS_MASTER.VIEW_TICKETS);
-  const canAccessPriorities =
+  const baseCanAccessStats = hasPermission(PERMISSIONS_MASTER.VIEW_STATS);
+  const baseCanAccessTickets = hasPermission(PERMISSIONS_MASTER.VIEW_TICKETS);
+  const baseCanAccessPriorities =
     hasPermission(PERMISSIONS_MASTER.VIEW_PRIORITIES) ||
     userRole === "Usuario" ||
     userRole === "Gerente";
+  const canAccessOverview = canAccessCommunityChannel("overview", baseCanAccessOverview);
+  const canAccessDocumentos = canAccessCommunityChannel("documentos", baseCanAccessDocumentos);
+  const canAccessSecurity = canAccessCommunityChannel("seguridad", baseCanAccessSecurity);
+  const canAccessStats = canAccessCommunityChannel("graficos", baseCanAccessStats);
+  const canAccessTickets = canAccessCommunityChannel("tickets", baseCanAccessTickets);
+  const canAccessPriorities = canAccessCommunityChannel("prioridades", baseCanAccessPriorities);
+  const canAccessRoadmap = canAccessCommunityChannel("hoja-de-ruta", true);
+  const canAccessBilling = canAccessCommunityChannel("facturacion", true);
   const canEditOrgStructure =
     userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
   const canEditManagementDetails =
     userRole === "Desarrollador" || userRole === "Administrativo";
+
+  const isTabAccessible = useCallback((tab: string) => {
+    switch (tab) {
+      case "overview":
+        return canAccessOverview;
+      case "tickets":
+        return canAccessTickets;
+      case "documentos":
+        return canAccessDocumentos;
+      case "prioridades":
+        return canAccessPriorities;
+      case "graficos":
+        return canAccessStats;
+      case "seguridad":
+        return canAccessSecurity;
+      case "hoja-de-ruta":
+        return canAccessRoadmap;
+      case "facturacion":
+        return canAccessBilling;
+      case "permisos-dev":
+        return isDev;
+      default:
+        return true;
+    }
+  }, [canAccessOverview, canAccessTickets, canAccessDocumentos, canAccessPriorities, canAccessStats, canAccessSecurity, canAccessRoadmap, canAccessBilling, isDev]);
+
+  const firstAccessibleTab = useMemo(() => {
+    const orderedTabs = ["overview", "documentos", "tickets", "prioridades", "seguridad", "graficos", "hoja-de-ruta", "facturacion"];
+    return orderedTabs.find((tab) => isTabAccessible(tab)) || "overview";
+  }, [isTabAccessible]);
 
   // Action specific check
   const isReadOnly = !hasPermission(PERMISSIONS_MASTER.DOCS_UPLOAD);
@@ -4270,6 +4325,20 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchCommunityChannels = useCallback(async () => {
+    try {
+      const data = await getCommunityChannels();
+      if (Array.isArray(data?.channels) && data.channels.length > 0) {
+        setCommunityChannels(data.channels as CommunityChannelConfig[]);
+      } else {
+        setCommunityChannels(DEFAULT_COMMUNITY_CHANNELS);
+      }
+    } catch (e) {
+      console.error("Error fetching community channels", e);
+      setCommunityChannels(DEFAULT_COMMUNITY_CHANNELS);
+    }
+  }, []);
+
   // Pre-warm: ping al backend lo antes posible para evitar cold-start de Render
   useEffect(() => {
     fetch('/api/health').catch(() => {});
@@ -4280,7 +4349,8 @@ export default function Dashboard() {
     fetchUsers();
     fetchGerencias();
     fetchTickets();
-  }, [fetchDocuments, fetchUsers, fetchGerencias, fetchTickets]);
+    fetchCommunityChannels();
+  }, [fetchDocuments, fetchUsers, fetchGerencias, fetchTickets, fetchCommunityChannels]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4515,18 +4585,14 @@ export default function Dashboard() {
     const tab = params.get("tab");
     if (tab) {
       // Security Validation: Only allow access if role permitted
-      let isAllowed = true;
-      if (tab === "seguridad" && !canAccessSecurity) isAllowed = false;
-      if (tab === "graficos" && !canAccessStats) isAllowed = false;
-      if (tab === "prioridades" && !canAccessPriorities) isAllowed = false;
-      if (tab === "tickets" && !canAccessTickets) isAllowed = false;
+      const isAllowed = isTabAccessible(tab);
 
       if (isAllowed) {
         setActiveTab(tab);
         if (tab === "seguridad") setActiveSection("dashboard");
       } else {
         console.warn(`Intento de acceso no autorizado a la pestaña: ${tab}`);
-        setActiveTab("overview");
+        setActiveTab(firstAccessibleTab);
         // Clean URL from malicious tab
         window.history.replaceState({}, "", window.location.pathname);
       }
@@ -4534,7 +4600,13 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [userRole]); // Re-run if userRole changes
+  }, [userRole, isTabAccessible, firstAccessibleTab]); // Re-run if userRole changes
+
+  useEffect(() => {
+    if (!isTabAccessible(activeTab)) {
+      setActiveTab(firstAccessibleTab);
+    }
+  }, [activeTab, firstAccessibleTab, isTabAccessible]);
 
   // Sync en modo manual: el anuncio se refresca al recargar pagina.
 
@@ -4563,16 +4635,16 @@ export default function Dashboard() {
 
   const theme = useMemo(
     () => ({
-      bg: darkMode ? "bg-slate-950" : "bg-[#d1e4e9]",
+      bg: darkMode ? "bg-[#042f36]" : "bg-[#eef7f6]",
       header: darkMode
-        ? "bg-slate-950/90 border-cyan-950"
-        : "bg-[#e7f1f4]/95 border-[#b7d0dd]",
+        ? "bg-[#042f36]/95 border-[#075159]"
+        : "bg-[#f4fbfa]/95 border-[#c7e8de]",
       sidebar: darkMode
-        ? "bg-[#04111d] border-cyan-950"
-        : "bg-[#e7f1f4] border-[#b7d0dd]",
-      text: darkMode ? "text-sky-50" : "text-[#0d305f]",
-      subtext: darkMode ? "text-sky-200/45" : "text-[#557896]",
-      cardBg: darkMode ? "bg-slate-900" : "bg-[#edf5f7]",
+        ? "bg-[#051d10] border-[#075159]"
+        : "bg-[#f4fbfa] border-[#c7e8de]",
+      text: darkMode ? "text-[#eef7f6]" : "text-[#042f36]",
+      subtext: darkMode ? "text-[#b8ddd5]/55" : "text-[#5f837d]",
+      cardBg: darkMode ? "bg-[#075159]" : "bg-[#fbfffe]",
     }),
     [darkMode],
   );
@@ -4650,6 +4722,7 @@ export default function Dashboard() {
     }
 
     if (userRole === "CEO" || userRole === "Desarrollador") {
+      const activeUsers = users.filter((u: any) => u?.estado !== false).length;
       const totalDocs = documents.length;
       const pendingDocs = documents.filter(
         (d) => d.signatureStatus === "en-proceso" || d.signatureStatus === "pendiente",
@@ -4658,8 +4731,8 @@ export default function Dashboard() {
       return [
         {
           title: "Usuarios Activos",
-          value: String(users.length),
-          subtext: "Registrados en sistema",
+          value: String(activeUsers),
+          subtext: "Con cuenta habilitada",
           icon: Users,
           trend: "Total",
           trendPositive: true,
@@ -4816,7 +4889,7 @@ export default function Dashboard() {
           </div>
         );
       case "documentos":
-        return (
+        return canAccessDocumentos ? (
           <DocumentManager
             darkMode={darkMode}
             userRole={userRole}
@@ -4830,6 +4903,10 @@ export default function Dashboard() {
             gerencias={gerencias}
             refreshDocs={fetchDocuments}
           />
+        ) : (
+          <div className="text-center p-20 font-bold text-red-500">
+            Acceso Restringido
+          </div>
         );
       case "seguridad":
         return canAccessSecurity ? (
@@ -4874,19 +4951,29 @@ export default function Dashboard() {
           </div>
         );
       case "hoja-de-ruta":
-        return (
+        return canAccessRoadmap ? (
           <HojaDeRuta
             darkMode={darkMode}
             users={users}
             userRole={userRole}
             currentUserId={user?.id ? String(user.id) : ""}
           />
+        ) : (
+          <div className="text-center p-20 font-bold text-red-500">
+            Acceso Restringido
+          </div>
         );
       case "facturacion":
-        return <BillingModule darkMode={darkMode} />;
+        return canAccessBilling ? (
+          <BillingModule darkMode={darkMode} />
+        ) : (
+          <div className="text-center p-20 font-bold text-red-500">
+            Acceso Restringido
+          </div>
+        );
       case "overview":
       default:
-        return (
+        return canAccessOverview ? (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* WELCOME SECTION */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -5094,6 +5181,10 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+        ) : (
+          <div className="text-center p-20 font-bold text-red-500">
+            Acceso Restringido
+          </div>
         );
     }
   };
@@ -5130,19 +5221,21 @@ export default function Dashboard() {
             </div>
             {/* NAVIGATION */}
             <nav className="flex-1 p-3 space-y-1">
-              <SidebarItem
-                icon={Home}
-                label="Dashboard General"
-                active={
-                  activeSection === "dashboard" && activeTab === "overview"
-                }
-                collapsed={collapsed}
-                darkMode={darkMode}
-                onClick={() => {
-                  setActiveSection("dashboard");
-                  setActiveTab("overview");
-                }}
-              />
+              {canAccessOverview && (
+                <SidebarItem
+                  icon={Home}
+                  label="Dashboard General"
+                  active={
+                    activeSection === "dashboard" && activeTab === "overview"
+                  }
+                  collapsed={collapsed}
+                  darkMode={darkMode}
+                  onClick={() => {
+                    setActiveSection("dashboard");
+                    setActiveTab("overview");
+                  }}
+                />
+              )}
               {canAccessTickets && (
                 <SidebarItem
                   icon={Tag}
@@ -5158,20 +5251,22 @@ export default function Dashboard() {
                   }}
                 />
               )}
-              <SidebarItem
-                icon={Mail}
-                label="Mensajería Interna"
-                active={
-                  activeSection === "dashboard" && activeTab === "documentos"
-                }
-                collapsed={collapsed}
-                darkMode={darkMode}
-                badgeCount={unreadInboxCount}
-                onClick={() => {
-                  setActiveSection("dashboard");
-                  setActiveTab("documentos");
-                }}
-              />
+              {canAccessDocumentos && (
+                <SidebarItem
+                  icon={Mail}
+                  label="Mensajería Interna"
+                  active={
+                    activeSection === "dashboard" && activeTab === "documentos"
+                  }
+                  collapsed={collapsed}
+                  darkMode={darkMode}
+                  badgeCount={unreadInboxCount}
+                  onClick={() => {
+                    setActiveSection("dashboard");
+                    setActiveTab("documentos");
+                  }}
+                />
+              )}
               {canAccessPriorities && (
                 <SidebarItem
                   icon={Flag}
@@ -5200,28 +5295,32 @@ export default function Dashboard() {
                   }}
                 />
               )}
-              <SidebarItem
-                icon={MapIcon}
-                label="Hoja de Ruta"
-                active={activeSection === "dashboard" && activeTab === "hoja-de-ruta"}
-                collapsed={collapsed}
-                darkMode={darkMode}
-                onClick={() => {
-                  setActiveSection("dashboard");
-                  setActiveTab("hoja-de-ruta");
-                }}
-              />
-              <SidebarItem
-                icon={FileSpreadsheet}
-                label="Módulo de Facturación"
-                active={activeSection === "dashboard" && activeTab === "facturacion"}
-                collapsed={collapsed}
-                darkMode={darkMode}
-                onClick={() => {
-                  setActiveSection("dashboard");
-                  setActiveTab("facturacion");
-                }}
-              />
+              {canAccessRoadmap && (
+                <SidebarItem
+                  icon={MapIcon}
+                  label="Hoja de Ruta"
+                  active={activeSection === "dashboard" && activeTab === "hoja-de-ruta"}
+                  collapsed={collapsed}
+                  darkMode={darkMode}
+                  onClick={() => {
+                    setActiveSection("dashboard");
+                    setActiveTab("hoja-de-ruta");
+                  }}
+                />
+              )}
+              {canAccessBilling && (
+                <SidebarItem
+                  icon={FileSpreadsheet}
+                  label="Módulo de Facturación"
+                  active={activeSection === "dashboard" && activeTab === "facturacion"}
+                  collapsed={collapsed}
+                  darkMode={darkMode}
+                  onClick={() => {
+                    setActiveSection("dashboard");
+                    setActiveTab("facturacion");
+                  }}
+                />
+              )}
               {canAccessSecurity && (
                 <SidebarItem
                   icon={Shield}
@@ -5429,14 +5528,19 @@ export default function Dashboard() {
                 animate={{ scale: 1.25, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 220, damping: 18 }}
-                className="relative w-60 h-60 rounded-full bg-gradient-to-br from-sky-900/90 via-blue-900/90 to-cyan-900/90 border-2 border-cyan-300/30 shadow-2xl shadow-cyan-500/20 overflow-hidden flex items-center justify-center"
+                className="relative flex h-60 w-60 items-center justify-center overflow-hidden rounded-full border-2 border-[#0bbf8c]/70 bg-[radial-gradient(circle_at_30%_30%,#ffffff_0%,#ddf6ef_22%,#0bbf8c_58%,#075159_100%)] shadow-[0_24px_64px_rgba(4,47,54,0.42)]"
               >
-                <div className="absolute inset-0 bg-gradient-to-b from-cyan-300/20 to-transparent" />
-                <div className="absolute inset-3 rounded-full overflow-hidden">
-                  <img
-                    src="/koda-bot.jpeg"
-                    alt="Bot KODA"
-                    className="h-full w-full object-cover"
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.4),transparent_38%,rgba(4,47,54,0.18))]" />
+                <div className="absolute inset-3 rounded-full overflow-hidden bg-white">
+                  <video
+                    src="/koda-bot.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="auto"
+                    poster="/koda-bot.jpeg"
+                    className="h-full w-full scale-[1.14] object-cover object-center"
                   />
                 </div>
               </motion.div>

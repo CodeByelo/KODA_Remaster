@@ -122,6 +122,14 @@ export interface SecurityLog {
     gerencia_id?: number;
 }
 
+export interface CommunityChannel {
+    id: string;
+    label: string;
+    description: string;
+    visibility: "public" | "private";
+    allowed_roles: string[];
+}
+
 // ==========================================
 // HELPERS
 // ==========================================
@@ -443,6 +451,25 @@ export async function saveOrgManagementDetails(
         body: JSON.stringify({ management_details }),
     });
     return handleResponse<{ status: string; management_details: Record<string, string[]> }>(res);
+}
+
+export async function getCommunityChannels(): Promise<{ channels: CommunityChannel[] }> {
+    const res = await fetch(`/api/community-channels`, {
+        headers: getAuthHeaders(),
+        cache: "no-store",
+    });
+    return handleResponse<{ channels: CommunityChannel[] }>(res);
+}
+
+export async function saveCommunityChannels(
+    channels: CommunityChannel[],
+): Promise<{ status: string; channels: CommunityChannel[] }> {
+    const res = await fetch(`/api/community-channels`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ channels }),
+    });
+    return handleResponse<{ status: string; channels: CommunityChannel[] }>(res);
 }
 
 export async function getSecurityLogs(): Promise<SecurityLog[]> {

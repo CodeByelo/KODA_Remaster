@@ -1351,6 +1351,129 @@ async def _get_org_gerencia_names(conn, org_id: Optional[str]) -> List[str]:
     return names
 
 
+COMMUNITY_CHANNEL_DEFAULTS: List[Dict[str, Any]] = [
+    {
+        "id": "overview",
+        "label": "Dashboard General",
+        "description": "Vista principal de resumen institucional.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Gerente", "Usuario", "Desarrollador"],
+    },
+    {
+        "id": "tickets",
+        "label": "Sistema de Tickets",
+        "description": "Canal operativo para incidencias y solicitudes.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Gerente", "Usuario", "Desarrollador"],
+    },
+    {
+        "id": "documentos",
+        "label": "Mensajería Interna",
+        "description": "Canal de correspondencia y documentos internos.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Gerente", "Usuario", "Desarrollador"],
+    },
+    {
+        "id": "prioridades",
+        "label": "Control de Seguimiento",
+        "description": "Canal para trazabilidad y prioridades.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Gerente", "Usuario", "Desarrollador"],
+    },
+    {
+        "id": "graficos",
+        "label": "Gráficos",
+        "description": "Canal analítico y de métricas.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Desarrollador"],
+    },
+    {
+        "id": "hoja-de-ruta",
+        "label": "Hoja de Ruta",
+        "description": "Canal de planificación y seguimiento estratégico.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Gerente", "Usuario", "Desarrollador"],
+    },
+    {
+        "id": "facturacion",
+        "label": "Módulo de Facturación",
+        "description": "Canal financiero y de reportes de facturación.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Gerente", "Usuario", "Desarrollador"],
+    },
+    {
+        "id": "seguridad",
+        "label": "Módulo de Seguridad",
+        "description": "Canal restringido para auditoría, usuarios y seguridad.",
+        "visibility": "public",
+        "allowed_roles": ["CEO", "Administrativo", "Desarrollador"],
+    },
+]
+
+COMMUNITY_ROLE_ALIASES = {
+    "ceo": "CEO",
+    "administrativo": "Administrativo",
+    "admin": "Administrativo",
+    "administrador": "Administrativo",
+    "gerente": "Gerente",
+    "manager": "Gerente",
+    "usuario": "Usuario",
+    "desarrollador": "Desarrollador",
+    "developer": "Desarrollador",
+    "dev": "Desarrollador",
+}
+
+
+def _normalize_community_role(value: Optional[str]) -> Optional[str]:
+    normalized = _normalize_text(value)
+    return COMMUNITY_ROLE_ALIASES.get(normalized)
+
+
+def _default_community_channels() -> List[Dict[str, Any]]:
+    return [dict(item) for item in COMMUNITY_CHANNEL_DEFAULTS]
+
+
+def _normalize_community_channels(raw_channels: Any) -> List[Dict[str, Any]]:
+    saved_map = {}
+    if isinstance(raw_channels, list):
+        for item in raw_channels:
+            if not isinstance(item, dict):
+                continue
+            channel_id = str(item.get("id") or "").strip()
+            if channel_id:
+                saved_map[channel_id] = item
+
+    normalized: List[Dict[str, Any]] = []
+    for default in COMMUNITY_CHANNEL_DEFAULTS:
+        saved = saved_map.get(default["id"], {})
+        visibility = str(saved.get("visibility") or default["visibility"]).strip().lower()
+        if visibility not in {"public", "private"}:
+            visibility = default["visibility"]
+
+        allowed_roles_raw = saved.get("allowed_roles", default["allowed_roles"])
+        allowed_roles: List[str] = []
+        if isinstance(allowed_roles_raw, list):
+            seen_roles = set()
+            for role in allowed_roles_raw:
+                canonical = _normalize_community_role(role)
+                if canonical and canonical not in seen_roles:
+                    seen_roles.add(canonical)
+                    allowed_roles.append(canonical)
+
+        if not allowed_roles:
+            allowed_roles = list(default["allowed_roles"])
+
+        normalized.append({
+            "id": default["id"],
+            "label": default["label"],
+            "description": default["description"],
+            "visibility": visibility,
+            "allowed_roles": allowed_roles,
+        })
+
+    return normalized
+
+
 class TicketCreate(BaseModel):
     titulo: str
     descripcion: Optional[str] = None
@@ -1391,6 +1514,10 @@ class OrgStructurePayload(BaseModel):
 
 class OrgManagementDetailsPayload(BaseModel):
     management_details: Dict[str, List[str]]
+
+
+class CommunityChannelsPayload(BaseModel):
+    channels: List[Dict[str, Any]]
 
 
 class SecurityLogPayload(BaseModel):
@@ -2612,6 +2739,30 @@ async def update_user_permissions(
     if not isinstance(permisos, list):
         raise HTTPException(status_code=400, detail="permisos debe ser una lista")
 
+    target_row = await conn.fetchrow(
+        """
+        SELECT p.username, COALESCE(r.nombre_rol, 'Usuario') AS role
+        FROM profiles p
+        LEFT JOIN roles r ON p.rol_id = r.id
+        WHERE p.id = $1
+        """,
+        user_id,
+    )
+    if not target_row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    actor_role = _normalize_text(current_user.get("role"))
+    target_role = _normalize_text(target_row["role"])
+    is_actor_dev = actor_role in {"desarrollador", "developer", "dev"}
+    is_target_admin = target_role in {"administrativo", "admin", "administrador"}
+
+    # Regla de proteccion: solo Desarrollador puede modificar permisos de cuentas Administrativas.
+    if is_target_admin and not is_actor_dev:
+        raise HTTPException(
+            status_code=403,
+            detail="Solo un usuario con rol Desarrollador puede modificar permisos de cuentas Administrativas",
+        )
+
     await conn.execute(
         "UPDATE profiles SET permisos = $2::text[] WHERE id = $1",
         user_id,
@@ -2619,7 +2770,6 @@ async def update_user_permissions(
     )
     try:
         await _ensure_security_events_table(conn)
-        target_username = await conn.fetchval("SELECT username FROM profiles WHERE id = $1::uuid", user_id)
         await conn.execute(
             """
             INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
@@ -2628,7 +2778,7 @@ async def update_user_permissions(
             current_user.get("tenant_id"),
             current_user.get("sub"),
             current_user.get("username") or "admin",
-            f"Permisos actualizados para usuario {target_username or user_id}. Total permisos={len(permisos)}",
+            f"Permisos actualizados para usuario {target_row['username'] or user_id}. Total permisos={len(permisos)}",
         )
     except Exception:
         pass
@@ -3296,6 +3446,65 @@ async def save_org_management_details(
         pass
 
     return {"status": "success", "management_details": normalized}
+
+
+@app.get("/community-channels")
+async def get_community_channels(
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
+    raw_channels = (cfg or {}).get("community_channels") if isinstance(cfg, dict) else None
+    channels = _normalize_community_channels(raw_channels)
+    return {"channels": channels}
+
+
+@app.put("/community-channels")
+async def save_community_channels(
+    payload: CommunityChannelsPayload,
+    current_user: dict = Depends(get_current_user),
+    conn = Depends(get_db_connection),
+):
+    actor_role = _normalize_text(current_user.get("role"))
+    if actor_role not in {"desarrollador", "developer", "dev"}:
+        raise HTTPException(status_code=403, detail="Solo Desarrollador puede editar canales de comunidad")
+
+    org_id = await _resolve_org_id(conn, current_user.get("tenant_id"))
+    if not org_id:
+        raise HTTPException(status_code=500, detail="No existe organizacion base")
+
+    normalized_channels = _normalize_community_channels(payload.channels)
+    await conn.execute(
+        """
+        UPDATE organizations
+        SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{community_channels}', $2::jsonb, true),
+            updated_at = NOW()
+        WHERE id = $1::uuid
+        """,
+        org_id,
+        json.dumps(normalized_channels),
+    )
+
+    try:
+        await _ensure_security_events_table(conn)
+        await conn.execute(
+            """
+            INSERT INTO security_events (tenant_id, user_id, username, evento, detalles, estado, page)
+            VALUES ($1::uuid, $2::uuid, $3, 'COMMUNITY_CHANNELS_UPDATED', $4, 'info', '/dashboard?tab=permisos-dev')
+            """,
+            current_user.get("tenant_id"),
+            current_user.get("sub"),
+            current_user.get("username") or "admin",
+            f"Canales de comunidad actualizados: total={len(normalized_channels)}",
+        )
+    except Exception:
+        pass
+
+    return {"status": "success", "channels": normalized_channels}
 
 
 @app.post("/security/logs")

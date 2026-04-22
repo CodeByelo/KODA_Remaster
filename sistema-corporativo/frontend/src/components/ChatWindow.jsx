@@ -324,6 +324,21 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
         }
     };
 
+    const botAvatar = (
+        <div className="relative h-full w-full overflow-hidden rounded-full bg-white">
+            <video
+                src="/koda-bot.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                poster="/koda-bot.jpeg"
+                className="h-full w-full scale-[1.15] object-cover object-center"
+            />
+        </div>
+    );
+
     if (!isOpen) return null;
 
     return (
@@ -341,20 +356,21 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 30 }}
                     transition={{ duration: 0.25 }}
-                    className="relative w-[min(96vw,440px)] h-[min(78vh,640px)] flex flex-col bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                    className="relative w-[min(96vw,440px)] h-[min(78vh,640px)] flex flex-col overflow-hidden rounded-[28px] border border-[#0da67b]/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(244,251,250,0.97)_18%,rgba(230,247,243,0.98)_100%)] shadow-[0_28px_80px_rgba(4,47,54,0.30)]"
                     style={{ backdropFilter: 'blur(12px)' }}
                 >
                     {/* Encabezado */}
-                    <div className="bg-gradient-to-r from-red-900/90 to-orange-900/90 p-4 border-b border-red-500/30 flex-shrink-0">
+                    <div className="bg-[linear-gradient(120deg,#042f36_0%,#075159_52%,#0bbf8c_100%)] p-4 border-b border-[#0da67b]/20 flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 relative">
-                                <img src="/koda-bot.jpeg" alt="Bot KODA" className="h-full w-full object-cover" />
+                            <div className="relative w-11 h-11 rounded-full overflow-hidden border-2 border-white/80 shadow-lg shadow-[#042f36]/25">
+                                <div className="absolute inset-0 z-10 bg-[linear-gradient(180deg,rgba(255,255,255,0.28),transparent_45%,rgba(4,47,54,0.12))]" />
+                                {botAvatar}
                             </div>
                             <div>
-                                <h3 className="text-white font-bold text-sm">Asistente Virtual</h3>
-                                <p className="text-[10px] text-gray-300 flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                <h3 className="text-white font-bold text-sm tracking-wide">Asistente Virtual</h3>
+                                <p className="text-[10px] text-white/85 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#0bbf8c] animate-pulse"></span>
                                     En línea
                                 </p>
                             </div>
@@ -364,19 +380,19 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                             {canTrain && (
                                 <button
                                     onClick={() => setView('train')}
-                                    className={`p-2 rounded-full hover:bg-white/10 text-white ${view === 'train' ? 'bg-white/20' : ''}`}
+                                    className={`p-2 rounded-full text-white transition-colors ${view === 'train' ? 'bg-white/20' : 'hover:bg-white/12'}`}
                                     title="Entrenar Bot"
                                 >
                                     <Brain size={16} />
                                 </button>
                             )}
-                            <button onClick={() => setView(view === 'history' ? 'chat' : 'history')} className={`p-2 rounded-full hover:bg-white/10 text-white ${view === 'history' ? 'bg-white/20' : ''}`} title="Historial">
+                            <button onClick={() => setView(view === 'history' ? 'chat' : 'history')} className={`p-2 rounded-full text-white transition-colors ${view === 'history' ? 'bg-white/20' : 'hover:bg-white/12'}`} title="Historial">
                                 <History size={16} />
                             </button>
-                            <button onClick={startNewChat} className="p-2 rounded-full hover:bg-white/10 text-white" title="Nuevo Chat">
+                            <button onClick={startNewChat} className="p-2 rounded-full hover:bg-white/12 text-white transition-colors" title="Nuevo Chat">
                                 <Plus size={16} />
                             </button>
-                            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 text-white">
+                            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/12 text-white transition-colors">
                                 <X size={16} />
                             </button>
                         </div>
@@ -384,17 +400,17 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                 </div>
 
                 {/* Contenido Principal changeable */}
-                    <div className="flex-1 overflow-hidden relative bg-slate-950/40">
+                    <div className="relative flex-1 overflow-hidden bg-[radial-gradient(circle_at_top,rgba(11,191,140,0.10),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(239,250,247,0.96)_100%)]">
 
                     {/* VISTA: CHAT */}
                     {view === 'chat' && (
                         <div className="h-full flex flex-col">
-                            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                            <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3 scrollbar-thin scrollbar-thumb-[#0da67b]/40 scrollbar-track-transparent">
                                 {messages.map((message) => (
                                     <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-sm ${message.sender === 'user'
-                                            ? 'bg-emerald-600 text-white rounded-br-none ring-1 ring-emerald-400/30'
-                                            : 'bg-slate-800 text-slate-100 rounded-bl-none ring-1 ring-white/10'
+                                            ? 'bg-[linear-gradient(135deg,#0bbf8c_0%,#0da67b_100%)] text-white rounded-br-none ring-1 ring-[#75ebc7]/40 shadow-[0_14px_26px_rgba(11,191,140,0.24)]'
+                                            : 'bg-white text-[#042f36] rounded-bl-none ring-1 ring-[#0da67b]/12 shadow-[0_10px_24px_rgba(4,47,54,0.08)]'
                                             }`}>
                                             <p className="whitespace-pre-wrap text-sm leading-snug">{message.text}</p>
                                             <span className="text-[10px] opacity-70 block text-right mt-1">{message.timestamp}</span>
@@ -403,10 +419,10 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                                 ))}
                                 {isLoading && (
                                     <div className="flex justify-start">
-                                        <div className="bg-slate-800 p-3 rounded-2xl rounded-bl-none ring-1 ring-white/10 flex gap-2">
-                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"></div>
-                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce delay-75"></div>
-                                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce delay-150"></div>
+                                        <div className="bg-white p-3 rounded-2xl rounded-bl-none ring-1 ring-[#0da67b]/12 shadow-[0_10px_24px_rgba(4,47,54,0.08)] flex gap-2">
+                                            <div className="w-2 h-2 bg-[#075159] rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-[#0da67b] rounded-full animate-bounce delay-75"></div>
+                                            <div className="w-2 h-2 bg-[#0bbf8c] rounded-full animate-bounce delay-150"></div>
                                         </div>
                                     </div>
                                 )}
@@ -414,19 +430,19 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                             </div>
 
                             {/* Input Area */}
-                            <div className="p-3 bg-slate-900/70 border-t border-white/10">
+                            <div className="p-3 bg-white/82 border-t border-[#0da67b]/12">
                                 <div className="flex gap-2">
                                     <textarea
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
                                         onKeyPress={handleKeyPress}
                                         placeholder="Escribe tu mensaje..."
-                                        className="flex-1 bg-slate-800/90 border-none rounded-full px-4 py-2 text-sm text-white focus:ring-1 focus:ring-emerald-400 resize-none h-[42px] scrollbar-hide"
+                                        className="h-[42px] flex-1 resize-none rounded-full border border-[#0da67b]/16 bg-[#eff8f4] px-4 py-2 text-sm text-[#042f36] placeholder:text-[#62867f] focus:ring-2 focus:ring-[#0da67b]/20 focus:border-[#0da67b]/40 outline-none scrollbar-hide"
                                     />
                                     <button
                                         onClick={handleSend}
                                         disabled={!input.trim() || isLoading}
-                                        className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="w-10 h-10 rounded-full bg-[linear-gradient(135deg,#075159_0%,#0bbf8c_100%)] flex items-center justify-center text-white hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#075159]/20"
                                     >
                                         {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                     </button>
@@ -439,7 +455,7 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                     {view === 'history' && (
                         <div className="h-full flex flex-col p-4 overflow-y-auto no-scrollbar">
                             <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-white font-semibold">Historial de Conversaciones</h4>
+                                <h4 className="font-semibold text-[#042f36]">Historial de Conversaciones</h4>
                             </div>
                             <div className="space-y-2">
                                 {conversations.map(conv => (
@@ -447,28 +463,28 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                                         key={conv.id}
                                         onClick={() => loadConversation(conv.id)}
                                         className={`p-3 rounded-lg cursor-pointer border transition-all flex justify-between items-center group ${currentConvId === conv.id
-                                            ? 'bg-red-900/20 border-red-500/50'
-                                            : 'bg-gray-800/50 border-gray-700 hover:bg-gray-800'
+                                            ? 'bg-[#e7f9f3] border-[#0da67b]/45'
+                                            : 'bg-white/80 border-[#0da67b]/12 hover:bg-[#f3fbf8]'
                                             }`}
                                     >
                                         <div className="overflow-hidden">
-                                            <p className="text-gray-200 text-sm font-medium truncate">
+                                            <p className="text-[#042f36] text-sm font-medium truncate">
                                                 {conv.messages.find(m => m.sender === 'user')?.text || "Nueva conversación"}
                                             </p>
-                                            <p className="text-gray-500 text-xs mt-1">
+                                            <p className="text-[#62867f] text-xs mt-1">
                                                 {new Date(conv.timestamp).toLocaleDateString()} - {conv.messages.length} mensajes
                                             </p>
                                         </div>
                                         <button
                                             onClick={(e) => deleteConversation(e, conv.id)}
-                                            className="p-1.5 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="p-1.5 text-[#6a8f88] hover:text-[#0bbf8c] opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
                                 ))}
                                 {conversations.length === 0 && (
-                                    <p className="text-gray-500 text-center text-sm py-4">No hay historial.</p>
+                                    <p className="text-[#62867f] text-center text-sm py-4">No hay historial.</p>
                                 )}
                             </div>
                         </div>
@@ -477,35 +493,35 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                     {/* VISTA: ENTRENAMIENTO (TEACH MODE) */}
                     {view === 'train' && (
                         <div className="h-full flex flex-col p-4 overflow-y-auto no-scrollbar scrollbar-thin">
-                            <div className="flex items-center gap-2 mb-4 text-white">
-                                <button onClick={() => setView('chat')} className="hover:bg-white/10 p-1 rounded">
+                            <div className="flex items-center gap-2 mb-4 text-[#042f36]">
+                                <button onClick={() => setView('chat')} className="hover:bg-[#0da67b]/10 p-1 rounded transition-colors">
                                     <ChevronLeft size={20} />
                                 </button>
                                 <h4 className="font-semibold">Entrenar al Asistente</h4>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="bg-blue-900/20 border border-blue-500/30 p-3 rounded-lg text-xs text-blue-200">
+                                <div className="rounded-2xl border border-[#0da67b]/18 bg-[linear-gradient(135deg,rgba(11,191,140,0.10),rgba(13,166,123,0.10))] p-3 text-xs text-[#042f36]">
                                     <span className="font-bold block mb-1"> Modo Aprendizaje</span>
                                     Agrega preguntas y respuestas personalizadas. El bot usará esto antes de consultar al servidor.
                                 </div>
 
                                 <div>
-                                    <label className="text-gray-400 text-xs uppercase font-bold mb-1 block">Si el usuario pregunta:</label>
+                                    <label className="text-[#62867f] text-xs uppercase font-bold mb-1 block">Si el usuario pregunta:</label>
                                     <input
                                         value={trainQuestion}
                                         onChange={(e) => setTrainQuestion(e.target.value)}
-                                        className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white text-sm focus:border-red-500 outline-none"
+                                        className="w-full rounded-xl border border-[#0da67b]/16 bg-white p-2 text-[#042f36] text-sm focus:border-[#0da67b]/45 outline-none"
                                         placeholder="Ej: ¿Cuál es el horario?"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="text-gray-400 text-xs uppercase font-bold mb-1 block">El bot debe responder:</label>
+                                    <label className="text-[#62867f] text-xs uppercase font-bold mb-1 block">El bot debe responder:</label>
                                     <textarea
                                         value={trainAnswer}
                                         onChange={(e) => setTrainAnswer(e.target.value)}
-                                        className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white text-sm focus:border-red-500 outline-none min-h-[100px]"
+                                        className="w-full min-h-[100px] rounded-xl border border-[#0da67b]/16 bg-white p-2 text-[#042f36] text-sm focus:border-[#0da67b]/45 outline-none"
                                         placeholder="Ej: Trabajamos de 8am a 5pm."
                                     />
                                 </div>
@@ -513,24 +529,24 @@ export default function ChatWindow({ isOpen, onClose, userRole }) {
                                 <button
                                     onClick={saveTraining}
                                     disabled={!trainQuestion || !trainAnswer}
-                                    className="w-full py-2 bg-gradient-to-r from-red-600 to-orange-600 rounded-lg text-white font-medium shadow-lg hover:shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-2 rounded-xl bg-[linear-gradient(120deg,#042f36_0%,#075159_52%,#0bbf8c_100%)] text-white font-medium shadow-lg shadow-[#075159]/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     <Save size={16} />
                                     Guardar Conocimiento
                                 </button>
 
-                                <div className="border-t border-gray-800 pt-4 mt-2">
-                                    <h5 className="text-gray-400 text-xs uppercase font-bold mb-2">Conocimiento Agregado ({customKnowledge.length})</h5>
+                                <div className="border-t border-[#0da67b]/12 pt-4 mt-2">
+                                    <h5 className="text-[#62867f] text-xs uppercase font-bold mb-2">Conocimiento Agregado ({customKnowledge.length})</h5>
                                     <div className="space-y-2 max-h-[150px] overflow-y-auto no-scrollbar pr-1">
                                         {customKnowledge.map((k) => (
-                                            <div key={k.id} className="bg-gray-800/50 border border-gray-700/50 p-2 rounded text-xs flex justify-between items-start group">
+                                            <div key={k.id} className="bg-white/85 border border-[#0da67b]/12 p-2 rounded-xl text-xs flex justify-between items-start group">
                                                 <div className="flex-1 overflow-hidden">
-                                                    <p className="text-red-300 font-medium truncate">P: {k.question}</p>
-                                                    <p className="text-gray-400 truncate">R: {k.answer}</p>
+                                                    <p className="text-[#075159] font-medium truncate">P: {k.question}</p>
+                                                    <p className="text-[#62867f] truncate">R: {k.answer}</p>
                                                 </div>
                                                 <button
                                                     onClick={() => deleteKnowledge(k.id)}
-                                                    className="p-1 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="p-1 text-[#6a8f88] hover:text-[#0bbf8c] opacity-0 group-hover:opacity-100 transition-all"
                                                     title="Borrar respuesta"
                                                 >
                                                     <Trash2 size={12} />

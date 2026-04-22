@@ -4,14 +4,16 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Save, CheckCircle, Info } from 'lucide-react';
 import { PERMISSIONS_MASTER, DEFAULT_SCOPES, PERMISSION_LABELS } from '../permissions/constants';
 import { useAuth } from '../hooks/useAuth';
-import { getAllUsers, updateUserPermissions } from '../lib/api';
+import { getAllUsers, getCommunityChannels, saveCommunityChannels, updateUserPermissions } from '../lib/api';
 import { uiAlert } from '../lib/ui-dialog';
+import { COMMUNITY_ROLE_OPTIONS, DEFAULT_COMMUNITY_CHANNELS, type CommunityChannelConfig, type CommunityRole } from '../config/communityChannels';
 
 export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean }) {
     const { user } = useAuth();
     const [adminPermissions, setAdminPermissions] = useState<string[]>([]);
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [communityChannels, setCommunityChannels] = useState<CommunityChannelConfig[]>(DEFAULT_COMMUNITY_CHANNELS);
     const allPermissions = Object.values(PERMISSIONS_MASTER);
 
     useEffect(() => {
@@ -21,6 +23,19 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
         } else {
             setAdminPermissions(DEFAULT_SCOPES['Administrativo'] || []);
         }
+
+        const loadCommunityChannels = async () => {
+            try {
+                const response = await getCommunityChannels();
+                if (Array.isArray(response?.channels) && response.channels.length > 0) {
+                    setCommunityChannels(response.channels as CommunityChannelConfig[]);
+                }
+            } catch (error) {
+                console.error("No se pudieron cargar los canales de comunidad", error);
+            }
+        };
+
+        void loadCommunityChannels();
     }, []);
 
     const togglePermission = (perm: string) => {
@@ -40,6 +55,43 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
         setSaved(false);
     };
 
+    const updateChannelVisibility = (channelId: string, visibility: "public" | "private") => {
+        setCommunityChannels((prev) =>
+            prev.map((channel) => {
+                if (channel.id !== channelId) return channel;
+                return {
+                    ...channel,
+                    visibility,
+                    allowed_roles:
+                        visibility === "public"
+                            ? [...COMMUNITY_ROLE_OPTIONS]
+                            : channel.allowed_roles.length > 0
+                                ? channel.allowed_roles
+                                : ["Desarrollador"],
+                };
+            }),
+        );
+        setSaved(false);
+    };
+
+    const toggleChannelRole = (channelId: string, role: CommunityRole) => {
+        setCommunityChannels((prev) =>
+            prev.map((channel) => {
+                if (channel.id !== channelId) return channel;
+                const exists = channel.allowed_roles.includes(role);
+                const allowedRoles = exists
+                    ? channel.allowed_roles.filter((currentRole) => currentRole !== role)
+                    : [...channel.allowed_roles, role];
+
+                return {
+                    ...channel,
+                    allowed_roles: allowedRoles.length > 0 ? allowedRoles : ["Desarrollador"],
+                };
+            }),
+        );
+        setSaved(false);
+    };
+
     const saveAdminScope = async () => {
         try {
             setSaving(true);
@@ -55,12 +107,14 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                 admins.map((a: any) => updateUserPermissions(String(a.id), adminPermissions))
             );
 
+            await saveCommunityChannels(communityChannels);
+
             setSaved(true);
             setTimeout(() => setSaved(false), 3000);
-            void uiAlert(`AdminScope aplicado. Administradores actualizados: ${admins.length}`, "AdminScope");
+            void uiAlert(`AdminScope aplicado. Administradores actualizados: ${admins.length}. Canales piloto sincronizados: ${communityChannels.length}`, "AdminScope");
         } catch (e) {
             console.error("Error guardando AdminScope", e);
-            void uiAlert("No se pudo aplicar AdminScope global. Revisa backend/permisos.", "AdminScope");
+            void uiAlert("No se pudo aplicar AdminScope global o guardar canales piloto. Revisa backend/permisos.", "AdminScope");
         } finally {
             setSaving(false);
         }
@@ -101,7 +155,7 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                 <div className={`p-4 rounded-xl mb-6 flex items-start gap-3 ${darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
                     <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-500/90 leading-relaxed font-medium">
-                        Selecciona permisos para el rol Administrativo. Desde aqui tambien puedes activar todos en un clic.
+                        Selecciona permisos para el rol Administrativo. Solo cuentas con rango Desarrollador pueden agregar o quitar permisos a usuarios Administrativos.
                     </p>
                 </div>
 
@@ -158,6 +212,70 @@ export default function MasterPermissionPanel({ darkMode }: { darkMode: boolean 
                         darkMode={darkMode}
                         isCritical
                     />
+                </div>
+
+                <div className={`mt-8 rounded-2xl border p-5 ${darkMode ? 'bg-zinc-950/50 border-zinc-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="mb-4">
+                        <h3 className={`text-sm font-black uppercase tracking-widest ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                            Canales de Comunidad - Fase Piloto
+                        </h3>
+                        <p className={`mt-1 text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                            Cada módulo del sidebar se comporta como un canal. Si está en modo público conserva la lógica actual; si lo pones privado, solo entran los roles marcados.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {communityChannels.map((channel) => {
+                            const isPrivate = channel.visibility === 'private';
+                            return (
+                                <div key={channel.id} className={`rounded-xl border p-4 ${darkMode ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-slate-200'}`}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>{channel.label}</p>
+                                            <p className={`text-xs mt-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{channel.description}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateChannelVisibility(channel.id, 'public')}
+                                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${!isPrivate ? 'bg-emerald-600 text-white' : darkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                                            >
+                                                PUBLICO
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateChannelVisibility(channel.id, 'private')}
+                                                className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-colors ${isPrivate ? 'bg-red-600 text-white' : darkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                                            >
+                                                PRIVADO
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4">
+                                        <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                            Roles con acceso {isPrivate ? 'privado' : 'base'}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {COMMUNITY_ROLE_OPTIONS.map((role) => {
+                                                const checked = channel.allowed_roles.includes(role);
+                                                return (
+                                                    <button
+                                                        key={`${channel.id}-${role}`}
+                                                        type="button"
+                                                        onClick={() => toggleChannelRole(channel.id, role)}
+                                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${checked ? 'bg-blue-600 text-white border-blue-600' : darkMode ? 'bg-zinc-900 text-zinc-300 border-zinc-700 hover:border-zinc-500' : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'}`}
+                                                    >
+                                                        {role}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
