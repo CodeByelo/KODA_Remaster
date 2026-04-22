@@ -26,8 +26,10 @@ async def init_db_pool():
                     raise ValueError("DATABASE_URL/SUPABASE_DB_URL no configurada")
 
                 logger.info(f"Intento {attempt + 1}/5")
-                min_pool_size = int(os.getenv("DB_POOL_MIN_SIZE", "5"))
-                max_pool_size = int(os.getenv("DB_POOL_MAX_SIZE", "40"))
+                # Supabase free plan: session mode max = 15 conexiones.
+                # min=1, max=10 deja margen y evita EMAXCONNSESSION al arrancar.
+                min_pool_size = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
+                max_pool_size = int(os.getenv("DB_POOL_MAX_SIZE", "10"))
                 db_command_timeout = float(os.getenv("DB_COMMAND_TIMEOUT_SECONDS", "30"))
 
                 ssl_mode = os.getenv("DB_SSL_MODE", "disable").lower()
@@ -38,7 +40,8 @@ async def init_db_pool():
                     min_size=min_pool_size,
                     max_size=max_pool_size,
                     statement_cache_size=0,
-                    max_inactive_connection_lifetime=60.0,
+                    max_inactive_connection_lifetime=300.0,
+                    max_queries=50000,
                     command_timeout=db_command_timeout,
                     ssl=ssl_value
                 )
