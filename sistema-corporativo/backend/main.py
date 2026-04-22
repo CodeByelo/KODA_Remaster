@@ -3234,6 +3234,74 @@ async def save_announcement(
     return {"status": "success", "announcement": dict(saved) if saved else data}
 
 
+def _normalize_dashboard_string_list(value: Any) -> List[str]:
+    raw_items: Any = value
+    if isinstance(raw_items, str):
+        text = raw_items.strip()
+        if not text:
+            raw_items = []
+        else:
+            try:
+                parsed = json.loads(text)
+                raw_items = parsed if isinstance(parsed, list) else text
+            except Exception:
+                raw_items = text
+
+    if isinstance(raw_items, str):
+        raw_items = [part.strip() for part in re.split(r"[\r\n,]+", raw_items) if part.strip()]
+
+    if not isinstance(raw_items, list):
+        return []
+
+    normalized: List[str] = []
+    for item in raw_items:
+        text = str(item or "").strip()
+        if text:
+            normalized.append(text)
+    return normalized
+
+
+def _normalize_dashboard_org_structure(value: Any) -> List[Dict[str, Any]]:
+    raw_structure: Any = value
+    if isinstance(raw_structure, str):
+        try:
+            parsed = json.loads(raw_structure)
+            raw_structure = parsed
+        except Exception:
+            raw_structure = []
+
+    if not isinstance(raw_structure, list):
+        return []
+
+    normalized: List[Dict[str, Any]] = []
+    for group in raw_structure:
+        if not isinstance(group, dict):
+            continue
+        category = str(group.get("category") or "").strip()
+        if not category:
+            continue
+        icon = str(group.get("icon") or "Briefcase").strip() or "Briefcase"
+        normalized.append({
+            "category": category,
+            "icon": icon,
+            "items": _normalize_dashboard_string_list(group.get("items")),
+        })
+    return normalized
+
+
+def _normalize_management_details_map(value: Any) -> Dict[str, List[str]]:
+    if not isinstance(value, dict):
+        return {}
+
+    normalized: Dict[str, List[str]] = {}
+    for key, entry in value.items():
+        name = str(key or "").strip()
+        if not name:
+            continue
+        normalized[name] = _normalize_dashboard_string_list(entry)
+    return normalized
+
+
 @app.get("/org-structure")
 async def get_org_structure(
     current_user: dict = Depends(get_current_user),
@@ -3244,7 +3312,9 @@ async def get_org_structure(
         raise HTTPException(status_code=500, detail="No existe organizacion base")
 
     cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
-    org_structure = (cfg or {}).get("org_structure") if isinstance(cfg, dict) else None
+    org_structure = _normalize_dashboard_org_structure(
+        (cfg or {}).get("org_structure") if isinstance(cfg, dict) else None
+    )
     source = "config"
     if not org_structure:
         rows = await conn.fetch("SELECT nombre FROM gerencias ORDER BY nombre")
@@ -3254,9 +3324,9 @@ async def get_org_structure(
             "items": [r["nombre"] for r in rows],
         }]
         source = "catalog"
-    management_details = (cfg or {}).get("management_details") if isinstance(cfg, dict) else None
-    if not isinstance(management_details, dict):
-        management_details = {}
+    management_details = _normalize_management_details_map(
+        (cfg or {}).get("management_details") if isinstance(cfg, dict) else None
+    )
 
     return {"org_structure": org_structure, "management_details": management_details, "source": source}
 
@@ -3397,9 +3467,9 @@ async def get_org_management_details(
         raise HTTPException(status_code=500, detail="No existe organizacion base")
 
     cfg = await conn.fetchval("SELECT config FROM organizations WHERE id = $1::uuid", org_id)
-    details = (cfg or {}).get("management_details") if isinstance(cfg, dict) else {}
-    if not isinstance(details, dict):
-        details = {}
+    details = _normalize_management_details_map(
+        (cfg or {}).get("management_details") if isinstance(cfg, dict) else None
+    )
     return {"management_details": details}
 
 

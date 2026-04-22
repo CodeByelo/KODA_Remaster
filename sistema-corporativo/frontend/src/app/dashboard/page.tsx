@@ -192,9 +192,36 @@ function normalizeOrgStructurePayload(value: unknown): OrgCategory[] {
       return {
         category,
         icon: String(group.icon || "Shield").trim() || "Shield",
-        items: ensureArray<unknown>(group.items)
-          .map((item) => String(item || "").trim())
-          .filter(Boolean),
+        items: (() => {
+          if (Array.isArray(group.items)) {
+            return ensureArray<unknown>(group.items)
+              .map((item) => String(item || "").trim())
+              .filter(Boolean);
+          }
+
+          if (typeof group.items === "string") {
+            const raw = group.items.trim();
+            if (!raw) return [];
+
+            try {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                return parsed
+                  .map((item) => String(item || "").trim())
+                  .filter(Boolean);
+              }
+            } catch {
+              // Ignore invalid legacy payloads and fall back to text splitting.
+            }
+
+            return raw
+              .split(/\r?\n|,/)
+              .map((item: string) => item.trim())
+              .filter(Boolean);
+          }
+
+          return [];
+        })(),
       } as OrgCategory;
     })
     .filter((group): group is OrgCategory => !!group);
@@ -4842,9 +4869,11 @@ export default function Dashboard() {
       .trim();
   }, []);
 
-  const dedupeDeptItems = useCallback((items: string[]) => {
+  const dedupeDeptItems = useCallback((items: unknown) => {
     const seen = new Set<string>();
-    return ensureArray<string>(items).filter((item) => {
+    return normalizeOrgStructurePayload([{ category: "tmp", icon: "Shield", items }])
+      .flatMap((group) => group.items)
+      .filter((item) => {
       const key = normalizeDept(item);
       if (!key || seen.has(key)) return false;
       seen.add(key);

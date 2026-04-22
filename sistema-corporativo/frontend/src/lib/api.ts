@@ -151,6 +151,120 @@ async function handleResponse<T>(res: Response): Promise<T> {
     return res.json() as Promise<T>;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return null;
+    }
+    return value as Record<string, unknown>;
+}
+
+function readArrayish(value: unknown): { found: boolean; items: unknown[] } {
+    if (Array.isArray(value)) {
+        return { found: true, items: value };
+    }
+
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return { found: true, items: [] };
+        }
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                return { found: true, items: parsed };
+            }
+        } catch {
+            // Fall back to comma/newline separated values.
+        }
+
+        return {
+            found: true,
+            items: trimmed
+                .split(/\r?\n|,/)
+                .map((item) => item.trim())
+                .filter(Boolean),
+        };
+    }
+
+    return { found: false, items: [] };
+}
+
+function extractArray<T>(value: unknown, fallbackKeys: string[] = []): T[] {
+    const direct = readArrayish(value);
+    if (direct.found) {
+        return direct.items as T[];
+    }
+
+    const record = asRecord(value);
+    if (!record) {
+        return [];
+    }
+
+    for (const key of fallbackKeys) {
+        const nested = readArrayish(record[key]);
+        if (nested.found) {
+            return nested.items as T[];
+        }
+    }
+
+    return [];
+}
+
+function normalizeStringList(value: unknown): string[] {
+    return extractArray<unknown>(value)
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean);
+}
+
+function normalizeStringListRecord(value: unknown): Record<string, string[]> {
+    const record = asRecord(value);
+    if (!record) {
+        return {};
+    }
+
+    return Object.fromEntries(
+        Object.entries(record)
+            .map(([key, entry]) => [String(key ?? "").trim(), normalizeStringList(entry)] as const)
+            .filter(([key]) => Boolean(key)),
+    );
+}
+
+function normalizeOrgStructureResponse(value: unknown): {
+    org_structure: Array<{ category: string; icon: string; items: string[] }>;
+    management_details?: Record<string, string[]>;
+    source?: string;
+} {
+    const record = asRecord(value);
+    const rawGroups = extractArray<unknown>(value, ["org_structure", "data"]);
+    const orgStructure = rawGroups
+        .map((group) => {
+            const entry = asRecord(group);
+            if (!entry) {
+                return null;
+            }
+
+            const category = String(entry["category"] ?? "").trim();
+            if (!category) {
+                return null;
+            }
+
+            const icon = String(entry["icon"] ?? "Briefcase").trim() || "Briefcase";
+            return {
+                category,
+                icon,
+                items: normalizeStringList(entry["items"]),
+            };
+        })
+        .filter(Boolean) as Array<{ category: string; icon: string; items: string[] }>;
+
+    return {
+        org_structure: orgStructure,
+        management_details: normalizeStringListRecord(record?.["management_details"]),
+        source: typeof record?.["source"] === "string" ? String(record["source"]) : undefined,
+    };
+}
+
 // ==========================================
 // DOCUMENTOS
 // ==========================================
@@ -163,7 +277,8 @@ export async function getDocumentos(): Promise<ApiDocument[]> {
         headers: getAuthHeaders(),
         cache: "no-store",
     });
-    return handleResponse<ApiDocument[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiDocument>(data, ["documentos", "items", "data"]);
 }
 
 /**
@@ -236,7 +351,8 @@ export async function getDocumentoRespuestas(documentId: string | number): Promi
         headers: getAuthHeaders(),
         cache: "no-store",
     });
-    return handleResponse<ApiDocumentoRespuesta[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiDocumentoRespuesta>(data, ["respuestas", "items", "data"]);
 }
 
 export interface ApiDocumentoEvento {
@@ -253,7 +369,8 @@ export async function getDocumentoEventos(documentId: string | number): Promise<
         headers: getAuthHeaders(),
         cache: "no-store",
     });
-    return handleResponse<ApiDocumentoEvento[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiDocumentoEvento>(data, ["eventos", "items", "data"]);
 }
 
 /**
@@ -294,7 +411,8 @@ export async function getAllUsers(): Promise<ApiUser[]> {
     const res = await fetch(`/api/users`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<ApiUser[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiUser>(data, ["users", "usuarios", "items", "data"]);
 }
 
 // ==========================================
@@ -308,7 +426,8 @@ export async function getGerencias(): Promise<ApiGerencia[]> {
     const res = await fetch(`/api/gerencias`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<ApiGerencia[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiGerencia>(data, ["gerencias", "items", "data"]);
 }
 
 // ==========================================
@@ -423,7 +542,8 @@ export async function getOrgStructure(): Promise<{ org_structure: any[]; managem
     const res = await fetch(`/api/org-structure`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<{ org_structure: any[]; management_details?: Record<string, string[]>; source?: string }>(res);
+    const data = await handleResponse<unknown>(res);
+    return normalizeOrgStructureResponse(data);
 }
 
 export async function saveOrgStructure(org_structure: any[]): Promise<{ status: string }> {
@@ -439,7 +559,11 @@ export async function getOrgManagementDetails(): Promise<{ management_details: R
     const res = await fetch(`/api/org-management-details`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<{ management_details: Record<string, string[]> }>(res);
+    const data = await handleResponse<unknown>(res);
+    const record = asRecord(data);
+    return {
+        management_details: normalizeStringListRecord(record?.["management_details"] ?? data),
+    };
 }
 
 export async function saveOrgManagementDetails(
@@ -476,14 +600,16 @@ export async function getSecurityLogs(): Promise<SecurityLog[]> {
     const res = await fetch(`/api/security/logs`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<SecurityLog[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<SecurityLog>(data, ["logs", "items", "data"]);
 }
 
 export async function getUserSecurityLogs(userId: string): Promise<SecurityLog[]> {
     const res = await fetch(`/api/security/logs/user/${userId}`, {
         headers: getAuthHeaders(),
     });
-    return handleResponse<SecurityLog[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<SecurityLog>(data, ["logs", "items", "data"]);
 }
 
 export async function createSecurityLog(payload: {
@@ -517,7 +643,8 @@ export async function getTickets(): Promise<ApiTicket[]> {
         headers: getAuthHeaders(),
         cache: "no-store",
     });
-    return handleResponse<ApiTicket[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiTicket>(data, ["tickets", "items", "data"]);
 }
 
 export async function createTicket(payload: {
@@ -576,7 +703,8 @@ export async function getTicketHistory(ticketId: number): Promise<ApiTicketHisto
         headers: getAuthHeaders(),
         cache: "no-store",
     });
-    return handleResponse<ApiTicketHistoryEvent[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiTicketHistoryEvent>(data, ["history", "items", "data"]);
 }
 
 export async function searchTicketHistory(query: string): Promise<ApiTicketHistoryEvent[]> {
@@ -585,7 +713,8 @@ export async function searchTicketHistory(query: string): Promise<ApiTicketHisto
         headers: getAuthHeaders(),
         cache: "no-store",
     });
-    return handleResponse<ApiTicketHistoryEvent[]>(res);
+    const data = await handleResponse<unknown>(res);
+    return extractArray<ApiTicketHistoryEvent>(data, ["history", "items", "data"]);
 }
 
 // ==========================================

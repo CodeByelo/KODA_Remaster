@@ -115,6 +115,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const token = localStorage.getItem("sgd_token");
       const storedUser = localStorage.getItem("sgd_user");
 
+      if (isAuthRoute && !token && !storedUser) {
+        setUser(null);
+        return;
+      }
+
       // Fuente de verdad: cookie HttpOnly validada en servidor.
       try {
         const authHeaders: HeadersInit = token
