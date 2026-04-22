@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Shield, Activity, Users, Lock, ChevronRight, ChevronLeft, Search, Download, Filter, FileText, Edit2, Trash2, Plus, Briefcase, Zap, Factory, Save, X, CheckCircle } from 'lucide-react';
@@ -909,7 +909,7 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
                                         user={selectedUserForPerms}
                                         onClose={() => setSelectedUserForPerms(null)}
                                         darkMode={darkMode}
-                                        currentUserPerms={currentUserObj?.permissions || []}
+                                        currentUserPerms={Array.isArray(currentUserObj?.permissions) ? currentUserObj!.permissions : []}
                                     />
                                 )}
                             </div>
@@ -1087,13 +1087,17 @@ export default function SecurityModule({ darkMode, announcement, setAnnouncement
 }
 
 function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { user: any, onClose: () => void, darkMode: boolean, currentUserPerms: string[] }) {
-    const normalizePerms = (perms: string[]) =>
-        perms.filter((perm, index, self) => self.indexOf(perm) === index);
-    const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => currentUserPerms.includes(p));
-    const buildVisiblePerms = (rawPerms: string[]) =>
-        normalizePerms(rawPerms).filter((perm) => availablePermissions.includes(perm));
+    const safeCurrentUserPerms = Array.isArray(currentUserPerms) ? currentUserPerms : [];
+    const normalizePerms = (perms: any) => {
+        const arr = Array.isArray(perms) ? perms : [];
+        return arr.filter((perm: string, index: number, self: string[]) => self.indexOf(perm) === index);
+    };
+    const availablePermissions = Object.values(PERMISSIONS_MASTER).filter(p => safeCurrentUserPerms.includes(p));
+    const buildVisiblePerms = (rawPerms: any) =>
+        normalizePerms(rawPerms).filter((perm: string) => availablePermissions.includes(perm));
 
-    const [userPerms, setUserPerms] = useState<string[]>(buildVisiblePerms(user.permissions || user.permisos || []));
+    const rawUserPerms = user.permissions || user.permisos || [];
+    const [userPerms, setUserPerms] = useState<string[]>(buildVisiblePerms(rawUserPerms));
     const [saved, setSaved] = useState(false);
     const [devRoleMasterPassword, setDevRoleMasterPassword] = useState<string | null>(null);
     const activeVisiblePermissionsCount = availablePermissions.filter((perm) => userPerms.includes(perm)).length;
@@ -1119,7 +1123,8 @@ function UserPermissionsModal({ user, onClose, darkMode, currentUserPerms }: { u
     const roles = ['Usuario', 'Administrativo', 'CEO', 'Gerente'];
 
     useEffect(() => {
-        setUserPerms(buildVisiblePerms(user.permissions || user.permisos || []));
+        const rawPerms = user.permissions || user.permisos || [];
+        setUserPerms(buildVisiblePerms(rawPerms));
         setSelectedRole(user.role || 'Usuario');
         setDevRoleMasterPassword(null);
         setSaved(false);
