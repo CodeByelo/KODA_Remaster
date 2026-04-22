@@ -177,6 +177,29 @@ function shiftHexColor(hex: string, amount: number): string {
   return `#${nextR.toString(16).padStart(2, "0")}${nextG.toString(16).padStart(2, "0")}${nextB.toString(16).padStart(2, "0")}`;
 }
 
+function ensureArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function normalizeOrgStructurePayload(value: unknown): OrgCategory[] {
+  return ensureArray<any>(value)
+    .map((group) => {
+      if (!group || typeof group !== "object") return null;
+
+      const category = String(group.category || "").trim();
+      if (!category) return null;
+
+      return {
+        category,
+        icon: String(group.icon || "Shield").trim() || "Shield",
+        items: ensureArray<unknown>(group.items)
+          .map((item) => String(item || "").trim())
+          .filter(Boolean),
+      } as OrgCategory;
+    })
+    .filter((group): group is OrgCategory => !!group);
+}
+
 function resolveFileUrl(file?: string) {
   if (!file) return "";
   return file.startsWith("http") ? file : `${BACKEND_BASE_URL}${file}`;
@@ -4017,7 +4040,7 @@ export default function Dashboard() {
     const channel = getCommunityChannel(channelId);
     if (!channel) return baseAccess;
     if (channel.visibility !== "private") return baseAccess;
-    return (channel.allowed_roles || []).includes(userRole as any);
+    return ensureArray<any>(channel.allowed_roles).includes(userRole as any);
   }, [getCommunityChannel, userRole]);
 
   // Granular Access Controls base on hasPermission (Permisos del Sistema Alfa 2026)
@@ -4083,6 +4106,9 @@ export default function Dashboard() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [gerencias, setGerencias] = useState<any[]>([]);
+  const safeDocuments = ensureArray<Document>(documents);
+  const safeUsers = ensureArray<any>(users);
+  const safeGerencias = ensureArray<any>(gerencias);
   const previousUnreadIncomingIdsRef = useRef<Set<string>>(new Set());
   const inboxBaselineReadyRef = useRef(false);
   const playInboxAlert = useCallback(() => {
@@ -4126,13 +4152,13 @@ export default function Dashboard() {
   }, [hasPermission, user?.gerencia_depto, user?.gerencia_id, user?.id]);
 
   const unreadInboxCount = useMemo(
-    () => documents.filter((doc) => isIncomingDocumentForUser(doc) && !doc.leido).length,
-    [documents, isIncomingDocumentForUser],
+    () => safeDocuments.filter((doc) => isIncomingDocumentForUser(doc) && !doc.leido).length,
+    [safeDocuments, isIncomingDocumentForUser],
   );
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const data = await getDocumentos();
+      const data = ensureArray<any>(await getDocumentos());
 
       const mappedDocs = data.map((d: any) => {
         // Fechas seguras
@@ -4268,22 +4294,24 @@ export default function Dashboard() {
       setDocuments(mappedDocs as any);
     } catch (e) {
       console.error("Error fetching documents", e);
+      setDocuments([]);
     }
   }, [isIncomingDocumentForUser, playInboxAlert]);
 
   const fetchGerencias = useCallback(async () => {
     try {
       const data = await getGerencias();
-      setGerencias(data);
+      setGerencias(ensureArray<any>(data));
     } catch (e) {
       console.error("Error fetching gerencias", e);
+      setGerencias([]);
     }
   }, []);
 
   const fetchUsers = useCallback(async () => {
     try {
       const data = await getAllUsers();
-      setUsers(data || []);
+      setUsers(ensureArray<any>(data));
     } catch (e) {
       console.error("Error fetching users", e);
       setUsers([]);
@@ -4292,7 +4320,7 @@ export default function Dashboard() {
 
   const fetchTickets = useCallback(async () => {
     try {
-      const rows = await getTickets();
+      const rows = ensureArray<any>(await getTickets());
       const mapped: Ticket[] = rows.map((t: any) => ({
         id: t.id,
         title: t.titulo || "Sin Título",
@@ -4322,6 +4350,7 @@ export default function Dashboard() {
       setTickets(mapped);
     } catch (e) {
       console.error("Error fetching tickets", e);
+      setTickets([]);
     }
   }, []);
 
@@ -4472,6 +4501,8 @@ export default function Dashboard() {
 
   // Organizational Structure State
   const [orgStructure, setOrgStructure] = useState<OrgCategory[]>([]);
+  const safeTickets = ensureArray<Ticket>(tickets);
+  const safeOrgStructure = normalizeOrgStructurePayload(orgStructure);
 
   useEffect(() => {
     let cancelled = false;
@@ -4480,8 +4511,9 @@ export default function Dashboard() {
       let source: string | undefined;
       try {
         const remote = await getOrgStructure();
-        if (remote?.org_structure?.length) {
-          data = remote.org_structure as OrgCategory[];
+        const remoteOrgStructure = normalizeOrgStructurePayload(remote?.org_structure);
+        if (remoteOrgStructure.length > 0) {
+          data = remoteOrgStructure;
           source = remote.source;
         }
         if (remote?.management_details && typeof remote.management_details === "object") {
@@ -4520,7 +4552,7 @@ export default function Dashboard() {
         });
       }
 
-      if (!cancelled) setOrgStructure(data);
+      if (!cancelled) setOrgStructure(normalizeOrgStructurePayload(data));
     })();
 
     return () => {
@@ -4682,11 +4714,11 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     if (userRole === "Usuario") {
-      const myTickets = tickets.filter((t) => t.ownerId === user?.id);
+      const myTickets = safeTickets.filter((t) => t.ownerId === user?.id);
       const myTicketsOpen = myTickets.filter((t) => t.status === "ABIERTO").length;
       const myTicketsResolved = myTickets.filter((t) => t.status === "RESUELTO").length;
-      const myDocsReceived = documents.filter((d) => canSeeDocumentInInbox(d)).length;
-      const myDocsSent = documents.filter(
+      const myDocsReceived = safeDocuments.filter((d) => canSeeDocumentInInbox(d)).length;
+      const myDocsSent = safeDocuments.filter(
         (d) => !!d.remitente_id && String(d.remitente_id) === String(user?.id),
       ).length;
       return [
@@ -4722,12 +4754,12 @@ export default function Dashboard() {
     }
 
     if (userRole === "CEO" || userRole === "Desarrollador") {
-      const activeUsers = users.filter((u: any) => u?.estado !== false).length;
-      const totalDocs = documents.length;
-      const pendingDocs = documents.filter(
+      const activeUsers = safeUsers.filter((u: any) => u?.estado !== false).length;
+      const totalDocs = safeDocuments.length;
+      const pendingDocs = safeDocuments.filter(
         (d) => d.signatureStatus === "en-proceso" || d.signatureStatus === "pendiente",
       ).length;
-      const totalTicketsOpen = tickets.filter((t) => t.status === "ABIERTO").length;
+      const totalTicketsOpen = safeTickets.filter((t) => t.status === "ABIERTO").length;
       return [
         {
           title: "Usuarios Activos",
@@ -4748,7 +4780,7 @@ export default function Dashboard() {
         {
           title: "Tickets Abiertos",
           value: String(totalTicketsOpen),
-          subtext: `De ${tickets.length} totales`,
+          subtext: `De ${safeTickets.length} totales`,
           icon: Tag,
           trend: totalTicketsOpen === 0 ? "Sin pendientes" : "Pendientes",
           trendPositive: totalTicketsOpen === 0,
@@ -4765,9 +4797,9 @@ export default function Dashboard() {
     }
 
     // Administrativo / Gerente
-    const totalTickets = tickets.length;
-    const openTickets = tickets.filter((t) => t.status === "ABIERTO").length;
-    const pendingDocs = documents.filter(
+    const totalTickets = safeTickets.length;
+    const openTickets = safeTickets.filter((t) => t.status === "ABIERTO").length;
+    const pendingDocs = safeDocuments.filter(
       (d) => d.signatureStatus === "en-proceso" || d.signatureStatus === "pendiente",
     ).length;
     return [
@@ -4794,7 +4826,7 @@ export default function Dashboard() {
         trendPositive: unreadInboxCount === 0,
       },
     ];
-  }, [userRole, tickets, documents, users, user?.id, user?.gerencia_depto, unreadInboxCount, canSeeDocumentInInbox]);
+  }, [userRole, safeTickets, safeDocuments, safeUsers, user?.id, user?.gerencia_depto, unreadInboxCount, canSeeDocumentInInbox]);
 
   const toggleCategory = (index: number) => {
     setExpandedCategories((prev) =>
@@ -4812,7 +4844,7 @@ export default function Dashboard() {
 
   const dedupeDeptItems = useCallback((items: string[]) => {
     const seen = new Set<string>();
-    return (items || []).filter((item) => {
+    return ensureArray<string>(items).filter((item) => {
       const key = normalizeDept(item);
       if (!key || seen.has(key)) return false;
       seen.add(key);
@@ -4824,8 +4856,8 @@ export default function Dashboard() {
     userRole === "Desarrollador" || userRole === "Administrativo" || userRole === "CEO";
 
   const effectiveOrgStructure = useMemo(() => {
-    const source: OrgCategory[] = orgStructure.length > 0
-      ? orgStructure
+    const source: OrgCategory[] = safeOrgStructure.length > 0
+      ? safeOrgStructure
       : (JSON.parse(JSON.stringify(DEFAULT_ORG_STRUCTURE)) as OrgCategory[]);
     const base = source.map((group) => ({
       ...group,
@@ -4840,14 +4872,16 @@ export default function Dashboard() {
     return base
       .map((group: OrgCategory) => ({
         ...group,
-        items: dedupeDeptItems((group.items || []).filter((item: string) => normalizeDept(item) === myDept)),
+        items: dedupeDeptItems(
+          ensureArray<string>(group.items).filter((item: string) => normalizeDept(item) === myDept),
+        ),
       }))
       .filter((group: OrgCategory) => group.items.length > 0);
-  }, [orgStructure, canViewAllGerencias, dedupeDeptItems, normalizeDept, user?.gerencia_depto]);
+  }, [safeOrgStructure, canViewAllGerencias, dedupeDeptItems, normalizeDept, user?.gerencia_depto]);
 
   if (!mounted) return null;
 
-  const announcementBaseColor = normalizeHexColor(announcement?.color, "#0ea5e9");
+  const announcementBaseColor = normalizeHexColor(announcement?.color, "#0DA67B");
   const announcementStartColor = shiftHexColor(announcementBaseColor, -12);
   const announcementEndColor = shiftHexColor(announcementBaseColor, 20);
   const announcementBadgeColor = shiftHexColor(announcementBaseColor, -18);
@@ -4861,7 +4895,7 @@ export default function Dashboard() {
             userRole={userRole}
             user={user}
             isReadOnly={isReadOnly}
-            documents={documents}
+            documents={safeDocuments}
             hasPermission={hasPermission}
             refreshDocs={fetchDocuments}
           />
@@ -4879,7 +4913,7 @@ export default function Dashboard() {
             userDept={user?.gerencia_depto || ""}
             currentUser={user?.nombre + " " + user?.apellido}
             currentUserId={user?.id || ""}
-            tickets={tickets}
+            tickets={safeTickets}
             hasPermission={hasPermission}
             refreshTickets={fetchTickets}
           />
@@ -4894,13 +4928,13 @@ export default function Dashboard() {
             darkMode={darkMode}
             userRole={userRole}
             userDept={user?.gerencia_depto || "Usuario"}
-            documents={documents}
+            documents={safeDocuments}
             setDocuments={setDocuments}
             orgStructure={effectiveOrgStructure}
             hasPermission={hasPermission}
             user={user}
-            users={users}
-            gerencias={gerencias}
+            users={safeUsers}
+            gerencias={safeGerencias}
             refreshDocs={fetchDocuments}
           />
         ) : (
@@ -4914,10 +4948,10 @@ export default function Dashboard() {
             darkMode={darkMode}
             announcement={announcement}
             setAnnouncement={setAnnouncement}
-            documents={documents}
+            documents={safeDocuments}
             setDocuments={setDocuments}
             userRole={userRole}
-            orgStructure={orgStructure}
+            orgStructure={safeOrgStructure}
             setOrgStructure={setOrgStructure}
           />
         ) : (
@@ -4929,8 +4963,8 @@ export default function Dashboard() {
         return canAccessStats ? (
           <ChartsModule
             darkMode={darkMode}
-            documents={documents}
-            tickets={tickets}
+            documents={safeDocuments}
+            tickets={safeTickets}
             orgStructure={effectiveOrgStructure}
             userRole={userRole}
             userId={user?.id ? String(user.id) : undefined}
@@ -4954,7 +4988,7 @@ export default function Dashboard() {
         return canAccessRoadmap ? (
           <HojaDeRuta
             darkMode={darkMode}
-            users={users}
+            users={safeUsers}
             userRole={userRole}
             currentUserId={user?.id ? String(user.id) : ""}
           />
